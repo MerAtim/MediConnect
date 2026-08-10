@@ -1,4 +1,4 @@
-package com.medconnect.domain.model.com.medconnect.domain.model;
+package com.medconnect.domain.model;
 
 public class Usuario {
 
