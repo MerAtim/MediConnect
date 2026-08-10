@@ -1,0 +1,22 @@
+# Java
+/target/
+*.class
+*.jar
+*.war
+*.ear
+
+# IntelliJ
+/.idea/
+*.iml
+
+# VS Code
+.vscode/
+
+# Node
+/node_modules/
+/dist/
+/build/
+
+# Environment
+.env
+.env.*
