@@ -1,21 +1,23 @@
 package com.medconnect.domain.model;
 
+import java.time.LocalDateTime;
+
 public class Turno {
 
     private Long id;
-    private String fecha;
-    private String hora;
+    private LocalDateTime fechaHora;
     private String especialidad;
-    private String medico;
-    private String paciente;
+    private Medico medico;
+    private Paciente paciente;
+    private TurnoEstado estado;
 
-    public Turno(Long id, String fecha, String hora, String especialidad, String medico, String paciente) {
+    public Turno(Long id, LocalDateTime fechaHora, String especialidad, Medico medico, Paciente paciente, TurnoEstado estado) {
         this.id = id;
-        this.fecha = fecha;
-        this.hora = hora;
+        this.fechaHora = fechaHora;
         this.especialidad = especialidad;
         this.medico = medico;
         this.paciente = paciente;
+        this.estado = estado;
     }
 
     public Long getId() {
@@ -26,20 +28,12 @@ public class Turno {
         this.id = id;
     }
 
-    public String getFecha() {
-        return fecha;
+    public LocalDateTime getFechaHora() {
+        return fechaHora;
     }
 
-    public void setFecha(String fecha) {
-        this.fecha = fecha;
-    }
-
-    public String getHora() {
-        return hora;
-    }
-
-    public void setHora(String hora) {
-        this.hora = hora;
+    public void setFechaHora(LocalDateTime fechaHora) {
+        this.fechaHora = fechaHora;
     }
 
     public String getEspecialidad() {
@@ -50,26 +44,34 @@ public class Turno {
         this.especialidad = especialidad;
     }
 
-    public String getMedico() {
+    public Medico getMedico() {
         return medico;
     }
 
-    public void setMedico(String medico) {
+    public void setMedico(Medico medico) {
         this.medico = medico;
     }
 
-    public String getPaciente() {
+    public Paciente getPaciente() {
         return paciente;
     }
 
-    public void setPaciente(String paciente) {
+    public void setPaciente(Paciente paciente) {
         this.paciente = paciente;
+    }
+
+    public TurnoEstado getEstado() {
+        return estado;
+    }
+
+    public void setEstado(TurnoEstado estado) {
+        this.estado = estado;
     }
 
     @Override
     public String toString() {
-        return "Turno id: " + id + ", fecha: " + fecha + ", hora: " + hora + ", especialidad: " + especialidad
-                + ", medico: " + medico + ", paciente: " + paciente;
-    }
+        return "Turno id: " + id + ", fechaHora: " + fechaHora + ", especialidad: " + especialidad + ", medico: " + medico
+                + ", paciente: " + paciente + ", estado: " + estado;
+    }   
         
 }
