@@ -1,4 +1,5 @@
-# MedConnect
+# <center> MediConnect <br><br><img width="656" height="444" alt="Gemini_Generated_Image_eu3no2eu3no2eu3n" src="https://github.com/user-attachments/assets/28380c29-4c0a-4b1c-917c-b0f8ce626c3a" />
+
 
 Plataforma web Full Stack para gestión de clínicas médicas con reservas, agendas, historiales y facturación automatizada.
 
