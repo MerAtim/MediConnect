@@ -1,2 +1,5 @@
 com\medconnect\application\usecase\CrearTurnoServiceTest.class
 com\medconnect\interfaces\rest\TurnoControllerTest.class
+com\medconnect\integration\CrearTurnoIntegrationTest.class
+com\medconnect\integration\CrearTurnoIntegrationTest$InMemoryTurnoRepository.class
+com\medconnect\integration\CrearTurnoIntegrationTest$TestConfig.class
