@@ -1,0 +1,12 @@
+com\medconnect\domain\model\Medico.class
+com\medconnect\domain\model\Paciente.class
+com\medconnect\domain\port\TurnoRepository.class
+com\medconnect\application\usecase\CrearTurnoUseCase.class
+com\medconnect\domain\model\UsuarioRole.class
+com\medconnect\domain\model\Turno.class
+com\medconnect\domain\model\TurnoEstado.class
+com\medconnect\application\usecase\CrearTurnoService.class
+com\medconnect\application\usecase\CreateTurnoRequest.class
+com\medconnect\MedConnectApplication.class
+com\medconnect\application\usecase\CreateTurnoResponse.class
+com\medconnect\domain\model\Usuario.class
