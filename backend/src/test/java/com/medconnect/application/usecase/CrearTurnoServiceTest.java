@@ -8,6 +8,7 @@ import org.mockito.Mockito;
 import java.time.LocalDateTime;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
@@ -35,5 +36,26 @@ public class CrearTurnoServiceTest {
         CreateTurnoResponse resp = service.crear(req);
 
         assertEquals(1L, resp.getId());
+    }
+
+    @Test
+    public void crearTurno_lanzaExcepcion_siMedicoNoDisponible() {
+        TurnoRepository repo = Mockito.mock(TurnoRepository.class);
+
+        // Simular que ya existe un turno a la misma fecha para el médico
+        when(repo.buscarPorMedico(2L)).thenReturn(java.util.List.of(
+                new Turno(10L, LocalDateTime.of(2026, 8, 12, 10, 0), "Cardiología", null, null, null)
+        ));
+
+        CrearTurnoService service = new CrearTurnoService(repo);
+
+        CreateTurnoRequest req = new CreateTurnoRequest(
+                LocalDateTime.of(2026, 8, 12, 10, 0),
+                "Cardiología",
+                2L,
+                3L
+        );
+
+        assertThrows(RuntimeException.class, () -> service.crear(req));
     }
 }

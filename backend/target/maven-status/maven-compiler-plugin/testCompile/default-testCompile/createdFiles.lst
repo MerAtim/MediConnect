@@ -1,1 +1,2 @@
 com\medconnect\application\usecase\CrearTurnoServiceTest.class
+com\medconnect\interfaces\rest\TurnoControllerTest.class
