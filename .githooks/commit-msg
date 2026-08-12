@@ -1,0 +1,20 @@
+#!/bin/sh
+# Commit message hook to enforce conventional-style commits in Spanish
+# Pattern: type(scope): mensaje breve
+# Allowed types: feat|fix|chore|refactor|docs|test|ci
+
+MSG_FILE="$1"
+MSG=$(head -n1 "$MSG_FILE" | sed -e 's/[\r\n]//g')
+
+PATTERN='^(feat|fix|chore|refactor|docs|test|ci)(\([a-z0-9\-]+\))?:\s.+'
+
+echo "Validando mensaje de commit: '$MSG'"
+
+if echo "$MSG" | grep -Eq "$PATTERN"; then
+  exit 0
+else
+  echo "ERROR: Mensaje de commit inválido. Usa el formato: tipo(scope): mensaje" >&2
+  echo "Tipos permitidos: feat, fix, chore, refactor, docs, test, ci" >&2
+  echo "Ejemplo: feat(turno): implementar caso de uso CrearTurno" >&2
+  exit 1
+fi

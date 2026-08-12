@@ -1,0 +1,7 @@
+target/*
+!target/medconnect-backend-0.0.1-SNAPSHOT.jar
+.mvn/
+.git/
+node_modules/
+README.md
+frontend/
