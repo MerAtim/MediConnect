@@ -1,0 +1,33 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: maven
+
+      - name: Ensure mvnw is executable
+        run: chmod +x backend/mvnw || true
+
+      - name: Build (package)
+        working-directory: backend
+        run: ./mvnw -B -DskipTests package
+
+      - name: Run tests
+        working-directory: backend
+        run: ./mvnw -B test
