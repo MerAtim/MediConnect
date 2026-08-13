@@ -24,10 +24,6 @@ jobs:
       - name: Ensure mvnw is executable
         run: chmod +x backend/mvnw || true
 
-      - name: Build (package)
+      - name: Build and run tests (with coverage)
         working-directory: backend
-        run: ./mvnw -B -DskipTests package
-
-      - name: Run tests
-        working-directory: backend
-        run: ./mvnw -B test
+        run: ./mvnw -B verify
