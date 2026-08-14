@@ -42,6 +42,11 @@ public class CrearTurnoIntegrationTest {
         public com.medconnect.application.usecase.CrearTurnoUseCase crearTurnoUseCase(TurnoRepository repo) {
             return new com.medconnect.application.usecase.CrearTurnoService(repo);
         }
+
+        @Bean
+        public com.medconnect.application.usecase.BuscarTurnoUseCase buscarTurnoUseCase(TurnoRepository repo) {
+            return new com.medconnect.application.usecase.BuscarTurnoService(repo);
+        }
     }
 
     @Test
