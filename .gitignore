@@ -20,3 +20,7 @@
 # Environment
 .env
 .env.*
+
+# Claude Code (local/personal settings — pueden contener rutas o
+# fragmentos de comandos con datos sensibles del entorno local)
+.claude/settings.local.json

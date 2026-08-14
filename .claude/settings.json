@@ -1,0 +1,31 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(curl -s -X POST http://localhost:8080/api/turnos -H 'Content-Type: application/json' -d '{\"fechaHora\":\"2026-08-20T10:00:00\",\"especialidad\":\"Cardiología\",\"medicoId\":2,\"pacienteId\":3}' -w '\\\\nHTTP %{http_code}\\\\n')",
+      "Bash(curl -s http://localhost:8080/api/turnos -w \"\\\\nHTTP %{http_code}\\\\n\")",
+      "Bash(curl -s http://localhost:8080/api/turnos/1 -w \"\\\\nHTTP %{http_code}\\\\n\")",
+      "Bash(curl -s http://localhost:8080/api/turnos/999 -w \"\\\\nHTTP %{http_code}\\\\n\")",
+      "Bash(curl -s \"http://localhost:8080/api/turnos?medicoId=2\" -w \"\\\\nHTTP %{http_code}\\\\n\")",
+      "Bash(curl -s -i -X POST http://localhost:8080/api/turnos -H 'Content-Type: application/json' -d '{\"fechaHora\":\"2026-08-20T10:00:00\",\"especialidad\":\"Cardiología\",\"medicoId\":2,\"pacienteId\":3}')",
+      "Bash(xxd 'C:\\\\Users\\\\Mechi\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\c--Users-Mechi-Desktop-Proyectos-Proyecto-1\\\\aa65fae7-2a42-4f00-b144-bfeb3458872f\\\\scratchpad\\\\turno_test.json')",
+      "Bash(PGPASSWORD=* \"/c/Program Files/PostgreSQL/17/bin/psql.exe\" -h localhost -p 5432 -U postgres -d medconnect -c \"SELECT id, fecha_hora, especialidad, medico_id, paciente_id, estado FROM turnos;\")",
+      "Bash(chromium-cli --help)",
+      "Bash(npx --no-install playwright --version)",
+      "Bash(npm ls *)",
+      "Read(//c/Users/Mechi/AppData/Local/**)",
+      "Bash(mkdir -p \"C:\\\\Users\\\\Mechi\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\c--Users-Mechi-Desktop-Proyectos-Proyecto-1\\\\aa65fae7-2a42-4f00-b144-bfeb3458872f\\\\scratchpad\\\\pw\")",
+      "Bash(npm init *)",
+      "Bash(npm install *)",
+      "Bash(npx playwright *)",
+      "Bash(DB_PASSWORD=* ./mvnw.cmd spring-boot:run)",
+      "Bash(echo \"backend launcher pid $!\")",
+      "Bash(npm run *)",
+      "Bash(echo \"frontend launcher pid $!\")",
+      "Bash(curl -sf http://localhost:5173)",
+      "Bash(node check.mjs)",
+      "Bash(git commit -m ' *)",
+      "Bash(git check-ignore *)",
+      "Bash(echo \"exit: $?\")"
+    ]
+  }
+}
