@@ -90,5 +90,10 @@ public class CrearTurnoIntegrationTest {
             }
             return out;
         }
+
+        @Override
+        public List<Turno> buscarTodos() {
+            return new ArrayList<>(store);
+        }
     }
 }

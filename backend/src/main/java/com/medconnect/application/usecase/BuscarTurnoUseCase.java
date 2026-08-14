@@ -1,12 +1,11 @@
-package com.medconnect.domain.port;
+package com.medconnect.application.usecase;
 
 import com.medconnect.domain.model.Turno;
+
 import java.util.List;
 import java.util.Optional;
 
-public interface TurnoRepository {
-
-    Turno guardar(Turno turno);
+public interface BuscarTurnoUseCase {
 
     Optional<Turno> buscarPorId(Long id);
 
