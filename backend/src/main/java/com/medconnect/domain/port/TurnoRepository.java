@@ -13,4 +13,6 @@ public interface TurnoRepository {
     List<Turno> buscarPorMedico(Long medicoId);
 
     List<Turno> buscarPorPaciente(Long pacienteId);
+
+    List<Turno> buscarTodos();
 }
