@@ -13,9 +13,9 @@
 .vscode/
 
 # Node
-/node_modules/
-/dist/
-/build/
+**/node_modules/
+**/dist/
+**/build/
 
 # Environment
 .env
