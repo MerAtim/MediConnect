@@ -6,10 +6,11 @@ import com.medconnect.domain.model.Medico;
 import com.medconnect.domain.model.Turno;
 import com.medconnect.domain.model.TurnoEstado;
 import com.medconnect.domain.port.TurnoRepository;
+import org.springframework.stereotype.Service;
 
 import java.util.List;
 
-
+@Service
 public class CrearTurnoService implements CrearTurnoUseCase {
 
     private final TurnoRepository turnoRepository;
