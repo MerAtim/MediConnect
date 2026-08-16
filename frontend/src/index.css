@@ -13,7 +13,7 @@
      comparta el mismo look de botones/forms/tarjetas/badges. */
 
   .card {
-    @apply bg-white rounded-xl shadow-card border border-neutral-200 p-6;
+    @apply bg-paper-50 rounded-xl shadow-card border border-paper-200 p-6;
   }
 
   .heading {

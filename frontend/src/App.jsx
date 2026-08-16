@@ -227,7 +227,7 @@ export default function App(){
           <div className="overflow-x-auto rounded-lg border border-neutral-200">
             <table className="w-full text-sm">
               <thead>
-                <tr className="bg-neutral-50 text-left text-neutral-500">
+                <tr className="bg-paper-100 text-left text-neutral-500">
                   <th className="px-4 py-2 font-medium">ID</th>
                   <th className="px-4 py-2 font-medium">Nombre</th>
                   <th className="px-4 py-2 font-medium">Especialidad</th>
@@ -236,7 +236,7 @@ export default function App(){
               </thead>
               <tbody className="divide-y divide-neutral-100">
                 {medicos.map(m => (
-                  <tr key={m.id} className="hover:bg-neutral-50">
+                  <tr key={m.id} className="hover:bg-paper-100/60">
                     <td className="px-4 py-2 text-neutral-500">{m.id}</td>
                     <td className="px-4 py-2 text-neutral-900">{m.nombre}</td>
                     <td className="px-4 py-2 text-neutral-900">{m.especialidad}</td>
@@ -261,7 +261,7 @@ export default function App(){
           <div className="overflow-x-auto rounded-lg border border-neutral-200">
             <table className="w-full text-sm">
               <thead>
-                <tr className="bg-neutral-50 text-left text-neutral-500">
+                <tr className="bg-paper-100 text-left text-neutral-500">
                   <th className="px-4 py-2 font-medium">ID</th>
                   <th className="px-4 py-2 font-medium">Nombre</th>
                   <th className="px-4 py-2 font-medium">DNI</th>
@@ -272,7 +272,7 @@ export default function App(){
               </thead>
               <tbody className="divide-y divide-neutral-100">
                 {pacientes.map(p => (
-                  <tr key={p.id} className="hover:bg-neutral-50">
+                  <tr key={p.id} className="hover:bg-paper-100/60">
                     <td className="px-4 py-2 text-neutral-500">{p.id}</td>
                     <td className="px-4 py-2 text-neutral-900">{p.nombre}</td>
                     <td className="px-4 py-2 text-neutral-900">{p.dni}</td>
@@ -376,7 +376,7 @@ export default function App(){
           <div className="overflow-x-auto rounded-lg border border-neutral-200">
             <table className="w-full text-sm">
               <thead>
-                <tr className="bg-neutral-50 text-left text-neutral-500">
+                <tr className="bg-paper-100 text-left text-neutral-500">
                   <th className="px-4 py-2 font-medium">ID</th>
                   <th className="px-4 py-2 font-medium">Fecha y hora</th>
                   <th className="px-4 py-2 font-medium">Especialidad</th>
@@ -388,7 +388,7 @@ export default function App(){
               </thead>
               <tbody className="divide-y divide-neutral-100">
                 {turnos.map(t => (
-                  <tr key={t.id} className="hover:bg-neutral-50">
+                  <tr key={t.id} className="hover:bg-paper-100/60">
                     <td className="px-4 py-2 text-neutral-500">{t.id}</td>
                     <td className="px-4 py-2 text-neutral-900">{t.fechaHora}</td>
                     <td className="px-4 py-2 text-neutral-900">{t.especialidad}</td>
