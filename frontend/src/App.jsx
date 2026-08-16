@@ -14,6 +14,24 @@ const ESTADO_BADGE = {
 
 const ROLES = ['ADMINISTRADOR', 'MEDICO', 'PACIENTE']
 
+// Los mensajes nativos de validación del navegador ("Please fill out this
+// field") vienen en el idioma del navegador, no de la página. Los pisamos
+// con el texto en español vía la Constraint Validation API.
+function handleInvalid(e){
+  const el = e.target
+  if(el.validity.valueMissing){
+    el.setCustomValidity(el.tagName === 'SELECT' ? 'Seleccioná una opción' : 'Completá este campo')
+  }else if(el.validity.typeMismatch && el.type === 'email'){
+    el.setCustomValidity('Ingresá un email válido')
+  }else{
+    el.setCustomValidity('')
+  }
+}
+
+function clearValidity(e){
+  e.target.setCustomValidity('')
+}
+
 function EstadoBadge({estado}){
   return <span className={ESTADO_BADGE[estado] ?? 'badge bg-neutral-100 text-neutral-600'}>{estado}</span>
 }
@@ -27,7 +45,8 @@ function FloatingInput({label, type = 'text', value, onChange, required = false,
       <input
         type={type}
         value={value}
-        onChange={onChange}
+        onChange={e => { clearValidity(e); onChange(e) }}
+        onInvalid={handleInvalid}
         onFocus={() => setFocused(true)}
         onBlur={() => setFocused(false)}
         required={required}
@@ -592,7 +611,7 @@ export default function App(){
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="label">Médico</label>
-                <select className="input-field" value={medicoId} onChange={e=>setMedicoId(e.target.value)} required>
+                <select className="input-field" value={medicoId} onChange={e=>{clearValidity(e); setMedicoId(e.target.value)}} onInvalid={handleInvalid} required>
                   <option value="" disabled>Seleccionar médico</option>
                   {medicos.map(m => (
                     <option key={m.id} value={m.id}>{m.nombre} — {m.especialidad}</option>
@@ -601,7 +620,7 @@ export default function App(){
               </div>
               <div>
                 <label className="label">Paciente</label>
-                <select className="input-field" value={pacienteId} onChange={e=>setPacienteId(e.target.value)} required>
+                <select className="input-field" value={pacienteId} onChange={e=>{clearValidity(e); setPacienteId(e.target.value)}} onInvalid={handleInvalid} required>
                   <option value="" disabled>Seleccionar paciente</option>
                   {pacientes.map(p => (
                     <option key={p.id} value={p.id}>{p.nombre} — DNI {p.dni}</option>
