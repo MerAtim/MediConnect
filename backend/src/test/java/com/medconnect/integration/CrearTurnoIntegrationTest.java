@@ -1,7 +1,9 @@
 package com.medconnect.integration;
 
 import com.medconnect.application.usecase.CreateTurnoResponse;
+import com.medconnect.domain.model.Medico;
 import com.medconnect.domain.model.Turno;
+import com.medconnect.domain.port.MedicoRepository;
 import com.medconnect.domain.port.TurnoRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -48,6 +50,21 @@ public class CrearTurnoIntegrationTest {
         @Bean
         public com.medconnect.application.usecase.BuscarTurnoUseCase buscarTurnoUseCase(TurnoRepository repo) {
             return new com.medconnect.application.usecase.BuscarTurnoService(repo);
+        }
+
+        @Bean
+        public MedicoRepository medicoRepository() {
+            return new InMemoryMedicoRepository();
+        }
+
+        @Bean
+        public com.medconnect.application.usecase.CrearMedicoUseCase crearMedicoUseCase(MedicoRepository repo) {
+            return new com.medconnect.application.usecase.CrearMedicoService(repo);
+        }
+
+        @Bean
+        public com.medconnect.application.usecase.BuscarMedicoUseCase buscarMedicoUseCase(MedicoRepository repo) {
+            return new com.medconnect.application.usecase.BuscarMedicoService(repo);
         }
     }
 
@@ -100,6 +117,28 @@ public class CrearTurnoIntegrationTest {
 
         @Override
         public List<Turno> buscarTodos() {
+            return new ArrayList<>(store);
+        }
+    }
+
+    static class InMemoryMedicoRepository implements MedicoRepository {
+        private final List<Medico> store = new ArrayList<>();
+        private long seq = 1;
+
+        @Override
+        public Medico guardar(Medico medico) {
+            medico.setId(seq++);
+            store.add(medico);
+            return medico;
+        }
+
+        @Override
+        public java.util.Optional<Medico> buscarPorId(Long id) {
+            return store.stream().filter(m -> m.getId().equals(id)).findFirst();
+        }
+
+        @Override
+        public List<Medico> buscarTodos() {
             return new ArrayList<>(store);
         }
     }
