@@ -1,16 +1,20 @@
 package com.medconnect.interfaces.rest;
 
+import com.medconnect.application.usecase.ActualizarPacienteUseCase;
 import com.medconnect.application.usecase.BuscarPacienteUseCase;
 import com.medconnect.application.usecase.CreatePacienteRequest;
 import com.medconnect.application.usecase.CreatePacienteResponse;
 import com.medconnect.application.usecase.CrearPacienteUseCase;
+import com.medconnect.application.usecase.EliminarPacienteUseCase;
 import com.medconnect.domain.model.Paciente;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -24,10 +28,15 @@ public class PacienteController {
 
     private final CrearPacienteUseCase crearPacienteUseCase;
     private final BuscarPacienteUseCase buscarPacienteUseCase;
+    private final ActualizarPacienteUseCase actualizarPacienteUseCase;
+    private final EliminarPacienteUseCase eliminarPacienteUseCase;
 
-    public PacienteController(CrearPacienteUseCase crearPacienteUseCase, BuscarPacienteUseCase buscarPacienteUseCase) {
+    public PacienteController(CrearPacienteUseCase crearPacienteUseCase, BuscarPacienteUseCase buscarPacienteUseCase,
+                               ActualizarPacienteUseCase actualizarPacienteUseCase, EliminarPacienteUseCase eliminarPacienteUseCase) {
         this.crearPacienteUseCase = crearPacienteUseCase;
         this.buscarPacienteUseCase = buscarPacienteUseCase;
+        this.actualizarPacienteUseCase = actualizarPacienteUseCase;
+        this.eliminarPacienteUseCase = eliminarPacienteUseCase;
     }
 
     @PostMapping
@@ -57,6 +66,29 @@ public class PacienteController {
     public ResponseEntity<List<PacienteResponse>> buscarTodos() {
         List<Paciente> pacientes = buscarPacienteUseCase.buscarTodos();
         return ResponseEntity.ok(pacientes.stream().map(this::toResponse).toList());
+    }
+
+    @PutMapping("/{id}")
+    public ResponseEntity<PacienteResponse> actualizar(@PathVariable Long id, @RequestBody PacienteRequest request) {
+        CreatePacienteRequest req = new CreatePacienteRequest(
+                request.getNombre(),
+                request.getDni(),
+                request.getTelefono(),
+                request.getDireccion(),
+                request.getObraSocial(),
+                request.getNumeroAfiliado(),
+                request.getPlan(),
+                request.getEmail()
+        );
+        return actualizarPacienteUseCase.actualizar(id, req)
+                .map(paciente -> ResponseEntity.ok(toResponse(paciente)))
+                .orElseGet(() -> ResponseEntity.notFound().build());
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> eliminar(@PathVariable Long id) {
+        boolean eliminado = eliminarPacienteUseCase.eliminar(id);
+        return eliminado ? ResponseEntity.noContent().build() : ResponseEntity.notFound().build();
     }
 
     private PacienteResponse toResponse(Paciente paciente) {

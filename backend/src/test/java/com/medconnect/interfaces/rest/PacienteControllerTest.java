@@ -1,8 +1,10 @@
 package com.medconnect.interfaces.rest;
 
+import com.medconnect.application.usecase.ActualizarPacienteUseCase;
 import com.medconnect.application.usecase.BuscarPacienteUseCase;
 import com.medconnect.application.usecase.CreatePacienteResponse;
 import com.medconnect.application.usecase.CrearPacienteUseCase;
+import com.medconnect.application.usecase.EliminarPacienteUseCase;
 import com.medconnect.domain.exception.PacienteInvalidoException;
 import com.medconnect.domain.model.Paciente;
 import org.junit.jupiter.api.BeforeEach;
@@ -16,9 +18,12 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -27,12 +32,16 @@ public class PacienteControllerTest {
     private MockMvc mockMvc;
     private CrearPacienteUseCase crearPacienteUseCase;
     private BuscarPacienteUseCase buscarPacienteUseCase;
+    private ActualizarPacienteUseCase actualizarPacienteUseCase;
+    private EliminarPacienteUseCase eliminarPacienteUseCase;
 
     @BeforeEach
     public void setup() {
         crearPacienteUseCase = Mockito.mock(CrearPacienteUseCase.class);
         buscarPacienteUseCase = Mockito.mock(BuscarPacienteUseCase.class);
-        PacienteController controller = new PacienteController(crearPacienteUseCase, buscarPacienteUseCase);
+        actualizarPacienteUseCase = Mockito.mock(ActualizarPacienteUseCase.class);
+        eliminarPacienteUseCase = Mockito.mock(EliminarPacienteUseCase.class);
+        PacienteController controller = new PacienteController(crearPacienteUseCase, buscarPacienteUseCase, actualizarPacienteUseCase, eliminarPacienteUseCase);
         mockMvc = MockMvcBuilders.standaloneSetup(controller)
                 .setControllerAdvice(new GlobalExceptionHandler())
                 .build();
@@ -92,5 +101,47 @@ public class PacienteControllerTest {
         mockMvc.perform(get("/api/pacientes"))
                 .andExpect(status().isOk())
                 .andExpect(content().json("[]"));
+    }
+
+    @Test
+    public void actualizar_devuelve200_yBody_siExiste() throws Exception {
+        Paciente paciente = new Paciente(1L, "Juan Gómez", "30111222", null, null, "OSDE", null, "310", null);
+        when(actualizarPacienteUseCase.actualizar(eq(1L), any())).thenReturn(Optional.of(paciente));
+
+        String body = "{\"nombre\":\"Juan Gómez\",\"dni\":\"30111222\",\"obraSocial\":\"OSDE\",\"plan\":\"310\"}";
+
+        mockMvc.perform(put("/api/pacientes/1")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isOk())
+                .andExpect(content().json("{\"id\":1,\"obraSocial\":\"OSDE\",\"plan\":\"310\"}"));
+    }
+
+    @Test
+    public void actualizar_devuelve404_siNoExiste() throws Exception {
+        when(actualizarPacienteUseCase.actualizar(eq(99L), any())).thenReturn(Optional.empty());
+
+        String body = "{\"nombre\":\"Juan Gómez\",\"dni\":\"30111222\"}";
+
+        mockMvc.perform(put("/api/pacientes/99")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    public void eliminar_devuelve204_siExiste() throws Exception {
+        when(eliminarPacienteUseCase.eliminar(1L)).thenReturn(true);
+
+        mockMvc.perform(delete("/api/pacientes/1"))
+                .andExpect(status().isNoContent());
+    }
+
+    @Test
+    public void eliminar_devuelve404_siNoExiste() throws Exception {
+        when(eliminarPacienteUseCase.eliminar(99L)).thenReturn(false);
+
+        mockMvc.perform(delete("/api/pacientes/99"))
+                .andExpect(status().isNotFound());
     }
 }

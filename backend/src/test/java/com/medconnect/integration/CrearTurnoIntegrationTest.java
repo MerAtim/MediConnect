@@ -188,5 +188,10 @@ public class CrearTurnoIntegrationTest {
         public List<Paciente> buscarTodos() {
             return new ArrayList<>(store);
         }
+
+        @Override
+        public void eliminar(Long id) {
+            store.removeIf(p -> p.getId().equals(id));
+        }
     }
 }
