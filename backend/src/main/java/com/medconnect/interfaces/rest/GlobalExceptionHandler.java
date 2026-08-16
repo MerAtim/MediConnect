@@ -1,5 +1,7 @@
 package com.medconnect.interfaces.rest;
 
+import com.medconnect.domain.exception.MedicoInvalidoException;
+import com.medconnect.domain.exception.PacienteInvalidoException;
 import com.medconnect.domain.exception.TurnoInvalidoException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -11,6 +13,16 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(TurnoInvalidoException.class)
     public ResponseEntity<String> handleTurnoInvalido(TurnoInvalidoException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex.getMessage());
+    }
+
+    @ExceptionHandler(MedicoInvalidoException.class)
+    public ResponseEntity<String> handleMedicoInvalido(MedicoInvalidoException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex.getMessage());
+    }
+
+    @ExceptionHandler(PacienteInvalidoException.class)
+    public ResponseEntity<String> handlePacienteInvalido(PacienteInvalidoException ex) {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex.getMessage());
     }
 }
