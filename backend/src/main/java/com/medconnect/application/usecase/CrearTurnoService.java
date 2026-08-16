@@ -5,6 +5,8 @@ import com.medconnect.domain.model.Paciente;
 import com.medconnect.domain.model.Medico;
 import com.medconnect.domain.model.Turno;
 import com.medconnect.domain.model.TurnoEstado;
+import com.medconnect.domain.port.MedicoRepository;
+import com.medconnect.domain.port.PacienteRepository;
 import com.medconnect.domain.port.TurnoRepository;
 import org.springframework.stereotype.Service;
 
@@ -14,9 +16,13 @@ import java.util.List;
 public class CrearTurnoService implements CrearTurnoUseCase {
 
     private final TurnoRepository turnoRepository;
+    private final MedicoRepository medicoRepository;
+    private final PacienteRepository pacienteRepository;
 
-    public CrearTurnoService(TurnoRepository turnoRepository) {
+    public CrearTurnoService(TurnoRepository turnoRepository, MedicoRepository medicoRepository, PacienteRepository pacienteRepository) {
         this.turnoRepository = turnoRepository;
+        this.medicoRepository = medicoRepository;
+        this.pacienteRepository = pacienteRepository;
     }
 
     @Override
@@ -33,6 +39,12 @@ public class CrearTurnoService implements CrearTurnoUseCase {
         }
         if (request.getEspecialidad() == null || request.getEspecialidad().trim().isEmpty()) {
             throw new TurnoInvalidoException("especialidad es obligatoria");
+        }
+        if (medicoRepository.buscarPorId(request.getMedicoId()).isEmpty()) {
+            throw new TurnoInvalidoException("El médico indicado no existe");
+        }
+        if (pacienteRepository.buscarPorId(request.getPacienteId()).isEmpty()) {
+            throw new TurnoInvalidoException("El paciente indicado no existe");
         }
 
         // Verificar solapamiento: mismo médico y misma fechaHora

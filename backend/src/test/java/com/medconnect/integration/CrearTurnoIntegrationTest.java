@@ -35,6 +35,12 @@ public class CrearTurnoIntegrationTest {
     @Autowired
     private MockMvc mockMvc;
 
+    @Autowired
+    private MedicoRepository medicoRepository;
+
+    @Autowired
+    private PacienteRepository pacienteRepository;
+
     // Uses in-memory TurnoRepository defined in TestConfig
 
     @TestConfiguration
@@ -45,8 +51,8 @@ public class CrearTurnoIntegrationTest {
         }
 
         @Bean
-        public com.medconnect.application.usecase.CrearTurnoUseCase crearTurnoUseCase(TurnoRepository repo) {
-            return new com.medconnect.application.usecase.CrearTurnoService(repo);
+        public com.medconnect.application.usecase.CrearTurnoUseCase crearTurnoUseCase(TurnoRepository repo, MedicoRepository medicoRepo, PacienteRepository pacienteRepo) {
+            return new com.medconnect.application.usecase.CrearTurnoService(repo, medicoRepo, pacienteRepo);
         }
 
         @Bean
@@ -87,8 +93,11 @@ public class CrearTurnoIntegrationTest {
 
     @Test
     public void crearTurno_endToEnd() throws Exception {
+        Medico medico = medicoRepository.guardar(new Medico(null, "Ana Pérez", "Cardiología", "MP1", null, null, null, null));
+        Paciente paciente = pacienteRepository.guardar(new Paciente(null, "Juan Gómez", "30111222", null, null, null, null));
+
         // POST válido -> 201
-        String body = "{\"fechaHora\":\"2026-08-12T12:00:00\",\"especialidad\":\"Traumatología\",\"medicoId\":11,\"pacienteId\":13}";
+        String body = "{\"fechaHora\":\"2026-08-12T12:00:00\",\"especialidad\":\"Traumatología\",\"medicoId\":" + medico.getId() + ",\"pacienteId\":" + paciente.getId() + "}";
 
         mockMvc.perform(post("/api/turnos").contentType("application/json").content(body))
                 .andExpect(status().isCreated());
