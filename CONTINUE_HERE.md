@@ -2,7 +2,7 @@
 
 Este archivo se mantiene actualizado al final de cada sesión de trabajo para que,
 aunque pasen días sin conectarte, se pueda seguir sin releer el proyecto entero.
-Última actualización: **2026-08-16**, tras mergear PR #12 (editar/eliminar médico y paciente).
+Última actualización: **2026-08-16**, tras mergear PR #13 (exponer dirección en el frontend).
 
 ## Stack y arquitectura
 
@@ -68,6 +68,10 @@ aunque pasen días sin conectarte, se pueda seguir sin releer el proyecto entero
   - Sección "Médicos": un solo form sirve para alta y edición (botón "Editar"
     por fila precarga los datos, cambia a "Guardar cambios" y hace PUT; botón
     "Cancelar" vuelve a modo alta). Botón "Eliminar" pide confirmación (`window.confirm`).
+    Ambos forms incluyen `direccion` (existía en el backend desde el principio
+    pero no estaba expuesta en la UI hasta el PR #13 — antes de asumir que un
+    campo "falta", conviene revisar si ya está en el modelo/API y solo no se
+    muestra en el frontend).
   - Sección "Pacientes": mismo patrón de alta/edición/eliminación.
   - Sección "Crear turno": selects de médico/paciente (poblados desde las APIs
     de arriba, ya no son inputs numéricos de ID).
@@ -182,6 +186,8 @@ curl http://localhost:8080/api/pacientes
 11. `feature/editar-eliminar-medico-paciente` (PR #12) — `PUT`/`DELETE` para
     Médico y Paciente, eliminar es soft delete (`activo=false`), edición y
     borrado con confirmación en el frontend
+12. `feature/direccion-medico-paciente-frontend` (PR #13) — exponer el campo
+    `direccion` (ya existía en el backend) en los forms y tablas del frontend
 
 ## Siguientes pasos sugeridos (sin decidir aún — preguntale al usuario)
 
