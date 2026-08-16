@@ -14,8 +14,67 @@ const ESTADO_BADGE = {
 
 const ROLES = ['ADMINISTRADOR', 'MEDICO', 'PACIENTE']
 
+// Los mensajes nativos de validación del navegador ("Please fill out this
+// field") vienen en el idioma del navegador, no de la página. Los pisamos
+// con el texto en español vía la Constraint Validation API.
+function handleInvalid(e){
+  const el = e.target
+  if(el.validity.valueMissing){
+    el.setCustomValidity(el.tagName === 'SELECT' ? 'Seleccioná una opción' : 'Completá este campo')
+  }else if(el.validity.typeMismatch && el.type === 'email'){
+    el.setCustomValidity('Ingresá un email válido')
+  }else{
+    el.setCustomValidity('')
+  }
+}
+
+function clearValidity(e){
+  e.target.setCustomValidity('')
+}
+
+// El backend devuelve los errores como texto plano (no JSON), así que
+// resp.json() falla en silencio y perdemos el mensaje real. Leemos el body
+// como texto siempre y probamos parsearlo como JSON por si acaso.
+async function readErrorMessage(resp){
+  const text = await resp.text().catch(() => '')
+  try{
+    const json = JSON.parse(text)
+    return typeof json === 'string' ? json : (json?.message ?? `HTTP ${resp.status}`)
+  }catch{
+    return text || `HTTP ${resp.status}`
+  }
+}
+
 function EstadoBadge({estado}){
   return <span className={ESTADO_BADGE[estado] ?? 'badge bg-neutral-100 text-neutral-600'}>{estado}</span>
+}
+
+function ToastContainer({toasts}){
+  if(toasts.length === 0) return null
+  return (
+    <div className="fixed bottom-4 right-4 z-50 flex flex-col gap-2 w-full max-w-sm px-4 sm:px-0">
+      {toasts.map(t => (
+        <div
+          key={t.id}
+          className={`toast ${t.type === 'success' ? 'toast-success' : 'toast-error'} ${t.leaving ? 'toast-leaving' : ''}`}
+        >
+          {t.message}
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function SkeletonRows({columns, rows = 3}){
+  return Array.from({length: rows}).map((_, i) => (
+    <tr key={i}>
+      {Array.from({length: columns}).map((_, j) => (
+        <td key={j} className="px-4 py-3">
+          <div className="skeleton" style={{width: `${60 + (j * 13) % 35}%`}} />
+        </td>
+      ))}
+    </tr>
+  ))
 }
 
 function FloatingInput({label, type = 'text', value, onChange, required = false, className = ''}){
@@ -27,7 +86,8 @@ function FloatingInput({label, type = 'text', value, onChange, required = false,
       <input
         type={type}
         value={value}
-        onChange={onChange}
+        onChange={e => { clearValidity(e); onChange(e) }}
+        onInvalid={handleInvalid}
         onFocus={() => setFocused(true)}
         onBlur={() => setFocused(false)}
         required={required}
@@ -46,14 +106,13 @@ function FloatingInput({label, type = 'text', value, onChange, required = false,
   )
 }
 
-function LoginScreen({onLoginExitoso}){
+function LoginScreen({onLoginExitoso, notify}){
   const [modo, setModo] = useState('login')
   const [email, setEmail] = useState('')
   const [contrasena, setContrasena] = useState('')
   const [nombre, setNombre] = useState('')
   const [role, setRole] = useState('PACIENTE')
   const [loading, setLoading] = useState(false)
-  const [error, setError] = useState(null)
 
   async function iniciarSesion(emailParam, contrasenaParam){
     const resp = await fetch(`${AUTH_API}/login`, {
@@ -61,19 +120,17 @@ function LoginScreen({onLoginExitoso}){
       headers: {'Content-Type':'application/json'},
       body: JSON.stringify({email: emailParam, contrasena: contrasenaParam})
     })
-    const data = await resp.json().catch(() => null)
-    if(!resp.ok) throw new Error(typeof data === 'string' ? data : `HTTP ${resp.status}`)
-    onLoginExitoso(data)
+    if(!resp.ok) throw new Error(await readErrorMessage(resp))
+    onLoginExitoso(await resp.json())
   }
 
   async function handleLogin(e){
     e.preventDefault()
     setLoading(true)
-    setError(null)
     try{
       await iniciarSesion(email, contrasena)
     }catch(err){
-      setError(err.message)
+      notify(err.message)
     }finally{
       setLoading(false)
     }
@@ -82,18 +139,17 @@ function LoginScreen({onLoginExitoso}){
   async function handleRegistro(e){
     e.preventDefault()
     setLoading(true)
-    setError(null)
     try{
       const resp = await fetch(`${AUTH_API}/registro`, {
         method: 'POST',
         headers: {'Content-Type':'application/json'},
         body: JSON.stringify({nombre, email, contrasena, role})
       })
-      const data = await resp.json().catch(() => null)
-      if(!resp.ok) throw new Error(typeof data === 'string' ? data : `HTTP ${resp.status}`)
+      if(!resp.ok) throw new Error(await readErrorMessage(resp))
+      notify('Cuenta creada.', 'success')
       await iniciarSesion(email, contrasena)
     }catch(err){
-      setError(err.message)
+      notify(err.message)
     }finally{
       setLoading(false)
     }
@@ -109,7 +165,6 @@ function LoginScreen({onLoginExitoso}){
           <form onSubmit={handleLogin} className="space-y-4">
             <FloatingInput label="Email" type="email" value={email} onChange={e=>setEmail(e.target.value)} required />
             <FloatingInput label="Contraseña" type="password" value={contrasena} onChange={e=>setContrasena(e.target.value)} required />
-            {error && <p className="text-sm text-danger-600">Error: {error}</p>}
             <button type="submit" disabled={loading} className="btn-primary w-full">
               {loading ? 'Ingresando…' : 'Ingresar'}
             </button>
@@ -122,7 +177,6 @@ function LoginScreen({onLoginExitoso}){
             <select className="input-field" value={role} onChange={e=>setRole(e.target.value)}>
               {ROLES.map(r => <option key={r} value={r}>{r}</option>)}
             </select>
-            {error && <p className="text-sm text-danger-600">Error: {error}</p>}
             <button type="submit" disabled={loading} className="btn-primary w-full">
               {loading ? 'Creando cuenta…' : 'Crear cuenta'}
             </button>
@@ -131,7 +185,7 @@ function LoginScreen({onLoginExitoso}){
 
         <button
           type="button"
-          onClick={() => { setModo(modo === 'login' ? 'registro' : 'login'); setError(null) }}
+          onClick={() => setModo(modo === 'login' ? 'registro' : 'login')}
           className="mt-4 text-sm text-primary-700 hover:underline w-full text-center"
         >
           {modo === 'login' ? '¿No tenés cuenta? Registrate' : '¿Ya tenés cuenta? Iniciá sesión'}
@@ -141,7 +195,7 @@ function LoginScreen({onLoginExitoso}){
   )
 }
 
-function MedicoForm({medico, token, onGuardado, onCancelarEdicion}){
+function MedicoForm({medico, token, onGuardado, onCancelarEdicion, notify}){
   const isEditing = !!medico
   const [nombre, setNombre] = useState(medico?.nombre ?? '')
   const [especialidad, setEspecialidad] = useState(medico?.especialidad ?? '')
@@ -150,12 +204,10 @@ function MedicoForm({medico, token, onGuardado, onCancelarEdicion}){
   const [direccion, setDireccion] = useState(medico?.direccion ?? '')
   const [email, setEmail] = useState(medico?.email ?? '')
   const [loading, setLoading] = useState(false)
-  const [error, setError] = useState(null)
 
   async function handleSubmit(e){
     e.preventDefault()
     setLoading(true)
-    setError(null)
     try{
       const url = isEditing ? `${MEDICOS_API}/${medico.id}` : MEDICOS_API
       const resp = await fetch(url, {
@@ -163,12 +215,12 @@ function MedicoForm({medico, token, onGuardado, onCancelarEdicion}){
         headers: {'Content-Type':'application/json', 'Authorization': `Bearer ${token}`},
         body: JSON.stringify({nombre, especialidad, matricula, telefono, direccion, email})
       })
-      const data = await resp.json().catch(() => null)
-      if(!resp.ok) throw new Error(typeof data === 'string' ? data : `HTTP ${resp.status}`)
+      if(!resp.ok) throw new Error(await readErrorMessage(resp))
       if(!isEditing){ setNombre(''); setEspecialidad(''); setMatricula(''); setTelefono(''); setDireccion(''); setEmail('') }
+      notify(isEditing ? 'Cambios guardados.' : 'Médico agregado.', 'success')
       await onGuardado()
     }catch(err){
-      setError(err.message)
+      notify(err.message)
     }finally{
       setLoading(false)
     }
@@ -182,7 +234,6 @@ function MedicoForm({medico, token, onGuardado, onCancelarEdicion}){
       <FloatingInput label="Teléfono" value={telefono} onChange={e=>setTelefono(e.target.value)} />
       <FloatingInput className="sm:col-span-2" label="Dirección" value={direccion} onChange={e=>setDireccion(e.target.value)} />
       <FloatingInput className="sm:col-span-2" label="Email" value={email} onChange={e=>setEmail(e.target.value)} />
-      {error && <p className="sm:col-span-2 text-sm text-danger-600">Error: {error}</p>}
       <div className="sm:col-span-2 flex gap-3">
         <button type="submit" disabled={loading} className="btn-primary sm:w-fit">
           {loading ? 'Guardando…' : isEditing ? 'Guardar cambios' : 'Agregar médico'}
@@ -197,7 +248,7 @@ function MedicoForm({medico, token, onGuardado, onCancelarEdicion}){
   )
 }
 
-function PacienteForm({paciente, token, onGuardado, onCancelarEdicion}){
+function PacienteForm({paciente, token, onGuardado, onCancelarEdicion, notify}){
   const isEditing = !!paciente
   const [nombre, setNombre] = useState(paciente?.nombre ?? '')
   const [dni, setDni] = useState(paciente?.dni ?? '')
@@ -208,12 +259,10 @@ function PacienteForm({paciente, token, onGuardado, onCancelarEdicion}){
   const [plan, setPlan] = useState(paciente?.plan ?? '')
   const [email, setEmail] = useState(paciente?.email ?? '')
   const [loading, setLoading] = useState(false)
-  const [error, setError] = useState(null)
 
   async function handleSubmit(e){
     e.preventDefault()
     setLoading(true)
-    setError(null)
     try{
       const url = isEditing ? `${PACIENTES_API}/${paciente.id}` : PACIENTES_API
       const resp = await fetch(url, {
@@ -221,12 +270,12 @@ function PacienteForm({paciente, token, onGuardado, onCancelarEdicion}){
         headers: {'Content-Type':'application/json', 'Authorization': `Bearer ${token}`},
         body: JSON.stringify({nombre, dni, telefono, direccion, obraSocial, numeroAfiliado, plan, email})
       })
-      const data = await resp.json().catch(() => null)
-      if(!resp.ok) throw new Error(typeof data === 'string' ? data : `HTTP ${resp.status}`)
+      if(!resp.ok) throw new Error(await readErrorMessage(resp))
       if(!isEditing){ setNombre(''); setDni(''); setTelefono(''); setDireccion(''); setObraSocial(''); setNumeroAfiliado(''); setPlan(''); setEmail('') }
+      notify(isEditing ? 'Cambios guardados.' : 'Paciente agregado.', 'success')
       await onGuardado()
     }catch(err){
-      setError(err.message)
+      notify(err.message)
     }finally{
       setLoading(false)
     }
@@ -242,7 +291,6 @@ function PacienteForm({paciente, token, onGuardado, onCancelarEdicion}){
       <FloatingInput label="Número de afiliado" value={numeroAfiliado} onChange={e=>setNumeroAfiliado(e.target.value)} />
       <FloatingInput label="Plan" value={plan} onChange={e=>setPlan(e.target.value)} />
       <FloatingInput className="sm:col-span-2" label="Email" value={email} onChange={e=>setEmail(e.target.value)} />
-      {error && <p className="sm:col-span-2 text-sm text-danger-600">Error: {error}</p>}
       <div className="sm:col-span-2 flex gap-3">
         <button type="submit" disabled={loading} className="btn-primary sm:w-fit">
           {loading ? 'Guardando…' : isEditing ? 'Guardar cambios' : 'Agregar paciente'}
@@ -278,6 +326,17 @@ export default function App(){
     return () => document.removeEventListener('mousedown', handleRipple)
   }, [])
 
+  const [toasts, setToasts] = useState([])
+
+  function notify(message, type = 'error'){
+    const id = Date.now() + Math.random()
+    setToasts(prev => [...prev, {id, message, type, leaving: false}])
+    setTimeout(() => {
+      setToasts(prev => prev.map(t => t.id === id ? {...t, leaving: true} : t))
+      setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 200)
+    }, 3500)
+  }
+
   const [auth, setAuth] = useState(() => {
     const stored = localStorage.getItem(AUTH_STORAGE_KEY)
     return stored ? JSON.parse(stored) : null
@@ -308,65 +367,71 @@ export default function App(){
 
   const [medicos, setMedicos] = useState([])
   const [pacientes, setPacientes] = useState([])
+  const [medicosLoading, setMedicosLoading] = useState(false)
+  const [pacientesLoading, setPacientesLoading] = useState(false)
   const [editingMedico, setEditingMedico] = useState(null)
   const [editingPaciente, setEditingPaciente] = useState(null)
-  const [medicoActionError, setMedicoActionError] = useState(null)
-  const [pacienteActionError, setPacienteActionError] = useState(null)
 
   const [fechaHora, setFechaHora] = useState('2026-08-12T10:00:00')
   const [especialidad, setEspecialidad] = useState('Cardiología')
   const [medicoId, setMedicoId] = useState('')
   const [pacienteId, setPacienteId] = useState('')
-  const [result, setResult] = useState(null)
   const [loading, setLoading] = useState(false)
 
   const [turnos, setTurnos] = useState([])
   const [filtroMedicoId, setFiltroMedicoId] = useState('')
   const [filtroPacienteId, setFiltroPacienteId] = useState('')
   const [listLoading, setListLoading] = useState(false)
-  const [listError, setListError] = useState(null)
   const [estadoUpdatingId, setEstadoUpdatingId] = useState(null)
-  const [estadoError, setEstadoError] = useState(null)
 
   async function cargarMedicos(){
-    const resp = await apiFetch(MEDICOS_API)
-    if(resp.ok) setMedicos(await resp.json())
+    setMedicosLoading(true)
+    try{
+      const resp = await apiFetch(MEDICOS_API)
+      if(resp.ok) setMedicos(await resp.json())
+    }finally{
+      setMedicosLoading(false)
+    }
   }
 
   async function cargarPacientes(){
-    const resp = await apiFetch(PACIENTES_API)
-    if(resp.ok) setPacientes(await resp.json())
+    setPacientesLoading(true)
+    try{
+      const resp = await apiFetch(PACIENTES_API)
+      if(resp.ok) setPacientes(await resp.json())
+    }finally{
+      setPacientesLoading(false)
+    }
   }
 
   async function eliminarMedico(medico){
     if(!window.confirm(`¿Eliminar a ${medico.nombre}?`)) return
-    setMedicoActionError(null)
     try{
       const resp = await apiFetch(`${MEDICOS_API}/${medico.id}`, {method: 'DELETE'})
       if(!resp.ok) throw new Error(`HTTP ${resp.status}`)
       if(editingMedico?.id === medico.id) setEditingMedico(null)
+      notify('Médico eliminado.', 'success')
       await cargarMedicos()
     }catch(err){
-      setMedicoActionError(err.message)
+      notify(err.message)
     }
   }
 
   async function eliminarPaciente(paciente){
     if(!window.confirm(`¿Eliminar a ${paciente.nombre}?`)) return
-    setPacienteActionError(null)
     try{
       const resp = await apiFetch(`${PACIENTES_API}/${paciente.id}`, {method: 'DELETE'})
       if(!resp.ok) throw new Error(`HTTP ${resp.status}`)
       if(editingPaciente?.id === paciente.id) setEditingPaciente(null)
+      notify('Paciente eliminado.', 'success')
       await cargarPacientes()
     }catch(err){
-      setPacienteActionError(err.message)
+      notify(err.message)
     }
   }
 
   async function cargarTurnos(medicoIdParam = filtroMedicoId, pacienteIdParam = filtroPacienteId){
     setListLoading(true)
-    setListError(null)
     try{
       const params = new URLSearchParams()
       if(medicoIdParam) params.set('medicoId', medicoIdParam)
@@ -376,7 +441,7 @@ export default function App(){
       if(!resp.ok) throw new Error(`HTTP ${resp.status}`)
       setTurnos(await resp.json())
     }catch(err){
-      setListError(err.message)
+      notify(err.message)
     }finally{
       setListLoading(false)
     }
@@ -389,7 +454,6 @@ export default function App(){
   async function handleSubmit(e){
     e.preventDefault()
     setLoading(true)
-    setResult(null)
     try{
       const resp = await apiFetch(TURNOS_API, {
         method: 'POST',
@@ -398,11 +462,14 @@ export default function App(){
           fechaHora, especialidad, medicoId: Number(medicoId), pacienteId: Number(pacienteId)
         })
       })
+      if(!resp.ok) throw new Error(await readErrorMessage(resp))
       const data = await resp.json()
-      setResult({ok: resp.ok, status: resp.status, body: data})
-      if(resp.ok) await cargarTurnos()
+      notify(`Turno creado con id ${data?.id}.`, 'success')
+      setMedicoId('')
+      setPacienteId('')
+      await cargarTurnos()
     }catch(err){
-      setResult({ok:false, error: err.message})
+      notify(err.message)
     }finally{setLoading(false)}
   }
 
@@ -413,18 +480,17 @@ export default function App(){
 
   async function cambiarEstado(id, nuevoEstado){
     setEstadoUpdatingId(id)
-    setEstadoError(null)
     try{
       const resp = await apiFetch(`${TURNOS_API}/${id}/estado`, {
         method: 'PATCH',
         headers: {'Content-Type':'application/json'},
         body: JSON.stringify({estado: nuevoEstado})
       })
-      const data = await resp.json().catch(() => null)
-      if(!resp.ok) throw new Error(typeof data === 'string' ? data : `HTTP ${resp.status}`)
+      if(!resp.ok) throw new Error(await readErrorMessage(resp))
+      notify(nuevoEstado === 'CONFIRMADO' ? 'Turno confirmado.' : 'Turno cancelado.', 'success')
       await cargarTurnos()
     }catch(err){
-      setEstadoError(err.message)
+      notify(err.message)
     }finally{
       setEstadoUpdatingId(null)
     }
@@ -441,11 +507,17 @@ export default function App(){
   }
 
   if(!auth){
-    return <LoginScreen onLoginExitoso={handleLoginExitoso} />
+    return (
+      <>
+        <LoginScreen onLoginExitoso={handleLoginExitoso} notify={notify} />
+        <ToastContainer toasts={toasts} />
+      </>
+    )
   }
 
   return (
     <div className="min-h-screen bg-neutral-200 font-sans">
+      <ToastContainer toasts={toasts} />
       <header className="bg-primary-800 text-white">
         <div className="max-w-3xl mx-auto px-6 py-4 flex items-center justify-between">
           <div>
@@ -468,12 +540,10 @@ export default function App(){
             key={editingMedico?.id ?? 'new'}
             medico={editingMedico}
             token={token}
+            notify={notify}
             onGuardado={async () => { setEditingMedico(null); await cargarMedicos() }}
             onCancelarEdicion={() => setEditingMedico(null)}
           />
-          {medicoActionError && (
-            <p className="mb-4 text-sm text-danger-600">Error: {medicoActionError}</p>
-          )}
           <div className="overflow-x-auto rounded-lg border border-neutral-200">
             <table className="w-full text-sm">
               <thead>
@@ -487,31 +557,37 @@ export default function App(){
                 </tr>
               </thead>
               <tbody className="divide-y divide-neutral-100">
-                {medicos.map(m => (
-                  <tr key={m.id} className="hover:bg-paper-100/60">
-                    <td className="px-4 py-2 text-neutral-500">{m.id}</td>
-                    <td className="px-4 py-2 text-neutral-900">{m.nombre}</td>
-                    <td className="px-4 py-2 text-neutral-900">{m.especialidad}</td>
-                    <td className="px-4 py-2 text-neutral-900">{m.matricula}</td>
-                    <td className="px-4 py-2 text-neutral-900">{m.direccion}</td>
-                    <td className="px-4 py-2">
-                      <div className="flex gap-2">
-                        <button type="button" onClick={() => setEditingMedico(m)} className="btn-secondary !px-2 !py-1 text-xs">
-                          Editar
-                        </button>
-                        <button type="button" onClick={() => eliminarMedico(m)} className="btn-secondary !px-2 !py-1 text-xs text-danger-600">
-                          Eliminar
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-                {medicos.length === 0 && (
-                  <tr>
-                    <td colSpan={6} className="px-4 py-6 text-center text-neutral-400">
-                      Sin médicos registrados.
-                    </td>
-                  </tr>
+                {medicosLoading && medicos.length === 0 ? (
+                  <SkeletonRows columns={6} />
+                ) : (
+                  <>
+                    {medicos.map(m => (
+                      <tr key={m.id} className="hover:bg-paper-100/60">
+                        <td className="px-4 py-2 text-neutral-500">{m.id}</td>
+                        <td className="px-4 py-2 text-neutral-900">{m.nombre}</td>
+                        <td className="px-4 py-2 text-neutral-900">{m.especialidad}</td>
+                        <td className="px-4 py-2 text-neutral-900">{m.matricula}</td>
+                        <td className="px-4 py-2 text-neutral-900">{m.direccion}</td>
+                        <td className="px-4 py-2">
+                          <div className="flex gap-2">
+                            <button type="button" onClick={() => setEditingMedico(m)} className="btn-secondary !px-2 !py-1 text-xs">
+                              Editar
+                            </button>
+                            <button type="button" onClick={() => eliminarMedico(m)} className="btn-secondary !px-2 !py-1 text-xs text-danger-600">
+                              Eliminar
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                    {medicos.length === 0 && (
+                      <tr>
+                        <td colSpan={6} className="px-4 py-6 text-center text-neutral-400">
+                          Sin médicos registrados.
+                        </td>
+                      </tr>
+                    )}
+                  </>
                 )}
               </tbody>
             </table>
@@ -524,12 +600,10 @@ export default function App(){
             key={editingPaciente?.id ?? 'new'}
             paciente={editingPaciente}
             token={token}
+            notify={notify}
             onGuardado={async () => { setEditingPaciente(null); await cargarPacientes() }}
             onCancelarEdicion={() => setEditingPaciente(null)}
           />
-          {pacienteActionError && (
-            <p className="mb-4 text-sm text-danger-600">Error: {pacienteActionError}</p>
-          )}
           <div className="overflow-x-auto rounded-lg border border-neutral-200">
             <table className="w-full text-sm">
               <thead>
@@ -545,33 +619,39 @@ export default function App(){
                 </tr>
               </thead>
               <tbody className="divide-y divide-neutral-100">
-                {pacientes.map(p => (
-                  <tr key={p.id} className="hover:bg-paper-100/60">
-                    <td className="px-4 py-2 text-neutral-500">{p.id}</td>
-                    <td className="px-4 py-2 text-neutral-900">{p.nombre}</td>
-                    <td className="px-4 py-2 text-neutral-900">{p.dni}</td>
-                    <td className="px-4 py-2 text-neutral-900">{p.direccion}</td>
-                    <td className="px-4 py-2 text-neutral-900">{p.obraSocial}</td>
-                    <td className="px-4 py-2 text-neutral-900">{p.numeroAfiliado}</td>
-                    <td className="px-4 py-2 text-neutral-900">{p.plan}</td>
-                    <td className="px-4 py-2">
-                      <div className="flex gap-2">
-                        <button type="button" onClick={() => setEditingPaciente(p)} className="btn-secondary !px-2 !py-1 text-xs">
-                          Editar
-                        </button>
-                        <button type="button" onClick={() => eliminarPaciente(p)} className="btn-secondary !px-2 !py-1 text-xs text-danger-600">
-                          Eliminar
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-                {pacientes.length === 0 && (
-                  <tr>
-                    <td colSpan={8} className="px-4 py-6 text-center text-neutral-400">
-                      Sin pacientes registrados.
-                    </td>
-                  </tr>
+                {pacientesLoading && pacientes.length === 0 ? (
+                  <SkeletonRows columns={8} />
+                ) : (
+                  <>
+                    {pacientes.map(p => (
+                      <tr key={p.id} className="hover:bg-paper-100/60">
+                        <td className="px-4 py-2 text-neutral-500">{p.id}</td>
+                        <td className="px-4 py-2 text-neutral-900">{p.nombre}</td>
+                        <td className="px-4 py-2 text-neutral-900">{p.dni}</td>
+                        <td className="px-4 py-2 text-neutral-900">{p.direccion}</td>
+                        <td className="px-4 py-2 text-neutral-900">{p.obraSocial}</td>
+                        <td className="px-4 py-2 text-neutral-900">{p.numeroAfiliado}</td>
+                        <td className="px-4 py-2 text-neutral-900">{p.plan}</td>
+                        <td className="px-4 py-2">
+                          <div className="flex gap-2">
+                            <button type="button" onClick={() => setEditingPaciente(p)} className="btn-secondary !px-2 !py-1 text-xs">
+                              Editar
+                            </button>
+                            <button type="button" onClick={() => eliminarPaciente(p)} className="btn-secondary !px-2 !py-1 text-xs text-danger-600">
+                              Eliminar
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                    {pacientes.length === 0 && (
+                      <tr>
+                        <td colSpan={8} className="px-4 py-6 text-center text-neutral-400">
+                          Sin pacientes registrados.
+                        </td>
+                      </tr>
+                    )}
+                  </>
                 )}
               </tbody>
             </table>
@@ -592,7 +672,7 @@ export default function App(){
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="label">Médico</label>
-                <select className="input-field" value={medicoId} onChange={e=>setMedicoId(e.target.value)} required>
+                <select className="input-field" value={medicoId} onChange={e=>{clearValidity(e); setMedicoId(e.target.value)}} onInvalid={handleInvalid} required>
                   <option value="" disabled>Seleccionar médico</option>
                   {medicos.map(m => (
                     <option key={m.id} value={m.id}>{m.nombre} — {m.especialidad}</option>
@@ -601,7 +681,7 @@ export default function App(){
               </div>
               <div>
                 <label className="label">Paciente</label>
-                <select className="input-field" value={pacienteId} onChange={e=>setPacienteId(e.target.value)} required>
+                <select className="input-field" value={pacienteId} onChange={e=>{clearValidity(e); setPacienteId(e.target.value)}} onInvalid={handleInvalid} required>
                   <option value="" disabled>Seleccionar paciente</option>
                   {pacientes.map(p => (
                     <option key={p.id} value={p.id}>{p.nombre} — DNI {p.dni}</option>
@@ -613,18 +693,6 @@ export default function App(){
               {loading ? 'Enviando…' : 'Crear turno'}
             </button>
           </form>
-
-          {result && (
-            <div className={`mt-4 rounded-lg border px-4 py-3 text-sm ${
-              result.ok
-                ? 'border-success-200 bg-success-50 text-success-700'
-                : 'border-danger-200 bg-danger-50 text-danger-700'
-            }`}>
-              {result.ok
-                ? `Turno creado con id ${result.body?.id}.`
-                : `Error (${result.status ?? '—'}): ${result.body ?? result.error}`}
-            </div>
-          )}
         </section>
 
         <section className="card">
@@ -651,13 +719,6 @@ export default function App(){
             </button>
           </form>
 
-          {listError && (
-            <p className="mb-4 text-sm text-danger-600">Error: {listError}</p>
-          )}
-          {estadoError && (
-            <p className="mb-4 text-sm text-danger-600">Error: {estadoError}</p>
-          )}
-
           <div className="overflow-x-auto rounded-lg border border-neutral-200">
             <table className="w-full text-sm">
               <thead>
@@ -672,6 +733,7 @@ export default function App(){
                 </tr>
               </thead>
               <tbody className="divide-y divide-neutral-100">
+                {listLoading && turnos.length === 0 && <SkeletonRows columns={7} />}
                 {turnos.map(t => (
                   <tr key={t.id} className="hover:bg-paper-100/60">
                     <td className="px-4 py-2 text-neutral-500">{t.id}</td>
