@@ -2,7 +2,7 @@
 
 Este archivo se mantiene actualizado al final de cada sesión de trabajo para que,
 aunque pasen días sin conectarte, se pueda seguir sin releer el proyecto entero.
-Última actualización: **2026-08-16**, tras mergear PR #9 (gestión de médicos y pacientes).
+Última actualización: **2026-08-16**, tras mergear PR #10 (ciclo de vida del turno).
 
 ## Stack y arquitectura
 
@@ -33,11 +33,15 @@ aunque pasen días sin conectarte, se pueda seguir sin releer el proyecto entero
 
   **Si agregás una entidad nueva, copiá este patrón exacto** — no inventar uno nuevo.
 
-## Qué está implementado (PRs #1–#9, todos mergeados a `develop`)
+## Qué está implementado (PRs #1–#10, todos mergeados a `develop`)
 
-- **Turno**: crear (`POST /api/turnos`, valida solapamiento por médico+fecha),
-  buscar por id (`GET /api/turnos/{id}` → 404 si no existe), listar con filtro
-  opcional por `medicoId` o `pacienteId` (`GET /api/turnos?medicoId=..&pacienteId=..`).
+- **Turno**: crear (`POST /api/turnos`, valida solapamiento por médico+fecha,
+  y que `medicoId`/`pacienteId` existan realmente), buscar por id
+  (`GET /api/turnos/{id}` → 404 si no existe), listar con filtro opcional por
+  `medicoId` o `pacienteId` (`GET /api/turnos?medicoId=..&pacienteId=..`),
+  cambiar estado (`PATCH /api/turnos/{id}/estado`, body `{"estado":"CONFIRMADO"}`
+  o `"CANCELADO"`; un turno `CANCELADO` no puede volver a modificarse → 400;
+  estado inválido en el body → 400; id inexistente → 404).
 - **Médico**: crear (`POST /api/medicos`, valida nombre/especialidad/matrícula
   obligatorios), listar (`GET /api/medicos`), buscar por id (`GET /api/medicos/{id}`).
 - **Paciente**: crear (`POST /api/pacientes`, valida nombre/dni obligatorios),
@@ -51,22 +55,23 @@ aunque pasen días sin conectarte, se pueda seguir sin releer el proyecto entero
     crear un turno, filtro por médico ID / paciente ID, botón "Ver todos".
     Resuelve nombre de médico/paciente por id (fallback a `#id` si no está en
     la lista cargada, p. ej. turnos de prueba con IDs que ya no existen).
-- Tests: 25 tests (unitarios de casos de uso + MockMvc de controllers +
+    Columna "Acciones" con botón Confirmar (solo si `PENDIENTE`) y Cancelar
+    (si no está ya `CANCELADO`), llaman al `PATCH .../estado` y refrescan.
+- Tests: 32 tests (unitarios de casos de uso + MockMvc de controllers +
   integración end-to-end con repos fake en memoria vía `@Profile("test")`).
   Todos verificados también contra Postgres real con curl y en navegador real
   con Playwright (no solo tests automatizados).
 
 ## Qué NO está implementado todavía (huecos conocidos)
 
-- Editar / cancelar / confirmar un turno (solo hay alta y lectura; `TurnoEstado`
-  siempre queda en `PENDIENTE`, no hay endpoint para pasar a `CONFIRMADO`/`CANCELADO`).
 - Editar / eliminar médico o paciente (solo alta y lectura).
 - Autenticación/login real (no hay endpoint de `Usuario`, ni JWT, ni sesiones;
   `/api/**` está totalmente abierto a propósito por ahora).
-- Validación de que `medicoId`/`pacienteId` exista al crear un turno (hoy se
-  guarda igual aunque el id no exista en `medicos`/`pacientes`; el `TurnoRepositoryAdapter`
-  reconstruye `Medico`/`Paciente` como objetos "solo id" a partir del id crudo).
 - Paginación en los listados (`buscarTodos()` trae todo).
+- El `TurnoRepositoryAdapter` sigue reconstruyendo `Medico`/`Paciente` como
+  objetos "solo id" a partir del id crudo (no trae nombre/especialidad); no es
+  un problema hoy porque `TurnoResponse` solo expone los ids y el frontend
+  resuelve el nombre por su cuenta desde `/api/medicos` y `/api/pacientes`.
 
 ## Cómo levantar todo (Windows / PowerShell o Git Bash)
 
@@ -81,7 +86,7 @@ DB_PASSWORD=postgres123 ./mvnw.cmd spring-boot:run   # sirve en :8080
 ```
 
 ```bash
-./mvnw.cmd test   # 25 tests, no necesita Postgres levantado (usa fakes en memoria)
+./mvnw.cmd test   # 32 tests, no necesita Postgres levantado (usa fakes en memoria)
 ```
 
 ### Frontend
@@ -150,10 +155,12 @@ curl http://localhost:8080/api/pacientes
 7. `feature/frontend-tailwind-design-system` — Tailwind + paleta + contrato de clases
 8. `feature/gestion-medicos-pacientes` (PR #9) — CRUD de Médico y Paciente +
    selects en el alta de turnos
+9. `feature/ciclo-vida-turno` (PR #10) — validar que médico/paciente existan al
+   crear un turno + `PATCH /api/turnos/{id}/estado` (confirmar/cancelar) +
+   botones en el frontend
 
 ## Siguientes pasos sugeridos (sin decidir aún — preguntale al usuario)
 
-- Endpoint para cambiar estado de un turno (confirmar/cancelar).
 - Editar/eliminar médico y paciente.
-- Validar que `medicoId`/`pacienteId` existan realmente al crear un turno.
 - Autenticación básica (login de `Usuario`, roles `ADMINISTRADOR`/`MEDICO`/`PACIENTE`).
+- Paginación en los listados si el volumen de datos crece.
