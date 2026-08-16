@@ -2,7 +2,7 @@
 
 Este archivo se mantiene actualizado al final de cada sesión de trabajo para que,
 aunque pasen días sin conectarte, se pueda seguir sin releer el proyecto entero.
-Última actualización: **2026-08-16**, tras mergear PR #13 (exponer dirección en el frontend).
+Última actualización: **2026-08-16**, tras mergear PR #14 (autenticación con JWT + labels flotantes).
 
 ## Stack y arquitectura
 
@@ -10,10 +10,22 @@ aunque pasen días sin conectarte, se pueda seguir sin releer el proyecto entero
 - **Persistencia**: JPA + **PostgreSQL real** (no H2, no Docker). Requiere Postgres
   instalado nativamente en Windows, DB `medconnect`, user `postgres`.
   `spring.jpa.hibernate.ddl-auto=update` crea/actualiza las tablas solo.
-- **Seguridad**: `SecurityConfig` con `/api/**` abierto (`permitAll`), CSRF
-  deshabilitado. No hay autenticación real todavía (no hay login, `Usuario`/
-  `UsuarioRole` existen como modelo de dominio pero sin persistencia ni uso).
-- **Frontend**: React 18 + Vite 5 (`frontend/`), `fetch` plano (sin axios).
+- **Seguridad**: JWT stateless (HS512, expira a las 24hs, `jwt.secret`/`jwt.expiration-ms`
+  en `application.properties`, override por env var `JWT_SECRET`/`JWT_EXPIRATION_MS`
+  igual que `DB_PASSWORD`). `/api/auth/**` (`registro`, `login`) es lo único
+  público; el resto de `/api/**` requiere `Authorization: Bearer <token>` válido
+  — sin restricción por rol todavía (cualquier usuario autenticado puede usar
+  todo). `Usuario` (email/contrasena hasheada con BCrypt/role) es la identidad
+  de login, separada de Médico/Paciente a propósito (el campo `contrasena`
+  suelto que tenía `Medico` desde el primer PR sigue ahí sin usar, no se tocó).
+  `JwtAuthenticationFilter` (`infrastructure/security/`) puebla el
+  `SecurityContext`; `JwtTokenService` firma/valida. CSRF sigue deshabilitado
+  (no aplica con JWT).
+- **Frontend**: React 18 + Vite 5 (`frontend/`), `fetch` plano (sin axios). Sin
+  sesión válida se muestra `LoginScreen` (login + link a registro) en vez de
+  la app; el JWT se guarda en `localStorage` (`medconnect_auth`, incluye
+  token/id/nombre/email/role) y se manda en cada request vía el helper
+  `apiFetch` — una respuesta 401/403 desloguea sola y vuelve al login.
 - **Estilos**: Tailwind CSS v3. Header/botones en teal (`primary`), texto en
   slate (`neutral`), y las **cards en tono "papel" cálido** (paleta custom
   `paper` en `tailwind.config.js`, usada en `.card` y en las franjas de
@@ -22,7 +34,12 @@ aunque pasen días sin conectarte, se pueda seguir sin releer el proyecto entero
   "rompe los ojos". Contrato de clases reutilizables en `frontend/src/index.css`
   (`.card`, `.heading`, `.label`, `.input-field`, `.btn-primary`, `.btn-secondary`,
   `.badge*`). **Usar siempre estas clases** para mantener coherencia visual, no
-  clases Tailwind sueltas para botones/inputs/cards.
+  clases Tailwind sueltas para botones/inputs/cards. Los inputs de texto con
+  placeholder (login, registro, forms de Médico/Paciente) usan el componente
+  `FloatingInput` (label flota arriba al enfocar o si ya hay valor cargado,
+  estilo Material) — **para un input de texto nuevo, usar `FloatingInput` en
+  vez de `<input placeholder=...>` suelto**, salvo que ya tenga un `<label>`
+  fijo arriba (como los filtros de Turnos).
 - **Arquitectura backend**: hexagonal por entidad, calcada tres veces (Turno,
   Médico, Paciente):
   - `domain/model/` — clase de dominio plana (POJO)
@@ -46,8 +63,11 @@ aunque pasen días sin conectarte, se pueda seguir sin releer el proyecto entero
 
   **Si agregás una entidad nueva, copiá este patrón exacto** — no inventar uno nuevo.
 
-## Qué está implementado (PRs #1–#12, todos mergeados a `develop`)
+## Qué está implementado (PRs #1–#14, todos mergeados a `develop`)
 
+- **Auth**: `POST /api/auth/registro` (nombre/email/contraseña ≥6 caracteres/role,
+  rechaza email duplicado), `POST /api/auth/login` (devuelve JWT + datos del
+  usuario, 401 si las credenciales son incorrectas). Ver "Seguridad" arriba.
 - **Turno**: crear (`POST /api/turnos`, valida solapamiento por médico+fecha,
   y que `medicoId`/`pacienteId` existan realmente), buscar por id
   (`GET /api/turnos/{id}` → 404 si no existe), listar con filtro opcional por
@@ -81,15 +101,18 @@ aunque pasen días sin conectarte, se pueda seguir sin releer el proyecto entero
     la lista cargada, p. ej. turnos de prueba con IDs que ya no existen).
     Columna "Acciones" con botón Confirmar (solo si `PENDIENTE`) y Cancelar
     (si no está ya `CANCELADO`), llaman al `PATCH .../estado` y refrescan.
-- Tests: 46 tests (unitarios de casos de uso + MockMvc de controllers +
+- Tests: 65 tests (unitarios de casos de uso + MockMvc de controllers +
   integración end-to-end con repos fake en memoria vía `@Profile("test")`).
   Todos verificados también contra Postgres real con curl y en navegador real
   con Playwright (no solo tests automatizados).
 
 ## Qué NO está implementado todavía (huecos conocidos)
 
-- Autenticación/login real (no hay endpoint de `Usuario`, ni JWT, ni sesiones;
-  `/api/**` está totalmente abierto a propósito por ahora).
+- Restricción por rol: hoy cualquier usuario autenticado (sea `ADMINISTRADOR`,
+  `MEDICO` o `PACIENTE`) puede hacer todo lo mismo — crear/editar/eliminar
+  médicos, pacientes y turnos. Se decidió a propósito dejarlo así en la
+  primera etapa (PR #14); falta filtrar qué puede ver/hacer cada rol (ej. un
+  `MEDICO` solo debería ver sus propios turnos) si el usuario lo pide.
 - Paginación en los listados (`buscarTodos()` trae todo).
 - El `TurnoRepositoryAdapter` sigue reconstruyendo `Medico`/`Paciente` como
   objetos "solo id" a partir del id crudo (no trae nombre/especialidad); no es
@@ -109,7 +132,7 @@ DB_PASSWORD=postgres123 ./mvnw.cmd spring-boot:run   # sirve en :8080
 ```
 
 ```bash
-./mvnw.cmd test   # 46 tests, no necesita Postgres levantado (usa fakes en memoria)
+./mvnw.cmd test   # 65 tests, no necesita Postgres levantado (usa fakes en memoria)
 ```
 
 ### Frontend
@@ -124,19 +147,32 @@ solo al siguiente puerto libre (normalmente `5174`) — mirá el log de `npm run
 para confirmar el puerto real antes de probar en el navegador.
 
 ### Probar endpoints (ejemplos)
+`/api/**` ahora requiere JWT (salvo `/api/auth/**`). Ojo con tildes en `curl -d`
+en Git Bash: mangla el UTF-8 y da un 400/403 que parece un bug de seguridad
+pero no lo es — usar `--data-binary @archivo.json` con un archivo en vez de
+`-d '...'` inline si el body tiene tildes/ñ.
+
 ```bash
-curl -X POST http://localhost:8080/api/medicos -H "Content-Type: application/json" \
-  -d '{"nombre":"Ana Pérez","especialidad":"Cardiología","matricula":"MP1234"}'
+# registro (una sola vez) + login
+curl -X POST http://localhost:8080/api/auth/registro -H "Content-Type: application/json" \
+  -d '{"nombre":"Ana Perez","email":"ana@medconnect.com","contrasena":"secreto123","role":"ADMINISTRADOR"}'
 
-curl -X POST http://localhost:8080/api/pacientes -H "Content-Type: application/json" \
-  -d '{"nombre":"Juan Gómez","dni":"30111222"}'
+TOKEN=$(curl -s -X POST http://localhost:8080/api/auth/login -H "Content-Type: application/json" \
+  -d '{"email":"ana@medconnect.com","contrasena":"secreto123"}' | grep -o '"token":"[^"]*"' | cut -d'"' -f4)
 
-curl -X POST http://localhost:8080/api/turnos -H "Content-Type: application/json" \
-  -d '{"fechaHora":"2026-08-12T10:00:00","especialidad":"Cardiología","medicoId":1,"pacienteId":1}'
+# el resto de /api/** necesita el header Authorization
+curl -X POST http://localhost:8080/api/medicos -H "Content-Type: application/json" -H "Authorization: Bearer $TOKEN" \
+  -d '{"nombre":"Ana Perez","especialidad":"Cardiologia","matricula":"MP1234"}'
 
-curl http://localhost:8080/api/turnos
-curl http://localhost:8080/api/medicos
-curl http://localhost:8080/api/pacientes
+curl -X POST http://localhost:8080/api/pacientes -H "Content-Type: application/json" -H "Authorization: Bearer $TOKEN" \
+  -d '{"nombre":"Juan Gomez","dni":"30111222"}'
+
+curl -X POST http://localhost:8080/api/turnos -H "Content-Type: application/json" -H "Authorization: Bearer $TOKEN" \
+  -d '{"fechaHora":"2026-08-12T10:00:00","especialidad":"Cardiologia","medicoId":1,"pacienteId":1}'
+
+curl http://localhost:8080/api/turnos -H "Authorization: Bearer $TOKEN"
+curl http://localhost:8080/api/medicos -H "Authorization: Bearer $TOKEN"
+curl http://localhost:8080/api/pacientes -H "Authorization: Bearer $TOKEN"
 ```
 
 ## Convenciones de trabajo confirmadas con el usuario
@@ -188,10 +224,13 @@ curl http://localhost:8080/api/pacientes
     borrado con confirmación en el frontend
 12. `feature/direccion-medico-paciente-frontend` (PR #13) — exponer el campo
     `direccion` (ya existía en el backend) en los forms y tablas del frontend
+13. `feature/autenticacion-jwt` (PR #14) — login/registro con JWT, `/api/**`
+    detrás de auth (sin restricción por rol todavía), + labels flotantes
+    (`FloatingInput`) en los inputs de texto con placeholder
 
 ## Siguientes pasos sugeridos (sin decidir aún — preguntale al usuario)
 
-- Autenticación básica (login de `Usuario`, roles `ADMINISTRADOR`/`MEDICO`/`PACIENTE`).
+- Restricción por rol (ver "huecos conocidos" arriba).
 - Paginación en los listados si el volumen de datos crece.
 - Editar/cancelar turno ya existe (PR #10); falta eliminar un turno del todo
   si alguna vez hace falta (hoy solo se puede cancelar, que es lo correcto
