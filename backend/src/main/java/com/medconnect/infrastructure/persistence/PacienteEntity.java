@@ -22,6 +22,7 @@ public class PacienteEntity {
     private String numeroAfiliado;
     private String plan;
     private String email;
+    private Boolean activo = Boolean.TRUE;
 
     protected PacienteEntity() {}
 
@@ -71,5 +72,13 @@ public class PacienteEntity {
 
     public String getEmail() {
         return email;
+    }
+
+    public Boolean getActivo() {
+        return activo;
+    }
+
+    public void setActivo(Boolean activo) {
+        this.activo = activo;
     }
 }

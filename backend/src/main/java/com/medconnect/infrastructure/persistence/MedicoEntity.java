@@ -20,6 +20,7 @@ public class MedicoEntity {
     private String direccion;
     private String telefono;
     private String email;
+    private Boolean activo = Boolean.TRUE;
 
     protected MedicoEntity() {}
 
@@ -59,5 +60,13 @@ public class MedicoEntity {
 
     public String getEmail() {
         return email;
+    }
+
+    public Boolean getActivo() {
+        return activo;
+    }
+
+    public void setActivo(Boolean activo) {
+        this.activo = activo;
     }
 }

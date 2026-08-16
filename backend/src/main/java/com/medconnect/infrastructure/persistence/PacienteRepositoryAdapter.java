@@ -38,12 +38,20 @@ public class PacienteRepositoryAdapter implements PacienteRepository {
 
     @Override
     public Optional<Paciente> buscarPorId(Long id) {
-        return jpaRepository.findById(id).map(this::toDomain);
+        return jpaRepository.findActivoById(id).map(this::toDomain);
     }
 
     @Override
     public List<Paciente> buscarTodos() {
-        return jpaRepository.findAll().stream().map(this::toDomain).toList();
+        return jpaRepository.findAllActivos().stream().map(this::toDomain).toList();
+    }
+
+    @Override
+    public void eliminar(Long id) {
+        jpaRepository.findById(id).ifPresent(entity -> {
+            entity.setActivo(false);
+            jpaRepository.save(entity);
+        });
     }
 
     private Paciente toDomain(PacienteEntity entity) {
