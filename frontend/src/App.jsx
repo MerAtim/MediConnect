@@ -18,6 +18,34 @@ function EstadoBadge({estado}){
   return <span className={ESTADO_BADGE[estado] ?? 'badge bg-neutral-100 text-neutral-600'}>{estado}</span>
 }
 
+function FloatingInput({label, type = 'text', value, onChange, required = false, className = ''}){
+  const [focused, setFocused] = useState(false)
+  const floated = focused || String(value ?? '').length > 0
+
+  return (
+    <label className={`relative block ${className}`}>
+      <input
+        type={type}
+        value={value}
+        onChange={onChange}
+        onFocus={() => setFocused(true)}
+        onBlur={() => setFocused(false)}
+        required={required}
+        className="input-field"
+      />
+      <span
+        className={`pointer-events-none absolute left-3 transition-all duration-150 ${
+          floated
+            ? 'top-0 -translate-y-1/2 px-1 bg-paper-50 text-xs text-primary-700'
+            : 'top-1/2 -translate-y-1/2 text-sm text-neutral-400'
+        }`}
+      >
+        {label}
+      </span>
+    </label>
+  )
+}
+
 function LoginScreen({onLoginExitoso}){
   const [modo, setModo] = useState('login')
   const [email, setEmail] = useState('')
@@ -78,19 +106,19 @@ function LoginScreen({onLoginExitoso}){
         <p className="text-sm text-neutral-500 mb-6">{modo === 'login' ? 'Iniciá sesión para continuar' : 'Crear una cuenta nueva'}</p>
 
         {modo === 'login' ? (
-          <form onSubmit={handleLogin} className="space-y-3">
-            <input className="input-field" type="email" placeholder="Email" value={email} onChange={e=>setEmail(e.target.value)} required />
-            <input className="input-field" type="password" placeholder="Contraseña" value={contrasena} onChange={e=>setContrasena(e.target.value)} required />
+          <form onSubmit={handleLogin} className="space-y-4">
+            <FloatingInput label="Email" type="email" value={email} onChange={e=>setEmail(e.target.value)} required />
+            <FloatingInput label="Contraseña" type="password" value={contrasena} onChange={e=>setContrasena(e.target.value)} required />
             {error && <p className="text-sm text-danger-600">Error: {error}</p>}
             <button type="submit" disabled={loading} className="btn-primary w-full">
               {loading ? 'Ingresando…' : 'Ingresar'}
             </button>
           </form>
         ) : (
-          <form onSubmit={handleRegistro} className="space-y-3">
-            <input className="input-field" placeholder="Nombre" value={nombre} onChange={e=>setNombre(e.target.value)} required />
-            <input className="input-field" type="email" placeholder="Email" value={email} onChange={e=>setEmail(e.target.value)} required />
-            <input className="input-field" type="password" placeholder="Contraseña (mín. 6 caracteres)" value={contrasena} onChange={e=>setContrasena(e.target.value)} required />
+          <form onSubmit={handleRegistro} className="space-y-4">
+            <FloatingInput label="Nombre" value={nombre} onChange={e=>setNombre(e.target.value)} required />
+            <FloatingInput label="Email" type="email" value={email} onChange={e=>setEmail(e.target.value)} required />
+            <FloatingInput label="Contraseña (mín. 6 caracteres)" type="password" value={contrasena} onChange={e=>setContrasena(e.target.value)} required />
             <select className="input-field" value={role} onChange={e=>setRole(e.target.value)}>
               {ROLES.map(r => <option key={r} value={r}>{r}</option>)}
             </select>
@@ -147,13 +175,13 @@ function MedicoForm({medico, token, onGuardado, onCancelarEdicion}){
   }
 
   return (
-    <form onSubmit={handleSubmit} className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
-      <input className="input-field" placeholder="Nombre" value={nombre} onChange={e=>setNombre(e.target.value)} required />
-      <input className="input-field" placeholder="Especialidad" value={especialidad} onChange={e=>setEspecialidad(e.target.value)} required />
-      <input className="input-field" placeholder="Matrícula" value={matricula} onChange={e=>setMatricula(e.target.value)} required />
-      <input className="input-field" placeholder="Teléfono" value={telefono} onChange={e=>setTelefono(e.target.value)} />
-      <input className="input-field sm:col-span-2" placeholder="Dirección" value={direccion} onChange={e=>setDireccion(e.target.value)} />
-      <input className="input-field sm:col-span-2" placeholder="Email" value={email} onChange={e=>setEmail(e.target.value)} />
+    <form onSubmit={handleSubmit} className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+      <FloatingInput label="Nombre" value={nombre} onChange={e=>setNombre(e.target.value)} required />
+      <FloatingInput label="Especialidad" value={especialidad} onChange={e=>setEspecialidad(e.target.value)} required />
+      <FloatingInput label="Matrícula" value={matricula} onChange={e=>setMatricula(e.target.value)} required />
+      <FloatingInput label="Teléfono" value={telefono} onChange={e=>setTelefono(e.target.value)} />
+      <FloatingInput className="sm:col-span-2" label="Dirección" value={direccion} onChange={e=>setDireccion(e.target.value)} />
+      <FloatingInput className="sm:col-span-2" label="Email" value={email} onChange={e=>setEmail(e.target.value)} />
       {error && <p className="sm:col-span-2 text-sm text-danger-600">Error: {error}</p>}
       <div className="sm:col-span-2 flex gap-3">
         <button type="submit" disabled={loading} className="btn-primary sm:w-fit">
@@ -205,15 +233,15 @@ function PacienteForm({paciente, token, onGuardado, onCancelarEdicion}){
   }
 
   return (
-    <form onSubmit={handleSubmit} className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
-      <input className="input-field" placeholder="Nombre" value={nombre} onChange={e=>setNombre(e.target.value)} required />
-      <input className="input-field" placeholder="DNI" value={dni} onChange={e=>setDni(e.target.value)} required />
-      <input className="input-field" placeholder="Teléfono" value={telefono} onChange={e=>setTelefono(e.target.value)} />
-      <input className="input-field" placeholder="Dirección" value={direccion} onChange={e=>setDireccion(e.target.value)} />
-      <input className="input-field" placeholder="Obra social / prepaga" value={obraSocial} onChange={e=>setObraSocial(e.target.value)} />
-      <input className="input-field" placeholder="Número de afiliado" value={numeroAfiliado} onChange={e=>setNumeroAfiliado(e.target.value)} />
-      <input className="input-field" placeholder="Plan" value={plan} onChange={e=>setPlan(e.target.value)} />
-      <input className="input-field sm:col-span-2" placeholder="Email" value={email} onChange={e=>setEmail(e.target.value)} />
+    <form onSubmit={handleSubmit} className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+      <FloatingInput label="Nombre" value={nombre} onChange={e=>setNombre(e.target.value)} required />
+      <FloatingInput label="DNI" value={dni} onChange={e=>setDni(e.target.value)} required />
+      <FloatingInput label="Teléfono" value={telefono} onChange={e=>setTelefono(e.target.value)} />
+      <FloatingInput label="Dirección" value={direccion} onChange={e=>setDireccion(e.target.value)} />
+      <FloatingInput label="Obra social / prepaga" value={obraSocial} onChange={e=>setObraSocial(e.target.value)} />
+      <FloatingInput label="Número de afiliado" value={numeroAfiliado} onChange={e=>setNumeroAfiliado(e.target.value)} />
+      <FloatingInput label="Plan" value={plan} onChange={e=>setPlan(e.target.value)} />
+      <FloatingInput className="sm:col-span-2" label="Email" value={email} onChange={e=>setEmail(e.target.value)} />
       {error && <p className="sm:col-span-2 text-sm text-danger-600">Error: {error}</p>}
       <div className="sm:col-span-2 flex gap-3">
         <button type="submit" disabled={loading} className="btn-primary sm:w-fit">
