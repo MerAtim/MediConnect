@@ -6,14 +6,18 @@ public class CreatePacienteRequest {
     private String telefono;
     private String direccion;
     private String obraSocial;
+    private String numeroAfiliado;
+    private String plan;
     private String email;
 
-    public CreatePacienteRequest(String nombre, String dni, String telefono, String direccion, String obraSocial, String email) {
+    public CreatePacienteRequest(String nombre, String dni, String telefono, String direccion, String obraSocial, String numeroAfiliado, String plan, String email) {
         this.nombre = nombre;
         this.dni = dni;
         this.telefono = telefono;
         this.direccion = direccion;
         this.obraSocial = obraSocial;
+        this.numeroAfiliado = numeroAfiliado;
+        this.plan = plan;
         this.email = email;
     }
 
@@ -35,6 +39,14 @@ public class CreatePacienteRequest {
 
     public String getObraSocial() {
         return obraSocial;
+    }
+
+    public String getNumeroAfiliado() {
+        return numeroAfiliado;
+    }
+
+    public String getPlan() {
+        return plan;
     }
 
     public String getEmail() {

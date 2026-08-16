@@ -68,13 +68,13 @@ public class PacienteControllerTest {
 
     @Test
     public void buscarPorId_devuelve200_siExiste() throws Exception {
-        Paciente paciente = new Paciente(1L, "Juan Gómez", "30111222", null, null, null, null);
+        Paciente paciente = new Paciente(1L, "Juan Gómez", "30111222", null, null, "Swiss Medical", "123456", "SMG20", null);
         when(buscarPacienteUseCase.buscarPorId(1L)).thenReturn(Optional.of(paciente));
 
         mockMvc.perform(get("/api/pacientes/1"))
                 .andExpect(status().isOk())
                 .andExpect(content().json(
-                        "{\"id\":1,\"nombre\":\"Juan Gómez\",\"dni\":\"30111222\"}"));
+                        "{\"id\":1,\"nombre\":\"Juan Gómez\",\"dni\":\"30111222\",\"obraSocial\":\"Swiss Medical\",\"numeroAfiliado\":\"123456\",\"plan\":\"SMG20\"}"));
     }
 
     @Test

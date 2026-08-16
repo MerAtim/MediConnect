@@ -7,6 +7,8 @@ public class PacienteRequest {
     private String telefono;
     private String direccion;
     private String obraSocial;
+    private String numeroAfiliado;
+    private String plan;
     private String email;
 
     public PacienteRequest() {}
@@ -49,6 +51,22 @@ public class PacienteRequest {
 
     public void setObraSocial(String obraSocial) {
         this.obraSocial = obraSocial;
+    }
+
+    public String getNumeroAfiliado() {
+        return numeroAfiliado;
+    }
+
+    public void setNumeroAfiliado(String numeroAfiliado) {
+        this.numeroAfiliado = numeroAfiliado;
+    }
+
+    public String getPlan() {
+        return plan;
+    }
+
+    public void setPlan(String plan) {
+        this.plan = plan;
     }
 
     public String getEmail() {

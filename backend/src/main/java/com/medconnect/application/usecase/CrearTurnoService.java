@@ -56,7 +56,7 @@ public class CrearTurnoService implements CrearTurnoUseCase {
         }
 
         Medico medico = new Medico(request.getMedicoId(), null, null, null, null, null, null, null);
-        Paciente paciente = new Paciente(request.getPacienteId(), null, null, null, null, null, null);
+        Paciente paciente = new Paciente(request.getPacienteId(), null, null, null, null, null, null, null, null);
 
         Turno turno = new Turno(
                 null,

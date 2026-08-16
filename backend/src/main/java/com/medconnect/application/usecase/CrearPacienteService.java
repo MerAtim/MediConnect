@@ -30,6 +30,8 @@ public class CrearPacienteService implements CrearPacienteUseCase {
                 request.getTelefono(),
                 request.getDireccion(),
                 request.getObraSocial(),
+                request.getNumeroAfiliado(),
+                request.getPlan(),
                 request.getEmail()
         );
 

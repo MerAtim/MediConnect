@@ -8,17 +8,21 @@ public class PacienteResponse {
     private String telefono;
     private String direccion;
     private String obraSocial;
+    private String numeroAfiliado;
+    private String plan;
     private String email;
 
     public PacienteResponse() {}
 
-    public PacienteResponse(Long id, String nombre, String dni, String telefono, String direccion, String obraSocial, String email) {
+    public PacienteResponse(Long id, String nombre, String dni, String telefono, String direccion, String obraSocial, String numeroAfiliado, String plan, String email) {
         this.id = id;
         this.nombre = nombre;
         this.dni = dni;
         this.telefono = telefono;
         this.direccion = direccion;
         this.obraSocial = obraSocial;
+        this.numeroAfiliado = numeroAfiliado;
+        this.plan = plan;
         this.email = email;
     }
 
@@ -34,6 +38,10 @@ public class PacienteResponse {
     public void setDireccion(String direccion) { this.direccion = direccion; }
     public String getObraSocial() { return obraSocial; }
     public void setObraSocial(String obraSocial) { this.obraSocial = obraSocial; }
+    public String getNumeroAfiliado() { return numeroAfiliado; }
+    public void setNumeroAfiliado(String numeroAfiliado) { this.numeroAfiliado = numeroAfiliado; }
+    public String getPlan() { return plan; }
+    public void setPlan(String plan) { this.plan = plan; }
     public String getEmail() { return email; }
     public void setEmail(String email) { this.email = email; }
 }

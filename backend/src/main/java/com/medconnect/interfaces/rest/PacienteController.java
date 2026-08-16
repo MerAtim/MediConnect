@@ -38,6 +38,8 @@ public class PacienteController {
                 request.getTelefono(),
                 request.getDireccion(),
                 request.getObraSocial(),
+                request.getNumeroAfiliado(),
+                request.getPlan(),
                 request.getEmail()
         );
         CreatePacienteResponse resp = crearPacienteUseCase.crear(req);
@@ -65,6 +67,8 @@ public class PacienteController {
                 paciente.getTelefono(),
                 paciente.getDireccion(),
                 paciente.getObraSocial(),
+                paciente.getNumeroAfiliado(),
+                paciente.getPlan(),
                 paciente.getEmail()
         );
     }

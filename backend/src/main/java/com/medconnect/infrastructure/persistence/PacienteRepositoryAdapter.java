@@ -27,6 +27,8 @@ public class PacienteRepositoryAdapter implements PacienteRepository {
                 paciente.getTelefono(),
                 paciente.getDireccion(),
                 paciente.getObraSocial(),
+                paciente.getNumeroAfiliado(),
+                paciente.getPlan(),
                 paciente.getEmail()
         );
         PacienteEntity guardado = jpaRepository.save(entity);
@@ -52,6 +54,8 @@ public class PacienteRepositoryAdapter implements PacienteRepository {
                 entity.getTelefono(),
                 entity.getDireccion(),
                 entity.getObraSocial(),
+                entity.getNumeroAfiliado(),
+                entity.getPlan(),
                 entity.getEmail()
         );
     }
