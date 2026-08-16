@@ -2,7 +2,7 @@
 
 Este archivo se mantiene actualizado al final de cada sesión de trabajo para que,
 aunque pasen días sin conectarte, se pueda seguir sin releer el proyecto entero.
-Última actualización: **2026-08-16**, tras mergear PR #11 (número de afiliado/plan + diseño papel).
+Última actualización: **2026-08-16**, tras mergear PR #12 (editar/eliminar médico y paciente).
 
 ## Stack y arquitectura
 
@@ -34,10 +34,19 @@ aunque pasen días sin conectarte, se pueda seguir sin releer el proyecto entero
     `<X>RepositoryAdapter.java` (`@Repository @Profile("!test")`)
   - `interfaces/rest/<X>Controller.java` + `<X>Request/Response.java`
   - Errores de validación → `GlobalExceptionHandler` (un `@ExceptionHandler` por excepción, devuelve 400 con el mensaje)
+  - Médico y Paciente además tienen `Actualizar<X>UseCase|Service` (`PUT /{id}`,
+    reutiliza `Create<X>Request`) y `Eliminar<X>UseCase|Service` (`DELETE /{id}`).
+    **Eliminar es siempre soft delete**: el adapter JPA tiene un campo `activo`
+    (Boolean, no boolean primitivo — para no romper filas viejas sin esa
+    columna) en el `Entity`, con queries `findActivoById`/`findAllActivos` que
+    tratan `activo IS NULL` como activo. `eliminar()` marca `activo=false` en
+    vez de borrar la fila (los turnos ya creados no quedan huérfanos). El
+    dominio y los casos de uso no saben que es soft delete, es un detalle
+    100% de `infrastructure/persistence`.
 
   **Si agregás una entidad nueva, copiá este patrón exacto** — no inventar uno nuevo.
 
-## Qué está implementado (PRs #1–#11, todos mergeados a `develop`)
+## Qué está implementado (PRs #1–#12, todos mergeados a `develop`)
 
 - **Turno**: crear (`POST /api/turnos`, valida solapamiento por médico+fecha,
   y que `medicoId`/`pacienteId` existan realmente), buscar por id
@@ -47,15 +56,19 @@ aunque pasen días sin conectarte, se pueda seguir sin releer el proyecto entero
   o `"CANCELADO"`; un turno `CANCELADO` no puede volver a modificarse → 400;
   estado inválido en el body → 400; id inexistente → 404).
 - **Médico**: crear (`POST /api/medicos`, valida nombre/especialidad/matrícula
-  obligatorios), listar (`GET /api/medicos`), buscar por id (`GET /api/medicos/{id}`).
+  obligatorios), listar (`GET /api/medicos`), buscar por id (`GET /api/medicos/{id}`),
+  editar (`PUT /api/medicos/{id}`), eliminar (`DELETE /api/medicos/{id}`, soft delete).
 - **Paciente**: crear (`POST /api/pacientes`, valida nombre/dni obligatorios;
   campos opcionales: `telefono`, `direccion`, `obraSocial`, `numeroAfiliado`,
   `plan`, `email` — la obra social sola no alcanza, dos personas con la misma
   prepaga pueden tener plan y número de afiliado distintos), listar
-  (`GET /api/pacientes`), buscar por id (`GET /api/pacientes/{id}`).
+  (`GET /api/pacientes`), buscar por id (`GET /api/pacientes/{id}`), editar
+  (`PUT /api/pacientes/{id}`), eliminar (`DELETE /api/pacientes/{id}`, soft delete).
 - **Frontend** (`frontend/src/App.jsx`, un solo archivo):
-  - Sección "Médicos": form de alta + tabla.
-  - Sección "Pacientes": form de alta + tabla.
+  - Sección "Médicos": un solo form sirve para alta y edición (botón "Editar"
+    por fila precarga los datos, cambia a "Guardar cambios" y hace PUT; botón
+    "Cancelar" vuelve a modo alta). Botón "Eliminar" pide confirmación (`window.confirm`).
+  - Sección "Pacientes": mismo patrón de alta/edición/eliminación.
   - Sección "Crear turno": selects de médico/paciente (poblados desde las APIs
     de arriba, ya no son inputs numéricos de ID).
   - Sección "Turnos": tabla con auto-carga al abrir, refresco automático tras
@@ -64,14 +77,13 @@ aunque pasen días sin conectarte, se pueda seguir sin releer el proyecto entero
     la lista cargada, p. ej. turnos de prueba con IDs que ya no existen).
     Columna "Acciones" con botón Confirmar (solo si `PENDIENTE`) y Cancelar
     (si no está ya `CANCELADO`), llaman al `PATCH .../estado` y refrescan.
-- Tests: 34 tests (unitarios de casos de uso + MockMvc de controllers +
+- Tests: 46 tests (unitarios de casos de uso + MockMvc de controllers +
   integración end-to-end con repos fake en memoria vía `@Profile("test")`).
   Todos verificados también contra Postgres real con curl y en navegador real
   con Playwright (no solo tests automatizados).
 
 ## Qué NO está implementado todavía (huecos conocidos)
 
-- Editar / eliminar médico o paciente (solo alta y lectura).
 - Autenticación/login real (no hay endpoint de `Usuario`, ni JWT, ni sesiones;
   `/api/**` está totalmente abierto a propósito por ahora).
 - Paginación en los listados (`buscarTodos()` trae todo).
@@ -93,7 +105,7 @@ DB_PASSWORD=postgres123 ./mvnw.cmd spring-boot:run   # sirve en :8080
 ```
 
 ```bash
-./mvnw.cmd test   # 34 tests, no necesita Postgres levantado (usa fakes en memoria)
+./mvnw.cmd test   # 46 tests, no necesita Postgres levantado (usa fakes en memoria)
 ```
 
 ### Frontend
@@ -167,9 +179,14 @@ curl http://localhost:8080/api/pacientes
    botones en el frontend
 10. `feature/paciente-obra-social-plan` (PR #11) — `numeroAfiliado`/`plan` en
     Paciente + rediseño de fondo y cards a tonos cálidos ("papel envejecido")
+11. `feature/editar-eliminar-medico-paciente` (PR #12) — `PUT`/`DELETE` para
+    Médico y Paciente, eliminar es soft delete (`activo=false`), edición y
+    borrado con confirmación en el frontend
 
 ## Siguientes pasos sugeridos (sin decidir aún — preguntale al usuario)
 
-- Editar/eliminar médico y paciente.
 - Autenticación básica (login de `Usuario`, roles `ADMINISTRADOR`/`MEDICO`/`PACIENTE`).
 - Paginación en los listados si el volumen de datos crece.
+- Editar/cancelar turno ya existe (PR #10); falta eliminar un turno del todo
+  si alguna vez hace falta (hoy solo se puede cancelar, que es lo correcto
+  para no perder historial — probablemente no haga falta un DELETE real).
