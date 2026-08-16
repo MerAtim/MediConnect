@@ -2,7 +2,7 @@
 
 Este archivo se mantiene actualizado al final de cada sesión de trabajo para que,
 aunque pasen días sin conectarte, se pueda seguir sin releer el proyecto entero.
-Última actualización: **2026-08-16**, tras mergear PR #10 (ciclo de vida del turno).
+Última actualización: **2026-08-16**, tras mergear PR #11 (número de afiliado/plan + diseño papel).
 
 ## Stack y arquitectura
 
@@ -14,8 +14,12 @@ aunque pasen días sin conectarte, se pueda seguir sin releer el proyecto entero
   deshabilitado. No hay autenticación real todavía (no hay login, `Usuario`/
   `UsuarioRole` existen como modelo de dominio pero sin persistencia ni uso).
 - **Frontend**: React 18 + Vite 5 (`frontend/`), `fetch` plano (sin axios).
-- **Estilos**: Tailwind CSS v3, paleta teal/slate ("clínico pero no frío"),
-  contrato de clases reutilizables en `frontend/src/index.css`
+- **Estilos**: Tailwind CSS v3. Header/botones en teal (`primary`), texto en
+  slate (`neutral`), y las **cards en tono "papel" cálido** (paleta custom
+  `paper` en `tailwind.config.js`, usada en `.card` y en las franjas de
+  encabezado/hover de las tablas) sobre un fondo de página gris-azulado
+  (`bg-neutral-200`) — decisión explícita del usuario: nada de blanco puro,
+  "rompe los ojos". Contrato de clases reutilizables en `frontend/src/index.css`
   (`.card`, `.heading`, `.label`, `.input-field`, `.btn-primary`, `.btn-secondary`,
   `.badge*`). **Usar siempre estas clases** para mantener coherencia visual, no
   clases Tailwind sueltas para botones/inputs/cards.
@@ -33,7 +37,7 @@ aunque pasen días sin conectarte, se pueda seguir sin releer el proyecto entero
 
   **Si agregás una entidad nueva, copiá este patrón exacto** — no inventar uno nuevo.
 
-## Qué está implementado (PRs #1–#10, todos mergeados a `develop`)
+## Qué está implementado (PRs #1–#11, todos mergeados a `develop`)
 
 - **Turno**: crear (`POST /api/turnos`, valida solapamiento por médico+fecha,
   y que `medicoId`/`pacienteId` existan realmente), buscar por id
@@ -44,8 +48,11 @@ aunque pasen días sin conectarte, se pueda seguir sin releer el proyecto entero
   estado inválido en el body → 400; id inexistente → 404).
 - **Médico**: crear (`POST /api/medicos`, valida nombre/especialidad/matrícula
   obligatorios), listar (`GET /api/medicos`), buscar por id (`GET /api/medicos/{id}`).
-- **Paciente**: crear (`POST /api/pacientes`, valida nombre/dni obligatorios),
-  listar (`GET /api/pacientes`), buscar por id (`GET /api/pacientes/{id}`).
+- **Paciente**: crear (`POST /api/pacientes`, valida nombre/dni obligatorios;
+  campos opcionales: `telefono`, `direccion`, `obraSocial`, `numeroAfiliado`,
+  `plan`, `email` — la obra social sola no alcanza, dos personas con la misma
+  prepaga pueden tener plan y número de afiliado distintos), listar
+  (`GET /api/pacientes`), buscar por id (`GET /api/pacientes/{id}`).
 - **Frontend** (`frontend/src/App.jsx`, un solo archivo):
   - Sección "Médicos": form de alta + tabla.
   - Sección "Pacientes": form de alta + tabla.
@@ -57,7 +64,7 @@ aunque pasen días sin conectarte, se pueda seguir sin releer el proyecto entero
     la lista cargada, p. ej. turnos de prueba con IDs que ya no existen).
     Columna "Acciones" con botón Confirmar (solo si `PENDIENTE`) y Cancelar
     (si no está ya `CANCELADO`), llaman al `PATCH .../estado` y refrescan.
-- Tests: 32 tests (unitarios de casos de uso + MockMvc de controllers +
+- Tests: 34 tests (unitarios de casos de uso + MockMvc de controllers +
   integración end-to-end con repos fake en memoria vía `@Profile("test")`).
   Todos verificados también contra Postgres real con curl y en navegador real
   con Playwright (no solo tests automatizados).
@@ -86,7 +93,7 @@ DB_PASSWORD=postgres123 ./mvnw.cmd spring-boot:run   # sirve en :8080
 ```
 
 ```bash
-./mvnw.cmd test   # 32 tests, no necesita Postgres levantado (usa fakes en memoria)
+./mvnw.cmd test   # 34 tests, no necesita Postgres levantado (usa fakes en memoria)
 ```
 
 ### Frontend
@@ -158,6 +165,8 @@ curl http://localhost:8080/api/pacientes
 9. `feature/ciclo-vida-turno` (PR #10) — validar que médico/paciente existan al
    crear un turno + `PATCH /api/turnos/{id}/estado` (confirmar/cancelar) +
    botones en el frontend
+10. `feature/paciente-obra-social-plan` (PR #11) — `numeroAfiliado`/`plan` en
+    Paciente + rediseño de fondo y cards a tonos cálidos ("papel envejecido")
 
 ## Siguientes pasos sugeridos (sin decidir aún — preguntale al usuario)
 
