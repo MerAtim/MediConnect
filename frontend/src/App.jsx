@@ -3,6 +3,8 @@ import React, {useEffect, useState} from 'react'
 const TURNOS_API = 'http://localhost:8080/api/turnos'
 const MEDICOS_API = 'http://localhost:8080/api/medicos'
 const PACIENTES_API = 'http://localhost:8080/api/pacientes'
+const AUTH_API = 'http://localhost:8080/api/auth'
+const AUTH_STORAGE_KEY = 'medconnect_auth'
 
 const ESTADO_BADGE = {
   PENDIENTE: 'badge-pendiente',
@@ -10,11 +12,108 @@ const ESTADO_BADGE = {
   CANCELADO: 'badge-cancelado',
 }
 
+const ROLES = ['ADMINISTRADOR', 'MEDICO', 'PACIENTE']
+
 function EstadoBadge({estado}){
   return <span className={ESTADO_BADGE[estado] ?? 'badge bg-neutral-100 text-neutral-600'}>{estado}</span>
 }
 
-function MedicoForm({medico, onGuardado, onCancelarEdicion}){
+function LoginScreen({onLoginExitoso}){
+  const [modo, setModo] = useState('login')
+  const [email, setEmail] = useState('')
+  const [contrasena, setContrasena] = useState('')
+  const [nombre, setNombre] = useState('')
+  const [role, setRole] = useState('PACIENTE')
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState(null)
+
+  async function iniciarSesion(emailParam, contrasenaParam){
+    const resp = await fetch(`${AUTH_API}/login`, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({email: emailParam, contrasena: contrasenaParam})
+    })
+    const data = await resp.json().catch(() => null)
+    if(!resp.ok) throw new Error(typeof data === 'string' ? data : `HTTP ${resp.status}`)
+    onLoginExitoso(data)
+  }
+
+  async function handleLogin(e){
+    e.preventDefault()
+    setLoading(true)
+    setError(null)
+    try{
+      await iniciarSesion(email, contrasena)
+    }catch(err){
+      setError(err.message)
+    }finally{
+      setLoading(false)
+    }
+  }
+
+  async function handleRegistro(e){
+    e.preventDefault()
+    setLoading(true)
+    setError(null)
+    try{
+      const resp = await fetch(`${AUTH_API}/registro`, {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({nombre, email, contrasena, role})
+      })
+      const data = await resp.json().catch(() => null)
+      if(!resp.ok) throw new Error(typeof data === 'string' ? data : `HTTP ${resp.status}`)
+      await iniciarSesion(email, contrasena)
+    }catch(err){
+      setError(err.message)
+    }finally{
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div className="min-h-screen bg-neutral-200 font-sans flex items-center justify-center px-6">
+      <div className="card w-full max-w-sm">
+        <h1 className="text-xl font-semibold tracking-tight text-neutral-900 mb-1">MedConnect</h1>
+        <p className="text-sm text-neutral-500 mb-6">{modo === 'login' ? 'Iniciá sesión para continuar' : 'Crear una cuenta nueva'}</p>
+
+        {modo === 'login' ? (
+          <form onSubmit={handleLogin} className="space-y-3">
+            <input className="input-field" type="email" placeholder="Email" value={email} onChange={e=>setEmail(e.target.value)} required />
+            <input className="input-field" type="password" placeholder="Contraseña" value={contrasena} onChange={e=>setContrasena(e.target.value)} required />
+            {error && <p className="text-sm text-danger-600">Error: {error}</p>}
+            <button type="submit" disabled={loading} className="btn-primary w-full">
+              {loading ? 'Ingresando…' : 'Ingresar'}
+            </button>
+          </form>
+        ) : (
+          <form onSubmit={handleRegistro} className="space-y-3">
+            <input className="input-field" placeholder="Nombre" value={nombre} onChange={e=>setNombre(e.target.value)} required />
+            <input className="input-field" type="email" placeholder="Email" value={email} onChange={e=>setEmail(e.target.value)} required />
+            <input className="input-field" type="password" placeholder="Contraseña (mín. 6 caracteres)" value={contrasena} onChange={e=>setContrasena(e.target.value)} required />
+            <select className="input-field" value={role} onChange={e=>setRole(e.target.value)}>
+              {ROLES.map(r => <option key={r} value={r}>{r}</option>)}
+            </select>
+            {error && <p className="text-sm text-danger-600">Error: {error}</p>}
+            <button type="submit" disabled={loading} className="btn-primary w-full">
+              {loading ? 'Creando cuenta…' : 'Crear cuenta'}
+            </button>
+          </form>
+        )}
+
+        <button
+          type="button"
+          onClick={() => { setModo(modo === 'login' ? 'registro' : 'login'); setError(null) }}
+          className="mt-4 text-sm text-primary-700 hover:underline w-full text-center"
+        >
+          {modo === 'login' ? '¿No tenés cuenta? Registrate' : '¿Ya tenés cuenta? Iniciá sesión'}
+        </button>
+      </div>
+    </div>
+  )
+}
+
+function MedicoForm({medico, token, onGuardado, onCancelarEdicion}){
   const isEditing = !!medico
   const [nombre, setNombre] = useState(medico?.nombre ?? '')
   const [especialidad, setEspecialidad] = useState(medico?.especialidad ?? '')
@@ -33,7 +132,7 @@ function MedicoForm({medico, onGuardado, onCancelarEdicion}){
       const url = isEditing ? `${MEDICOS_API}/${medico.id}` : MEDICOS_API
       const resp = await fetch(url, {
         method: isEditing ? 'PUT' : 'POST',
-        headers: {'Content-Type':'application/json'},
+        headers: {'Content-Type':'application/json', 'Authorization': `Bearer ${token}`},
         body: JSON.stringify({nombre, especialidad, matricula, telefono, direccion, email})
       })
       const data = await resp.json().catch(() => null)
@@ -70,7 +169,7 @@ function MedicoForm({medico, onGuardado, onCancelarEdicion}){
   )
 }
 
-function PacienteForm({paciente, onGuardado, onCancelarEdicion}){
+function PacienteForm({paciente, token, onGuardado, onCancelarEdicion}){
   const isEditing = !!paciente
   const [nombre, setNombre] = useState(paciente?.nombre ?? '')
   const [dni, setDni] = useState(paciente?.dni ?? '')
@@ -91,7 +190,7 @@ function PacienteForm({paciente, onGuardado, onCancelarEdicion}){
       const url = isEditing ? `${PACIENTES_API}/${paciente.id}` : PACIENTES_API
       const resp = await fetch(url, {
         method: isEditing ? 'PUT' : 'POST',
-        headers: {'Content-Type':'application/json'},
+        headers: {'Content-Type':'application/json', 'Authorization': `Bearer ${token}`},
         body: JSON.stringify({nombre, dni, telefono, direccion, obraSocial, numeroAfiliado, plan, email})
       })
       const data = await resp.json().catch(() => null)
@@ -131,6 +230,34 @@ function PacienteForm({paciente, onGuardado, onCancelarEdicion}){
 }
 
 export default function App(){
+  const [auth, setAuth] = useState(() => {
+    const stored = localStorage.getItem(AUTH_STORAGE_KEY)
+    return stored ? JSON.parse(stored) : null
+  })
+  const token = auth?.token
+
+  function handleLoginExitoso(data){
+    setAuth(data)
+    localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(data))
+  }
+
+  function handleLogout(){
+    setAuth(null)
+    localStorage.removeItem(AUTH_STORAGE_KEY)
+  }
+
+  async function apiFetch(url, options = {}){
+    const resp = await fetch(url, {
+      ...options,
+      headers: {...(options.headers || {}), Authorization: `Bearer ${token}`}
+    })
+    if(resp.status === 401 || resp.status === 403){
+      handleLogout()
+      throw new Error('Sesión expirada, iniciá sesión de nuevo')
+    }
+    return resp
+  }
+
   const [medicos, setMedicos] = useState([])
   const [pacientes, setPacientes] = useState([])
   const [editingMedico, setEditingMedico] = useState(null)
@@ -154,12 +281,12 @@ export default function App(){
   const [estadoError, setEstadoError] = useState(null)
 
   async function cargarMedicos(){
-    const resp = await fetch(MEDICOS_API)
+    const resp = await apiFetch(MEDICOS_API)
     if(resp.ok) setMedicos(await resp.json())
   }
 
   async function cargarPacientes(){
-    const resp = await fetch(PACIENTES_API)
+    const resp = await apiFetch(PACIENTES_API)
     if(resp.ok) setPacientes(await resp.json())
   }
 
@@ -167,7 +294,7 @@ export default function App(){
     if(!window.confirm(`¿Eliminar a ${medico.nombre}?`)) return
     setMedicoActionError(null)
     try{
-      const resp = await fetch(`${MEDICOS_API}/${medico.id}`, {method: 'DELETE'})
+      const resp = await apiFetch(`${MEDICOS_API}/${medico.id}`, {method: 'DELETE'})
       if(!resp.ok) throw new Error(`HTTP ${resp.status}`)
       if(editingMedico?.id === medico.id) setEditingMedico(null)
       await cargarMedicos()
@@ -180,7 +307,7 @@ export default function App(){
     if(!window.confirm(`¿Eliminar a ${paciente.nombre}?`)) return
     setPacienteActionError(null)
     try{
-      const resp = await fetch(`${PACIENTES_API}/${paciente.id}`, {method: 'DELETE'})
+      const resp = await apiFetch(`${PACIENTES_API}/${paciente.id}`, {method: 'DELETE'})
       if(!resp.ok) throw new Error(`HTTP ${resp.status}`)
       if(editingPaciente?.id === paciente.id) setEditingPaciente(null)
       await cargarPacientes()
@@ -197,7 +324,7 @@ export default function App(){
       if(medicoIdParam) params.set('medicoId', medicoIdParam)
       if(pacienteIdParam) params.set('pacienteId', pacienteIdParam)
       const url = params.toString() ? `${TURNOS_API}?${params}` : TURNOS_API
-      const resp = await fetch(url)
+      const resp = await apiFetch(url)
       if(!resp.ok) throw new Error(`HTTP ${resp.status}`)
       setTurnos(await resp.json())
     }catch(err){
@@ -207,14 +334,16 @@ export default function App(){
     }
   }
 
-  useEffect(() => { cargarMedicos(); cargarPacientes(); cargarTurnos() }, [])
+  useEffect(() => {
+    if(token){ cargarMedicos(); cargarPacientes(); cargarTurnos() }
+  }, [token])
 
   async function handleSubmit(e){
     e.preventDefault()
     setLoading(true)
     setResult(null)
     try{
-      const resp = await fetch(TURNOS_API, {
+      const resp = await apiFetch(TURNOS_API, {
         method: 'POST',
         headers: {'Content-Type':'application/json'},
         body: JSON.stringify({
@@ -238,7 +367,7 @@ export default function App(){
     setEstadoUpdatingId(id)
     setEstadoError(null)
     try{
-      const resp = await fetch(`${TURNOS_API}/${id}/estado`, {
+      const resp = await apiFetch(`${TURNOS_API}/${id}/estado`, {
         method: 'PATCH',
         headers: {'Content-Type':'application/json'},
         body: JSON.stringify({estado: nuevoEstado})
@@ -263,12 +392,24 @@ export default function App(){
     return paciente ? paciente.nombre : `#${id}`
   }
 
+  if(!auth){
+    return <LoginScreen onLoginExitoso={handleLoginExitoso} />
+  }
+
   return (
     <div className="min-h-screen bg-neutral-200 font-sans">
       <header className="bg-primary-800 text-white">
-        <div className="max-w-3xl mx-auto px-6 py-4">
-          <h1 className="text-xl font-semibold tracking-tight">MedConnect</h1>
-          <p className="text-sm text-primary-100">Gestión de turnos</p>
+        <div className="max-w-3xl mx-auto px-6 py-4 flex items-center justify-between">
+          <div>
+            <h1 className="text-xl font-semibold tracking-tight">MedConnect</h1>
+            <p className="text-sm text-primary-100">Gestión de turnos</p>
+          </div>
+          <div className="flex items-center gap-3 text-sm">
+            <span className="text-primary-100">{auth.nombre} · {auth.role}</span>
+            <button type="button" onClick={handleLogout} className="btn-secondary !px-3 !py-1.5 text-xs">
+              Cerrar sesión
+            </button>
+          </div>
         </div>
       </header>
 
@@ -278,6 +419,7 @@ export default function App(){
           <MedicoForm
             key={editingMedico?.id ?? 'new'}
             medico={editingMedico}
+            token={token}
             onGuardado={async () => { setEditingMedico(null); await cargarMedicos() }}
             onCancelarEdicion={() => setEditingMedico(null)}
           />
@@ -333,6 +475,7 @@ export default function App(){
           <PacienteForm
             key={editingPaciente?.id ?? 'new'}
             paciente={editingPaciente}
+            token={token}
             onGuardado={async () => { setEditingPaciente(null); await cargarPacientes() }}
             onCancelarEdicion={() => setEditingPaciente(null)}
           />
