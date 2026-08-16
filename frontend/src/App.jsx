@@ -14,12 +14,13 @@ function EstadoBadge({estado}){
   return <span className={ESTADO_BADGE[estado] ?? 'badge bg-neutral-100 text-neutral-600'}>{estado}</span>
 }
 
-function MedicoForm({onCreado}){
-  const [nombre, setNombre] = useState('')
-  const [especialidad, setEspecialidad] = useState('')
-  const [matricula, setMatricula] = useState('')
-  const [telefono, setTelefono] = useState('')
-  const [email, setEmail] = useState('')
+function MedicoForm({medico, onGuardado, onCancelarEdicion}){
+  const isEditing = !!medico
+  const [nombre, setNombre] = useState(medico?.nombre ?? '')
+  const [especialidad, setEspecialidad] = useState(medico?.especialidad ?? '')
+  const [matricula, setMatricula] = useState(medico?.matricula ?? '')
+  const [telefono, setTelefono] = useState(medico?.telefono ?? '')
+  const [email, setEmail] = useState(medico?.email ?? '')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
 
@@ -28,15 +29,16 @@ function MedicoForm({onCreado}){
     setLoading(true)
     setError(null)
     try{
-      const resp = await fetch(MEDICOS_API, {
-        method: 'POST',
+      const url = isEditing ? `${MEDICOS_API}/${medico.id}` : MEDICOS_API
+      const resp = await fetch(url, {
+        method: isEditing ? 'PUT' : 'POST',
         headers: {'Content-Type':'application/json'},
         body: JSON.stringify({nombre, especialidad, matricula, telefono, email})
       })
       const data = await resp.json().catch(() => null)
       if(!resp.ok) throw new Error(typeof data === 'string' ? data : `HTTP ${resp.status}`)
-      setNombre(''); setEspecialidad(''); setMatricula(''); setTelefono(''); setEmail('')
-      await onCreado()
+      if(!isEditing){ setNombre(''); setEspecialidad(''); setMatricula(''); setTelefono(''); setEmail('') }
+      await onGuardado()
     }catch(err){
       setError(err.message)
     }finally{
@@ -52,21 +54,29 @@ function MedicoForm({onCreado}){
       <input className="input-field" placeholder="Teléfono" value={telefono} onChange={e=>setTelefono(e.target.value)} />
       <input className="input-field sm:col-span-2" placeholder="Email" value={email} onChange={e=>setEmail(e.target.value)} />
       {error && <p className="sm:col-span-2 text-sm text-danger-600">Error: {error}</p>}
-      <button type="submit" disabled={loading} className="btn-primary sm:col-span-2 sm:w-fit">
-        {loading ? 'Guardando…' : 'Agregar médico'}
-      </button>
+      <div className="sm:col-span-2 flex gap-3">
+        <button type="submit" disabled={loading} className="btn-primary sm:w-fit">
+          {loading ? 'Guardando…' : isEditing ? 'Guardar cambios' : 'Agregar médico'}
+        </button>
+        {isEditing && (
+          <button type="button" onClick={onCancelarEdicion} className="btn-secondary sm:w-fit">
+            Cancelar
+          </button>
+        )}
+      </div>
     </form>
   )
 }
 
-function PacienteForm({onCreado}){
-  const [nombre, setNombre] = useState('')
-  const [dni, setDni] = useState('')
-  const [telefono, setTelefono] = useState('')
-  const [obraSocial, setObraSocial] = useState('')
-  const [numeroAfiliado, setNumeroAfiliado] = useState('')
-  const [plan, setPlan] = useState('')
-  const [email, setEmail] = useState('')
+function PacienteForm({paciente, onGuardado, onCancelarEdicion}){
+  const isEditing = !!paciente
+  const [nombre, setNombre] = useState(paciente?.nombre ?? '')
+  const [dni, setDni] = useState(paciente?.dni ?? '')
+  const [telefono, setTelefono] = useState(paciente?.telefono ?? '')
+  const [obraSocial, setObraSocial] = useState(paciente?.obraSocial ?? '')
+  const [numeroAfiliado, setNumeroAfiliado] = useState(paciente?.numeroAfiliado ?? '')
+  const [plan, setPlan] = useState(paciente?.plan ?? '')
+  const [email, setEmail] = useState(paciente?.email ?? '')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
 
@@ -75,15 +85,16 @@ function PacienteForm({onCreado}){
     setLoading(true)
     setError(null)
     try{
-      const resp = await fetch(PACIENTES_API, {
-        method: 'POST',
+      const url = isEditing ? `${PACIENTES_API}/${paciente.id}` : PACIENTES_API
+      const resp = await fetch(url, {
+        method: isEditing ? 'PUT' : 'POST',
         headers: {'Content-Type':'application/json'},
         body: JSON.stringify({nombre, dni, telefono, obraSocial, numeroAfiliado, plan, email})
       })
       const data = await resp.json().catch(() => null)
       if(!resp.ok) throw new Error(typeof data === 'string' ? data : `HTTP ${resp.status}`)
-      setNombre(''); setDni(''); setTelefono(''); setObraSocial(''); setNumeroAfiliado(''); setPlan(''); setEmail('')
-      await onCreado()
+      if(!isEditing){ setNombre(''); setDni(''); setTelefono(''); setObraSocial(''); setNumeroAfiliado(''); setPlan(''); setEmail('') }
+      await onGuardado()
     }catch(err){
       setError(err.message)
     }finally{
@@ -101,9 +112,16 @@ function PacienteForm({onCreado}){
       <input className="input-field" placeholder="Plan" value={plan} onChange={e=>setPlan(e.target.value)} />
       <input className="input-field sm:col-span-2" placeholder="Email" value={email} onChange={e=>setEmail(e.target.value)} />
       {error && <p className="sm:col-span-2 text-sm text-danger-600">Error: {error}</p>}
-      <button type="submit" disabled={loading} className="btn-primary sm:col-span-2 sm:w-fit">
-        {loading ? 'Guardando…' : 'Agregar paciente'}
-      </button>
+      <div className="sm:col-span-2 flex gap-3">
+        <button type="submit" disabled={loading} className="btn-primary sm:w-fit">
+          {loading ? 'Guardando…' : isEditing ? 'Guardar cambios' : 'Agregar paciente'}
+        </button>
+        {isEditing && (
+          <button type="button" onClick={onCancelarEdicion} className="btn-secondary sm:w-fit">
+            Cancelar
+          </button>
+        )}
+      </div>
     </form>
   )
 }
@@ -111,6 +129,10 @@ function PacienteForm({onCreado}){
 export default function App(){
   const [medicos, setMedicos] = useState([])
   const [pacientes, setPacientes] = useState([])
+  const [editingMedico, setEditingMedico] = useState(null)
+  const [editingPaciente, setEditingPaciente] = useState(null)
+  const [medicoActionError, setMedicoActionError] = useState(null)
+  const [pacienteActionError, setPacienteActionError] = useState(null)
 
   const [fechaHora, setFechaHora] = useState('2026-08-12T10:00:00')
   const [especialidad, setEspecialidad] = useState('Cardiología')
@@ -135,6 +157,32 @@ export default function App(){
   async function cargarPacientes(){
     const resp = await fetch(PACIENTES_API)
     if(resp.ok) setPacientes(await resp.json())
+  }
+
+  async function eliminarMedico(medico){
+    if(!window.confirm(`¿Eliminar a ${medico.nombre}?`)) return
+    setMedicoActionError(null)
+    try{
+      const resp = await fetch(`${MEDICOS_API}/${medico.id}`, {method: 'DELETE'})
+      if(!resp.ok) throw new Error(`HTTP ${resp.status}`)
+      if(editingMedico?.id === medico.id) setEditingMedico(null)
+      await cargarMedicos()
+    }catch(err){
+      setMedicoActionError(err.message)
+    }
+  }
+
+  async function eliminarPaciente(paciente){
+    if(!window.confirm(`¿Eliminar a ${paciente.nombre}?`)) return
+    setPacienteActionError(null)
+    try{
+      const resp = await fetch(`${PACIENTES_API}/${paciente.id}`, {method: 'DELETE'})
+      if(!resp.ok) throw new Error(`HTTP ${resp.status}`)
+      if(editingPaciente?.id === paciente.id) setEditingPaciente(null)
+      await cargarPacientes()
+    }catch(err){
+      setPacienteActionError(err.message)
+    }
   }
 
   async function cargarTurnos(medicoIdParam = filtroMedicoId, pacienteIdParam = filtroPacienteId){
@@ -223,7 +271,15 @@ export default function App(){
       <main className="max-w-3xl mx-auto px-6 py-8 space-y-8">
         <section className="card">
           <h2 className="heading mb-4">Médicos</h2>
-          <MedicoForm onCreado={cargarMedicos} />
+          <MedicoForm
+            key={editingMedico?.id ?? 'new'}
+            medico={editingMedico}
+            onGuardado={async () => { setEditingMedico(null); await cargarMedicos() }}
+            onCancelarEdicion={() => setEditingMedico(null)}
+          />
+          {medicoActionError && (
+            <p className="mb-4 text-sm text-danger-600">Error: {medicoActionError}</p>
+          )}
           <div className="overflow-x-auto rounded-lg border border-neutral-200">
             <table className="w-full text-sm">
               <thead>
@@ -232,6 +288,7 @@ export default function App(){
                   <th className="px-4 py-2 font-medium">Nombre</th>
                   <th className="px-4 py-2 font-medium">Especialidad</th>
                   <th className="px-4 py-2 font-medium">Matrícula</th>
+                  <th className="px-4 py-2 font-medium">Acciones</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-neutral-100">
@@ -241,11 +298,21 @@ export default function App(){
                     <td className="px-4 py-2 text-neutral-900">{m.nombre}</td>
                     <td className="px-4 py-2 text-neutral-900">{m.especialidad}</td>
                     <td className="px-4 py-2 text-neutral-900">{m.matricula}</td>
+                    <td className="px-4 py-2">
+                      <div className="flex gap-2">
+                        <button type="button" onClick={() => setEditingMedico(m)} className="btn-secondary !px-2 !py-1 text-xs">
+                          Editar
+                        </button>
+                        <button type="button" onClick={() => eliminarMedico(m)} className="btn-secondary !px-2 !py-1 text-xs text-danger-600">
+                          Eliminar
+                        </button>
+                      </div>
+                    </td>
                   </tr>
                 ))}
                 {medicos.length === 0 && (
                   <tr>
-                    <td colSpan={4} className="px-4 py-6 text-center text-neutral-400">
+                    <td colSpan={5} className="px-4 py-6 text-center text-neutral-400">
                       Sin médicos registrados.
                     </td>
                   </tr>
@@ -257,7 +324,15 @@ export default function App(){
 
         <section className="card">
           <h2 className="heading mb-4">Pacientes</h2>
-          <PacienteForm onCreado={cargarPacientes} />
+          <PacienteForm
+            key={editingPaciente?.id ?? 'new'}
+            paciente={editingPaciente}
+            onGuardado={async () => { setEditingPaciente(null); await cargarPacientes() }}
+            onCancelarEdicion={() => setEditingPaciente(null)}
+          />
+          {pacienteActionError && (
+            <p className="mb-4 text-sm text-danger-600">Error: {pacienteActionError}</p>
+          )}
           <div className="overflow-x-auto rounded-lg border border-neutral-200">
             <table className="w-full text-sm">
               <thead>
@@ -268,6 +343,7 @@ export default function App(){
                   <th className="px-4 py-2 font-medium">Obra social</th>
                   <th className="px-4 py-2 font-medium">N° afiliado</th>
                   <th className="px-4 py-2 font-medium">Plan</th>
+                  <th className="px-4 py-2 font-medium">Acciones</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-neutral-100">
@@ -279,11 +355,21 @@ export default function App(){
                     <td className="px-4 py-2 text-neutral-900">{p.obraSocial}</td>
                     <td className="px-4 py-2 text-neutral-900">{p.numeroAfiliado}</td>
                     <td className="px-4 py-2 text-neutral-900">{p.plan}</td>
+                    <td className="px-4 py-2">
+                      <div className="flex gap-2">
+                        <button type="button" onClick={() => setEditingPaciente(p)} className="btn-secondary !px-2 !py-1 text-xs">
+                          Editar
+                        </button>
+                        <button type="button" onClick={() => eliminarPaciente(p)} className="btn-secondary !px-2 !py-1 text-xs text-danger-600">
+                          Eliminar
+                        </button>
+                      </div>
+                    </td>
                   </tr>
                 ))}
                 {pacientes.length === 0 && (
                   <tr>
-                    <td colSpan={6} className="px-4 py-6 text-center text-neutral-400">
+                    <td colSpan={7} className="px-4 py-6 text-center text-neutral-400">
                       Sin pacientes registrados.
                     </td>
                   </tr>
