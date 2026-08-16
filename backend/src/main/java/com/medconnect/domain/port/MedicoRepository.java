@@ -11,4 +11,6 @@ public interface MedicoRepository {
     Optional<Medico> buscarPorId(Long id);
 
     List<Medico> buscarTodos();
+
+    void eliminar(Long id);
 }

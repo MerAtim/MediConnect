@@ -161,6 +161,11 @@ public class CrearTurnoIntegrationTest {
         public List<Medico> buscarTodos() {
             return new ArrayList<>(store);
         }
+
+        @Override
+        public void eliminar(Long id) {
+            store.removeIf(m -> m.getId().equals(id));
+        }
     }
 
     static class InMemoryPacienteRepository implements PacienteRepository {
