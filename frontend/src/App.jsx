@@ -208,7 +208,7 @@ export default function App(){
   }
 
   return (
-    <div className="min-h-screen bg-neutral-50 font-sans">
+    <div className="min-h-screen bg-neutral-200 font-sans">
       <header className="bg-primary-800 text-white">
         <div className="max-w-3xl mx-auto px-6 py-4">
           <h1 className="text-xl font-semibold tracking-tight">MedConnect</h1>
