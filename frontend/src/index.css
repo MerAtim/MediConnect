@@ -69,11 +69,50 @@
     transform: scale(0);
     animation: ripple-anim 500ms ease-out forwards;
   }
+
+  .toast {
+    @apply rounded-lg border px-4 py-3 text-sm shadow-md;
+    animation: toast-in 200ms ease-out;
+  }
+
+  .toast-leaving {
+    animation: toast-out 200ms ease-in forwards;
+  }
+
+  .toast-success {
+    @apply bg-success-50 border-success-200 text-success-700;
+  }
+
+  .toast-error {
+    @apply bg-danger-50 border-danger-200 text-danger-700;
+  }
+
+  .skeleton {
+    @apply h-4 rounded bg-neutral-200 animate-pulse;
+  }
 }
 
 @keyframes ripple-anim {
   to {
     transform: scale(2.5);
     opacity: 0;
+  }
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes toast-out {
+  to {
+    opacity: 0;
+    transform: translateX(16px);
   }
 }
