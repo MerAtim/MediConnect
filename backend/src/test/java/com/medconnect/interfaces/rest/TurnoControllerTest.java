@@ -1,5 +1,6 @@
 package com.medconnect.interfaces.rest;
 
+import com.medconnect.application.usecase.ActualizarEstadoTurnoUseCase;
 import com.medconnect.application.usecase.BuscarTurnoUseCase;
 import com.medconnect.application.usecase.CreateTurnoResponse;
 import com.medconnect.application.usecase.CrearTurnoUseCase;
@@ -20,8 +21,10 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -31,12 +34,14 @@ public class TurnoControllerTest {
     private MockMvc mockMvc;
     private CrearTurnoUseCase crearTurnoUseCase;
     private BuscarTurnoUseCase buscarTurnoUseCase;
+    private ActualizarEstadoTurnoUseCase actualizarEstadoTurnoUseCase;
 
     @BeforeEach
     public void setup() {
         crearTurnoUseCase = Mockito.mock(CrearTurnoUseCase.class);
         buscarTurnoUseCase = Mockito.mock(BuscarTurnoUseCase.class);
-        TurnoController controller = new TurnoController(crearTurnoUseCase, buscarTurnoUseCase);
+        actualizarEstadoTurnoUseCase = Mockito.mock(ActualizarEstadoTurnoUseCase.class);
+        TurnoController controller = new TurnoController(crearTurnoUseCase, buscarTurnoUseCase, actualizarEstadoTurnoUseCase);
         mockMvc = MockMvcBuilders.standaloneSetup(controller)
                 .setControllerAdvice(new GlobalExceptionHandler())
                 .build();
@@ -113,5 +118,52 @@ public class TurnoControllerTest {
                 .andExpect(content().json("[]"));
 
         Mockito.verify(buscarTurnoUseCase).buscarTodos();
+    }
+
+    @Test
+    public void actualizarEstado_devuelve200_yBody_siExiste() throws Exception {
+        Turno turno = new Turno(1L, LocalDateTime.of(2026, 8, 12, 10, 0), "Cardiología",
+                new Medico(2L, null, null, null, null, null, null, null),
+                new Paciente(3L, null, null, null, null, null, null),
+                TurnoEstado.CONFIRMADO);
+        when(actualizarEstadoTurnoUseCase.actualizarEstado(eq(1L), eq(TurnoEstado.CONFIRMADO)))
+                .thenReturn(Optional.of(turno));
+
+        mockMvc.perform(patch("/api/turnos/1/estado")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"estado\":\"CONFIRMADO\"}"))
+                .andExpect(status().isOk())
+                .andExpect(content().json("{\"id\":1,\"estado\":\"CONFIRMADO\"}"));
+    }
+
+    @Test
+    public void actualizarEstado_devuelve404_siNoExiste() throws Exception {
+        when(actualizarEstadoTurnoUseCase.actualizarEstado(eq(99L), eq(TurnoEstado.CANCELADO)))
+                .thenReturn(Optional.empty());
+
+        mockMvc.perform(patch("/api/turnos/99/estado")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"estado\":\"CANCELADO\"}"))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    public void actualizarEstado_devuelve400_siEstadoInvalido() throws Exception {
+        mockMvc.perform(patch("/api/turnos/1/estado")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"estado\":\"NO_EXISTE\"}"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    public void actualizarEstado_devuelve400_siUseCaseRechazaTransicion() throws Exception {
+        when(actualizarEstadoTurnoUseCase.actualizarEstado(eq(1L), eq(TurnoEstado.CONFIRMADO)))
+                .thenThrow(new TurnoInvalidoException("No se puede modificar un turno cancelado"));
+
+        mockMvc.perform(patch("/api/turnos/1/estado")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"estado\":\"CONFIRMADO\"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(content().string("No se puede modificar un turno cancelado"));
     }
 }
