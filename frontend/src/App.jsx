@@ -20,6 +20,7 @@ function MedicoForm({medico, onGuardado, onCancelarEdicion}){
   const [especialidad, setEspecialidad] = useState(medico?.especialidad ?? '')
   const [matricula, setMatricula] = useState(medico?.matricula ?? '')
   const [telefono, setTelefono] = useState(medico?.telefono ?? '')
+  const [direccion, setDireccion] = useState(medico?.direccion ?? '')
   const [email, setEmail] = useState(medico?.email ?? '')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
@@ -33,11 +34,11 @@ function MedicoForm({medico, onGuardado, onCancelarEdicion}){
       const resp = await fetch(url, {
         method: isEditing ? 'PUT' : 'POST',
         headers: {'Content-Type':'application/json'},
-        body: JSON.stringify({nombre, especialidad, matricula, telefono, email})
+        body: JSON.stringify({nombre, especialidad, matricula, telefono, direccion, email})
       })
       const data = await resp.json().catch(() => null)
       if(!resp.ok) throw new Error(typeof data === 'string' ? data : `HTTP ${resp.status}`)
-      if(!isEditing){ setNombre(''); setEspecialidad(''); setMatricula(''); setTelefono(''); setEmail('') }
+      if(!isEditing){ setNombre(''); setEspecialidad(''); setMatricula(''); setTelefono(''); setDireccion(''); setEmail('') }
       await onGuardado()
     }catch(err){
       setError(err.message)
@@ -52,6 +53,7 @@ function MedicoForm({medico, onGuardado, onCancelarEdicion}){
       <input className="input-field" placeholder="Especialidad" value={especialidad} onChange={e=>setEspecialidad(e.target.value)} required />
       <input className="input-field" placeholder="Matrícula" value={matricula} onChange={e=>setMatricula(e.target.value)} required />
       <input className="input-field" placeholder="Teléfono" value={telefono} onChange={e=>setTelefono(e.target.value)} />
+      <input className="input-field sm:col-span-2" placeholder="Dirección" value={direccion} onChange={e=>setDireccion(e.target.value)} />
       <input className="input-field sm:col-span-2" placeholder="Email" value={email} onChange={e=>setEmail(e.target.value)} />
       {error && <p className="sm:col-span-2 text-sm text-danger-600">Error: {error}</p>}
       <div className="sm:col-span-2 flex gap-3">
@@ -73,6 +75,7 @@ function PacienteForm({paciente, onGuardado, onCancelarEdicion}){
   const [nombre, setNombre] = useState(paciente?.nombre ?? '')
   const [dni, setDni] = useState(paciente?.dni ?? '')
   const [telefono, setTelefono] = useState(paciente?.telefono ?? '')
+  const [direccion, setDireccion] = useState(paciente?.direccion ?? '')
   const [obraSocial, setObraSocial] = useState(paciente?.obraSocial ?? '')
   const [numeroAfiliado, setNumeroAfiliado] = useState(paciente?.numeroAfiliado ?? '')
   const [plan, setPlan] = useState(paciente?.plan ?? '')
@@ -89,11 +92,11 @@ function PacienteForm({paciente, onGuardado, onCancelarEdicion}){
       const resp = await fetch(url, {
         method: isEditing ? 'PUT' : 'POST',
         headers: {'Content-Type':'application/json'},
-        body: JSON.stringify({nombre, dni, telefono, obraSocial, numeroAfiliado, plan, email})
+        body: JSON.stringify({nombre, dni, telefono, direccion, obraSocial, numeroAfiliado, plan, email})
       })
       const data = await resp.json().catch(() => null)
       if(!resp.ok) throw new Error(typeof data === 'string' ? data : `HTTP ${resp.status}`)
-      if(!isEditing){ setNombre(''); setDni(''); setTelefono(''); setObraSocial(''); setNumeroAfiliado(''); setPlan(''); setEmail('') }
+      if(!isEditing){ setNombre(''); setDni(''); setTelefono(''); setDireccion(''); setObraSocial(''); setNumeroAfiliado(''); setPlan(''); setEmail('') }
       await onGuardado()
     }catch(err){
       setError(err.message)
@@ -107,6 +110,7 @@ function PacienteForm({paciente, onGuardado, onCancelarEdicion}){
       <input className="input-field" placeholder="Nombre" value={nombre} onChange={e=>setNombre(e.target.value)} required />
       <input className="input-field" placeholder="DNI" value={dni} onChange={e=>setDni(e.target.value)} required />
       <input className="input-field" placeholder="Teléfono" value={telefono} onChange={e=>setTelefono(e.target.value)} />
+      <input className="input-field" placeholder="Dirección" value={direccion} onChange={e=>setDireccion(e.target.value)} />
       <input className="input-field" placeholder="Obra social / prepaga" value={obraSocial} onChange={e=>setObraSocial(e.target.value)} />
       <input className="input-field" placeholder="Número de afiliado" value={numeroAfiliado} onChange={e=>setNumeroAfiliado(e.target.value)} />
       <input className="input-field" placeholder="Plan" value={plan} onChange={e=>setPlan(e.target.value)} />
@@ -288,6 +292,7 @@ export default function App(){
                   <th className="px-4 py-2 font-medium">Nombre</th>
                   <th className="px-4 py-2 font-medium">Especialidad</th>
                   <th className="px-4 py-2 font-medium">Matrícula</th>
+                  <th className="px-4 py-2 font-medium">Dirección</th>
                   <th className="px-4 py-2 font-medium">Acciones</th>
                 </tr>
               </thead>
@@ -298,6 +303,7 @@ export default function App(){
                     <td className="px-4 py-2 text-neutral-900">{m.nombre}</td>
                     <td className="px-4 py-2 text-neutral-900">{m.especialidad}</td>
                     <td className="px-4 py-2 text-neutral-900">{m.matricula}</td>
+                    <td className="px-4 py-2 text-neutral-900">{m.direccion}</td>
                     <td className="px-4 py-2">
                       <div className="flex gap-2">
                         <button type="button" onClick={() => setEditingMedico(m)} className="btn-secondary !px-2 !py-1 text-xs">
@@ -312,7 +318,7 @@ export default function App(){
                 ))}
                 {medicos.length === 0 && (
                   <tr>
-                    <td colSpan={5} className="px-4 py-6 text-center text-neutral-400">
+                    <td colSpan={6} className="px-4 py-6 text-center text-neutral-400">
                       Sin médicos registrados.
                     </td>
                   </tr>
@@ -340,6 +346,7 @@ export default function App(){
                   <th className="px-4 py-2 font-medium">ID</th>
                   <th className="px-4 py-2 font-medium">Nombre</th>
                   <th className="px-4 py-2 font-medium">DNI</th>
+                  <th className="px-4 py-2 font-medium">Dirección</th>
                   <th className="px-4 py-2 font-medium">Obra social</th>
                   <th className="px-4 py-2 font-medium">N° afiliado</th>
                   <th className="px-4 py-2 font-medium">Plan</th>
@@ -352,6 +359,7 @@ export default function App(){
                     <td className="px-4 py-2 text-neutral-500">{p.id}</td>
                     <td className="px-4 py-2 text-neutral-900">{p.nombre}</td>
                     <td className="px-4 py-2 text-neutral-900">{p.dni}</td>
+                    <td className="px-4 py-2 text-neutral-900">{p.direccion}</td>
                     <td className="px-4 py-2 text-neutral-900">{p.obraSocial}</td>
                     <td className="px-4 py-2 text-neutral-900">{p.numeroAfiliado}</td>
                     <td className="px-4 py-2 text-neutral-900">{p.plan}</td>
@@ -369,7 +377,7 @@ export default function App(){
                 ))}
                 {pacientes.length === 0 && (
                   <tr>
-                    <td colSpan={7} className="px-4 py-6 text-center text-neutral-400">
+                    <td colSpan={8} className="px-4 py-6 text-center text-neutral-400">
                       Sin pacientes registrados.
                     </td>
                   </tr>
