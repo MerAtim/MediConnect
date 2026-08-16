@@ -32,9 +32,10 @@
   }
 
   .btn {
-    @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium
-           transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2
-           disabled:opacity-50 disabled:cursor-not-allowed;
+    @apply relative overflow-hidden inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium
+           shadow-sm transition-all hover:shadow-md active:scale-[0.97]
+           focus:outline-none focus:ring-2 focus:ring-offset-2
+           disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-sm disabled:active:scale-100;
   }
 
   .btn-primary {
@@ -59,5 +60,20 @@
 
   .badge-cancelado {
     @apply badge bg-danger-100 text-danger-700;
+  }
+
+  .ripple {
+    @apply absolute rounded-full pointer-events-none;
+    background-color: currentColor;
+    opacity: 0.35;
+    transform: scale(0);
+    animation: ripple-anim 500ms ease-out forwards;
+  }
+}
+
+@keyframes ripple-anim {
+  to {
+    transform: scale(2.5);
+    opacity: 0;
   }
 }

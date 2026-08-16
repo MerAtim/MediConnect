@@ -258,6 +258,26 @@ function PacienteForm({paciente, token, onGuardado, onCancelarEdicion}){
 }
 
 export default function App(){
+  // Efecto ripple estilo Material: un solo listener global cubre todos los
+  // botones .btn (actuales y futuros), sin tener que instrumentar cada uno.
+  useEffect(() => {
+    function handleRipple(e){
+      const btn = e.target.closest('.btn-primary, .btn-secondary')
+      if(!btn || btn.disabled) return
+      const rect = btn.getBoundingClientRect()
+      const size = Math.max(rect.width, rect.height)
+      const span = document.createElement('span')
+      span.className = 'ripple'
+      span.style.width = span.style.height = `${size}px`
+      span.style.left = `${e.clientX - rect.left - size / 2}px`
+      span.style.top = `${e.clientY - rect.top - size / 2}px`
+      btn.appendChild(span)
+      span.addEventListener('animationend', () => span.remove())
+    }
+    document.addEventListener('mousedown', handleRipple)
+    return () => document.removeEventListener('mousedown', handleRipple)
+  }, [])
+
   const [auth, setAuth] = useState(() => {
     const stored = localStorage.getItem(AUTH_STORAGE_KEY)
     return stored ? JSON.parse(stored) : null
