@@ -3,9 +3,11 @@ package com.medconnect.integration;
 import com.medconnect.domain.model.Medico;
 import com.medconnect.domain.model.Paciente;
 import com.medconnect.domain.model.Turno;
+import com.medconnect.domain.model.Usuario;
 import com.medconnect.domain.port.MedicoRepository;
 import com.medconnect.domain.port.PacienteRepository;
 import com.medconnect.domain.port.TurnoRepository;
+import com.medconnect.domain.port.UsuarioRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.TestConfiguration;
@@ -82,6 +84,11 @@ public class CrearTurnoIntegrationTest {
         @Bean
         public com.medconnect.application.usecase.BuscarPacienteUseCase buscarPacienteUseCase(PacienteRepository repo) {
             return new com.medconnect.application.usecase.BuscarPacienteService(repo);
+        }
+
+        @Bean
+        public UsuarioRepository usuarioRepository() {
+            return new InMemoryUsuarioRepository();
         }
     }
 
@@ -192,6 +199,23 @@ public class CrearTurnoIntegrationTest {
         @Override
         public void eliminar(Long id) {
             store.removeIf(p -> p.getId().equals(id));
+        }
+    }
+
+    static class InMemoryUsuarioRepository implements UsuarioRepository {
+        private final List<Usuario> store = new ArrayList<>();
+        private long seq = 1;
+
+        @Override
+        public Usuario guardar(Usuario usuario) {
+            usuario.setId(seq++);
+            store.add(usuario);
+            return usuario;
+        }
+
+        @Override
+        public java.util.Optional<Usuario> buscarPorEmail(String email) {
+            return store.stream().filter(u -> u.getEmail().equals(email)).findFirst();
         }
     }
 }
