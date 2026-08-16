@@ -2,7 +2,9 @@
 
 Este archivo se mantiene actualizado al final de cada sesión de trabajo para que,
 aunque pasen días sin conectarte, se pueda seguir sin releer el proyecto entero.
-Última actualización: **2026-08-16**, tras mergear PR #14 (autenticación con JWT + labels flotantes).
+Última actualización: **2026-08-16**, tras mergear PR #16 (toasts, skeleton
+loaders, mensajes de validación en español y ripple/elevación Material en
+los botones).
 
 ## Stack y arquitectura
 
@@ -39,7 +41,28 @@ aunque pasen días sin conectarte, se pueda seguir sin releer el proyecto entero
   `FloatingInput` (label flota arriba al enfocar o si ya hay valor cargado,
   estilo Material) — **para un input de texto nuevo, usar `FloatingInput` en
   vez de `<input placeholder=...>` suelto**, salvo que ya tenga un `<label>`
-  fijo arriba (como los filtros de Turnos).
+  fijo arriba (como los filtros de Turnos). Los botones (`.btn` en
+  `index.css`) tienen efecto ripple Material (listener global de `mousedown`
+  en `App`, busca `.btn-primary, .btn-secondary` — **ojo, `.btn` solo no
+  existe en el DOM**, Tailwind lo inlinea vía `@apply` dentro de esas dos
+  clases) más sombra/elevación al hover y `active:scale-[0.97]`.
+- **Validación y errores**: los mensajes nativos del navegador (`Please fill
+  out this field`, etc.) están traducidos al español vía `handleInvalid`/
+  `clearValidity` (Constraint Validation API, `el.setCustomValidity(...)`),
+  ya wireados en `FloatingInput` y en los `<select>` obligatorios de "Crear
+  turno" — **si agregás un input/select requerido nuevo, hay que cablearlos
+  ahí también o el navegador muestra el mensaje en inglés**. Todos los
+  errores/éxitos (login, registro, Médico, Paciente, Turnos) se muestran con
+  un sistema de toasts (`notify(mensaje, tipo)` en `App`, tipo `'error'` por
+  default o `'success'`) en vez de banners inline — no quedan estados locales
+  de error por componente. **Importante**: el backend devuelve los errores
+  como texto plano (`ResponseEntity<String>`), no JSON — usar siempre el
+  helper `readErrorMessage(resp)` para leerlos (hace `resp.text()` primero),
+  nunca `resp.json().catch(() => null)`, que falla silenciosamente y deja un
+  `HTTP 401` genérico en vez del mensaje real. Las tablas (Médicos,
+  Pacientes, Turnos) muestran `SkeletonRows` mientras cargan por primera vez
+  (guardado con `xLoading && x.length === 0`, no solo `xLoading`, para que no
+  parpadee en cada refresco tras una acción).
 - **Arquitectura backend**: hexagonal por entidad, calcada tres veces (Turno,
   Médico, Paciente):
   - `domain/model/` — clase de dominio plana (POJO)
@@ -227,6 +250,15 @@ curl http://localhost:8080/api/pacientes -H "Authorization: Bearer $TOKEN"
 13. `feature/autenticacion-jwt` (PR #14) — login/registro con JWT, `/api/**`
     detrás de auth (sin restricción por rol todavía), + labels flotantes
     (`FloatingInput`) en los inputs de texto con placeholder
+14. `feature/material-ripple-elevacion` (PR #15) — efecto ripple y elevación
+    Material en los botones
+15. `feature/toasts-skeletons-mensajes-es` (PR #16) — mensajes de validación
+    nativa en español, sistema de toasts, skeleton loaders y fix del parseo
+    de errores del backend (texto plano, no JSON). Nota: esta PR se armó a
+    partir de commits que habían quedado huérfanos localmente (nunca se
+    pushearon antes de mergear y borrar la rama anterior) — recuperados vía
+    `git reflog`/`git fsck --dangling` y rebaseados sobre `develop`. Desde
+    entonces, cada commit se pushea enseguida en vez de acumularlos.
 
 ## Siguientes pasos sugeridos (sin decidir aún — preguntale al usuario)
 
