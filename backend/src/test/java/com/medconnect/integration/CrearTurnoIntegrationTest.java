@@ -2,8 +2,10 @@ package com.medconnect.integration;
 
 import com.medconnect.application.usecase.CreateTurnoResponse;
 import com.medconnect.domain.model.Medico;
+import com.medconnect.domain.model.Paciente;
 import com.medconnect.domain.model.Turno;
 import com.medconnect.domain.port.MedicoRepository;
+import com.medconnect.domain.port.PacienteRepository;
 import com.medconnect.domain.port.TurnoRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -65,6 +67,21 @@ public class CrearTurnoIntegrationTest {
         @Bean
         public com.medconnect.application.usecase.BuscarMedicoUseCase buscarMedicoUseCase(MedicoRepository repo) {
             return new com.medconnect.application.usecase.BuscarMedicoService(repo);
+        }
+
+        @Bean
+        public PacienteRepository pacienteRepository() {
+            return new InMemoryPacienteRepository();
+        }
+
+        @Bean
+        public com.medconnect.application.usecase.CrearPacienteUseCase crearPacienteUseCase(PacienteRepository repo) {
+            return new com.medconnect.application.usecase.CrearPacienteService(repo);
+        }
+
+        @Bean
+        public com.medconnect.application.usecase.BuscarPacienteUseCase buscarPacienteUseCase(PacienteRepository repo) {
+            return new com.medconnect.application.usecase.BuscarPacienteService(repo);
         }
     }
 
@@ -139,6 +156,28 @@ public class CrearTurnoIntegrationTest {
 
         @Override
         public List<Medico> buscarTodos() {
+            return new ArrayList<>(store);
+        }
+    }
+
+    static class InMemoryPacienteRepository implements PacienteRepository {
+        private final List<Paciente> store = new ArrayList<>();
+        private long seq = 1;
+
+        @Override
+        public Paciente guardar(Paciente paciente) {
+            paciente.setId(seq++);
+            store.add(paciente);
+            return paciente;
+        }
+
+        @Override
+        public java.util.Optional<Paciente> buscarPorId(Long id) {
+            return store.stream().filter(p -> p.getId().equals(id)).findFirst();
+        }
+
+        @Override
+        public List<Paciente> buscarTodos() {
             return new ArrayList<>(store);
         }
     }
