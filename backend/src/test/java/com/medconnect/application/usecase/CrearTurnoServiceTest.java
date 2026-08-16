@@ -36,7 +36,7 @@ public class CrearTurnoServiceTest {
         PacienteRepository pacienteRepo = Mockito.mock(PacienteRepository.class);
 
         when(medicoRepo.buscarPorId(2L)).thenReturn(Optional.of(new Medico(2L, null, null, null, null, null, null, null)));
-        when(pacienteRepo.buscarPorId(3L)).thenReturn(Optional.of(new Paciente(3L, null, null, null, null, null, null)));
+        when(pacienteRepo.buscarPorId(3L)).thenReturn(Optional.of(new Paciente(3L, null, null, null, null, null, null, null, null)));
         when(repo.guardar(any(Turno.class))).thenAnswer(invocation -> {
             Turno t = invocation.getArgument(0);
             t.setId(1L);
@@ -57,7 +57,7 @@ public class CrearTurnoServiceTest {
         PacienteRepository pacienteRepo = Mockito.mock(PacienteRepository.class);
 
         when(medicoRepo.buscarPorId(2L)).thenReturn(Optional.of(new Medico(2L, null, null, null, null, null, null, null)));
-        when(pacienteRepo.buscarPorId(3L)).thenReturn(Optional.of(new Paciente(3L, null, null, null, null, null, null)));
+        when(pacienteRepo.buscarPorId(3L)).thenReturn(Optional.of(new Paciente(3L, null, null, null, null, null, null, null, null)));
         // Simular que ya existe un turno a la misma fecha para el médico
         when(repo.buscarPorMedico(2L)).thenReturn(java.util.List.of(
                 new Turno(10L, LocalDateTime.of(2026, 8, 12, 10, 0), "Cardiología", null, null, null)

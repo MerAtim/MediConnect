@@ -79,7 +79,7 @@ public class TurnoControllerTest {
     public void buscarPorId_devuelve200_siExiste() throws Exception {
         Turno turno = new Turno(1L, LocalDateTime.of(2026, 8, 12, 10, 0), "Cardiología",
                 new Medico(2L, null, null, null, null, null, null, null),
-                new Paciente(3L, null, null, null, null, null, null),
+                new Paciente(3L, null, null, null, null, null, null, null, null),
                 TurnoEstado.PENDIENTE);
         when(buscarTurnoUseCase.buscarPorId(1L)).thenReturn(Optional.of(turno));
 
@@ -124,7 +124,7 @@ public class TurnoControllerTest {
     public void actualizarEstado_devuelve200_yBody_siExiste() throws Exception {
         Turno turno = new Turno(1L, LocalDateTime.of(2026, 8, 12, 10, 0), "Cardiología",
                 new Medico(2L, null, null, null, null, null, null, null),
-                new Paciente(3L, null, null, null, null, null, null),
+                new Paciente(3L, null, null, null, null, null, null, null, null),
                 TurnoEstado.CONFIRMADO);
         when(actualizarEstadoTurnoUseCase.actualizarEstado(eq(1L), eq(TurnoEstado.CONFIRMADO)))
                 .thenReturn(Optional.of(turno));

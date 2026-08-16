@@ -11,6 +11,12 @@ export default {
         success: colors.green,
         warning: colors.amber,
         danger: colors.red,
+        paper: {
+          50: '#FBF6EA',
+          100: '#F5EDD6',
+          200: '#E9DBB4',
+          300: '#DCC489',
+        },
       },
       fontFamily: {
         sans: ['"Inter"', 'ui-sans-serif', 'system-ui', 'sans-serif'],

@@ -8,15 +8,19 @@ public class Paciente {
     private String telefono;
     private String direccion;
     private String obraSocial;
+    private String numeroAfiliado;
+    private String plan;
     private String email;
 
-    public Paciente(Long id, String nombre, String dni, String telefono, String direccion, String obraSocial, String email) {
+    public Paciente(Long id, String nombre, String dni, String telefono, String direccion, String obraSocial, String numeroAfiliado, String plan, String email) {
         this.id = id;
         this.nombre = nombre;
         this.dni = dni;
         this.telefono = telefono;
         this.direccion = direccion;
         this.obraSocial = obraSocial;
+        this.numeroAfiliado = numeroAfiliado;
+        this.plan = plan;
         this.email = email;
     }
 
@@ -68,6 +72,22 @@ public class Paciente {
         this.obraSocial = obraSocial;
     }
 
+    public String getNumeroAfiliado() {
+        return numeroAfiliado;
+    }
+
+    public void setNumeroAfiliado(String numeroAfiliado) {
+        this.numeroAfiliado = numeroAfiliado;
+    }
+
+    public String getPlan() {
+        return plan;
+    }
+
+    public void setPlan(String plan) {
+        this.plan = plan;
+    }
+
     public String getEmail() {
         return email;
     }
@@ -78,7 +98,7 @@ public class Paciente {
 
     @Override
     public String toString() {
-        return "Paciente: id: " + id + ", nombre: " + nombre + ", dni: " + dni + ", telefono: " + telefono + ", direccion: " + direccion + ", obraSocial: " + obraSocial + ", email: " + email;
+        return "Paciente: id: " + id + ", nombre: " + nombre + ", dni: " + dni + ", telefono: " + telefono + ", direccion: " + direccion + ", obraSocial: " + obraSocial + ", numeroAfiliado: " + numeroAfiliado + ", plan: " + plan + ", email: " + email;
     }
 
 }

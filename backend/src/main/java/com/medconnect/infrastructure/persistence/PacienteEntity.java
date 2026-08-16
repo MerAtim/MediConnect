@@ -19,17 +19,21 @@ public class PacienteEntity {
     private String telefono;
     private String direccion;
     private String obraSocial;
+    private String numeroAfiliado;
+    private String plan;
     private String email;
 
     protected PacienteEntity() {}
 
-    public PacienteEntity(Long id, String nombre, String dni, String telefono, String direccion, String obraSocial, String email) {
+    public PacienteEntity(Long id, String nombre, String dni, String telefono, String direccion, String obraSocial, String numeroAfiliado, String plan, String email) {
         this.id = id;
         this.nombre = nombre;
         this.dni = dni;
         this.telefono = telefono;
         this.direccion = direccion;
         this.obraSocial = obraSocial;
+        this.numeroAfiliado = numeroAfiliado;
+        this.plan = plan;
         this.email = email;
     }
 
@@ -55,6 +59,14 @@ public class PacienteEntity {
 
     public String getObraSocial() {
         return obraSocial;
+    }
+
+    public String getNumeroAfiliado() {
+        return numeroAfiliado;
+    }
+
+    public String getPlan() {
+        return plan;
     }
 
     public String getEmail() {
