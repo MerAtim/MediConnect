@@ -120,6 +120,8 @@ export default function App(){
   const [filtroPacienteId, setFiltroPacienteId] = useState('')
   const [listLoading, setListLoading] = useState(false)
   const [listError, setListError] = useState(null)
+  const [estadoUpdatingId, setEstadoUpdatingId] = useState(null)
+  const [estadoError, setEstadoError] = useState(null)
 
   async function cargarMedicos(){
     const resp = await fetch(MEDICOS_API)
@@ -174,6 +176,25 @@ export default function App(){
   function handleFiltrar(e){
     e.preventDefault()
     cargarTurnos()
+  }
+
+  async function cambiarEstado(id, nuevoEstado){
+    setEstadoUpdatingId(id)
+    setEstadoError(null)
+    try{
+      const resp = await fetch(`${TURNOS_API}/${id}/estado`, {
+        method: 'PATCH',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({estado: nuevoEstado})
+      })
+      const data = await resp.json().catch(() => null)
+      if(!resp.ok) throw new Error(typeof data === 'string' ? data : `HTTP ${resp.status}`)
+      await cargarTurnos()
+    }catch(err){
+      setEstadoError(err.message)
+    }finally{
+      setEstadoUpdatingId(null)
+    }
   }
 
   function nombreMedico(id){
@@ -340,6 +361,9 @@ export default function App(){
           {listError && (
             <p className="mb-4 text-sm text-danger-600">Error: {listError}</p>
           )}
+          {estadoError && (
+            <p className="mb-4 text-sm text-danger-600">Error: {estadoError}</p>
+          )}
 
           <div className="overflow-x-auto rounded-lg border border-neutral-200">
             <table className="w-full text-sm">
@@ -351,6 +375,7 @@ export default function App(){
                   <th className="px-4 py-2 font-medium">Médico</th>
                   <th className="px-4 py-2 font-medium">Paciente</th>
                   <th className="px-4 py-2 font-medium">Estado</th>
+                  <th className="px-4 py-2 font-medium">Acciones</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-neutral-100">
@@ -362,11 +387,38 @@ export default function App(){
                     <td className="px-4 py-2 text-neutral-900">{nombreMedico(t.medicoId)}</td>
                     <td className="px-4 py-2 text-neutral-900">{nombrePaciente(t.pacienteId)}</td>
                     <td className="px-4 py-2"><EstadoBadge estado={t.estado} /></td>
+                    <td className="px-4 py-2">
+                      <div className="flex gap-2">
+                        {t.estado === 'PENDIENTE' && (
+                          <button
+                            type="button"
+                            disabled={estadoUpdatingId === t.id}
+                            onClick={() => cambiarEstado(t.id, 'CONFIRMADO')}
+                            className="btn-primary !px-2 !py-1 text-xs"
+                          >
+                            Confirmar
+                          </button>
+                        )}
+                        {t.estado !== 'CANCELADO' && (
+                          <button
+                            type="button"
+                            disabled={estadoUpdatingId === t.id}
+                            onClick={() => cambiarEstado(t.id, 'CANCELADO')}
+                            className="btn-secondary !px-2 !py-1 text-xs"
+                          >
+                            Cancelar
+                          </button>
+                        )}
+                        {t.estado === 'CANCELADO' && (
+                          <span className="text-neutral-400">—</span>
+                        )}
+                      </div>
+                    </td>
                   </tr>
                 ))}
                 {turnos.length === 0 && !listLoading && (
                   <tr>
-                    <td colSpan={6} className="px-4 py-6 text-center text-neutral-400">
+                    <td colSpan={7} className="px-4 py-6 text-center text-neutral-400">
                       Sin turnos para mostrar.
                     </td>
                   </tr>

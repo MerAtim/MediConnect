@@ -1,14 +1,18 @@
 package com.medconnect.interfaces.rest;
 
+import com.medconnect.application.usecase.ActualizarEstadoTurnoUseCase;
 import com.medconnect.application.usecase.BuscarTurnoUseCase;
 import com.medconnect.application.usecase.CreateTurnoRequest;
 import com.medconnect.application.usecase.CreateTurnoResponse;
 import com.medconnect.application.usecase.CrearTurnoUseCase;
+import com.medconnect.domain.exception.TurnoInvalidoException;
 import com.medconnect.domain.model.Turno;
+import com.medconnect.domain.model.TurnoEstado;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -25,10 +29,12 @@ public class TurnoController {
 
     private final CrearTurnoUseCase crearTurnoUseCase;
     private final BuscarTurnoUseCase buscarTurnoUseCase;
+    private final ActualizarEstadoTurnoUseCase actualizarEstadoTurnoUseCase;
 
-    public TurnoController(CrearTurnoUseCase crearTurnoUseCase, BuscarTurnoUseCase buscarTurnoUseCase) {
+    public TurnoController(CrearTurnoUseCase crearTurnoUseCase, BuscarTurnoUseCase buscarTurnoUseCase, ActualizarEstadoTurnoUseCase actualizarEstadoTurnoUseCase) {
         this.crearTurnoUseCase = crearTurnoUseCase;
         this.buscarTurnoUseCase = buscarTurnoUseCase;
+        this.actualizarEstadoTurnoUseCase = actualizarEstadoTurnoUseCase;
     }
 
     @PostMapping
@@ -63,6 +69,19 @@ public class TurnoController {
             turnos = buscarTurnoUseCase.buscarTodos();
         }
         return ResponseEntity.ok(turnos.stream().map(this::toResponse).toList());
+    }
+
+    @PatchMapping("/{id}/estado")
+    public ResponseEntity<TurnoResponse> actualizarEstado(@PathVariable Long id, @RequestBody EstadoTurnoRequest request) {
+        TurnoEstado nuevoEstado;
+        try {
+            nuevoEstado = TurnoEstado.valueOf(request.getEstado());
+        } catch (IllegalArgumentException | NullPointerException e) {
+            throw new TurnoInvalidoException("estado invalido: " + request.getEstado());
+        }
+        return actualizarEstadoTurnoUseCase.actualizarEstado(id, nuevoEstado)
+                .map(turno -> ResponseEntity.ok(toResponse(turno)))
+                .orElseGet(() -> ResponseEntity.notFound().build());
     }
 
     private TurnoResponse toResponse(Turno turno) {
