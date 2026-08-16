@@ -64,6 +64,8 @@ function PacienteForm({onCreado}){
   const [dni, setDni] = useState('')
   const [telefono, setTelefono] = useState('')
   const [obraSocial, setObraSocial] = useState('')
+  const [numeroAfiliado, setNumeroAfiliado] = useState('')
+  const [plan, setPlan] = useState('')
   const [email, setEmail] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
@@ -76,11 +78,11 @@ function PacienteForm({onCreado}){
       const resp = await fetch(PACIENTES_API, {
         method: 'POST',
         headers: {'Content-Type':'application/json'},
-        body: JSON.stringify({nombre, dni, telefono, obraSocial, email})
+        body: JSON.stringify({nombre, dni, telefono, obraSocial, numeroAfiliado, plan, email})
       })
       const data = await resp.json().catch(() => null)
       if(!resp.ok) throw new Error(typeof data === 'string' ? data : `HTTP ${resp.status}`)
-      setNombre(''); setDni(''); setTelefono(''); setObraSocial(''); setEmail('')
+      setNombre(''); setDni(''); setTelefono(''); setObraSocial(''); setNumeroAfiliado(''); setPlan(''); setEmail('')
       await onCreado()
     }catch(err){
       setError(err.message)
@@ -94,7 +96,9 @@ function PacienteForm({onCreado}){
       <input className="input-field" placeholder="Nombre" value={nombre} onChange={e=>setNombre(e.target.value)} required />
       <input className="input-field" placeholder="DNI" value={dni} onChange={e=>setDni(e.target.value)} required />
       <input className="input-field" placeholder="Teléfono" value={telefono} onChange={e=>setTelefono(e.target.value)} />
-      <input className="input-field" placeholder="Obra social" value={obraSocial} onChange={e=>setObraSocial(e.target.value)} />
+      <input className="input-field" placeholder="Obra social / prepaga" value={obraSocial} onChange={e=>setObraSocial(e.target.value)} />
+      <input className="input-field" placeholder="Número de afiliado" value={numeroAfiliado} onChange={e=>setNumeroAfiliado(e.target.value)} />
+      <input className="input-field" placeholder="Plan" value={plan} onChange={e=>setPlan(e.target.value)} />
       <input className="input-field sm:col-span-2" placeholder="Email" value={email} onChange={e=>setEmail(e.target.value)} />
       {error && <p className="sm:col-span-2 text-sm text-danger-600">Error: {error}</p>}
       <button type="submit" disabled={loading} className="btn-primary sm:col-span-2 sm:w-fit">
@@ -262,6 +266,8 @@ export default function App(){
                   <th className="px-4 py-2 font-medium">Nombre</th>
                   <th className="px-4 py-2 font-medium">DNI</th>
                   <th className="px-4 py-2 font-medium">Obra social</th>
+                  <th className="px-4 py-2 font-medium">N° afiliado</th>
+                  <th className="px-4 py-2 font-medium">Plan</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-neutral-100">
@@ -271,11 +277,13 @@ export default function App(){
                     <td className="px-4 py-2 text-neutral-900">{p.nombre}</td>
                     <td className="px-4 py-2 text-neutral-900">{p.dni}</td>
                     <td className="px-4 py-2 text-neutral-900">{p.obraSocial}</td>
+                    <td className="px-4 py-2 text-neutral-900">{p.numeroAfiliado}</td>
+                    <td className="px-4 py-2 text-neutral-900">{p.plan}</td>
                   </tr>
                 ))}
                 {pacientes.length === 0 && (
                   <tr>
-                    <td colSpan={4} className="px-4 py-6 text-center text-neutral-400">
+                    <td colSpan={6} className="px-4 py-6 text-center text-neutral-400">
                       Sin pacientes registrados.
                     </td>
                   </tr>
