@@ -2,8 +2,9 @@
 
 Este archivo se mantiene actualizado al final de cada sesión de trabajo para que,
 aunque pasen días sin conectarte, se pueda seguir sin releer el proyecto entero.
-Última actualización: **2026-08-22**, tras mergear PR #17 (restricción por
-rol: qué puede hacer cada uno de ADMINISTRADOR/MEDICO/PACIENTE).
+Última actualización: **2026-08-22**, tras el fix de autoregistro como
+ADMINISTRADOR (PR #18) y la historia clínica compartida por paciente
+(`feature/historia-clinica`, todavía sin PR al momento de escribir esto).
 
 ## Stack y arquitectura
 
@@ -83,6 +84,40 @@ rol: qué puede hacer cada uno de ADMINISTRADOR/MEDICO/PACIENTE).
   agregás una acción nueva restringida por rol, hay que ocultarla en el
   frontend además de bloquearla en el backend**, o el usuario ve un botón
   que siempre falla.
+- **Historia clínica** (`RegistroClinico`, `feature/historia-clinica`): un
+  registro clínico por consulta (diagnóstico/tratamiento/observaciones),
+  vinculado a un médico y un paciente. La "historia clínica" de un paciente
+  **no es una entidad separada** — es simplemente la lista de sus
+  `RegistroClinico` ordenada por fecha desc (`GET /api/historias-clinicas
+  ?pacienteId=X`); no hace falta "crearla" al dar de alta un paciente, existe
+  vacía desde que el paciente existe. Es **append-only**: solo hay crear y
+  listar, no editar ni eliminar (a propósito — es un registro de auditoría
+  médica). Reglas de permiso, **distintas del resto de la app**:
+  - `MEDICO`: puede crear (`POST /api/historias-clinicas`) y navegar la lista
+    completa (`GET`) de cualquier paciente — con una validación: solo si ese
+    médico tiene al menos un turno con ese paciente (`CrearRegistroClinicoService`
+    cruza contra `TurnoRepository.buscarPorMedico`). Como `Usuario` no está
+    vinculado a `Medico`, el `medicoId` se manda explícito en el body (elegido
+    de un `<select>` en el frontend), igual que ya pasa al crear un turno — no
+    hay una garantía criptográfica de que el usuario logueado *sea* ese
+    médico, es la misma limitación que ya tiene la creación de turnos.
+  - `ADMINISTRADOR`: **no** puede navegar la lista (`GET` le da 403) — solo
+    puede descargarla como archivo de texto (`GET
+    /api/historias-clinicas/exportar?pacienteId=X`, `Content-Disposition:
+    attachment`). Pensado para cuando un paciente la pide en recepción: el
+    admin la descarga y se la entrega, pero no la mira desde la app.
+  - `PACIENTE`: sin acceso a nada de esto (ni crear, ni ver, ni descargar) —
+    la pide en persona en recepción.
+  En el frontend, el botón "Ver historia" (que despliega los registros
+  previos + el form para agregar uno nuevo) vive **dentro de la fila del
+  turno correspondiente** en la sección Turnos, visible solo con `esMedico`
+  (no `puedeGestionarTurnos`, que también incluye a ADMINISTRADOR); el botón
+  "Descargar historia" vive en la fila del paciente en la sección Pacientes,
+  visible solo con `esAdmin`.
+  **Gotcha de test**: `CrearTurnoIntegrationTest` carga el `ApplicationContext`
+  completo, así que cualquier puerto de repositorio nuevo (`XRepository`)
+  necesita un bean fake (`InMemoryXRepository`) en su `TestConfig` interno o
+  el contexto no levanta — no lo olvides si agregás otra entidad.
 - **Arquitectura backend**: hexagonal por entidad, calcada tres veces (Turno,
   Médico, Paciente):
   - `domain/model/` — clase de dominio plana (POJO)
@@ -127,6 +162,12 @@ rol: qué puede hacer cada uno de ADMINISTRADOR/MEDICO/PACIENTE).
   prepaga pueden tener plan y número de afiliado distintos), listar
   (`GET /api/pacientes`), buscar por id (`GET /api/pacientes/{id}`), editar
   (`PUT /api/pacientes/{id}`), eliminar (`DELETE /api/pacientes/{id}`, soft delete).
+- **Historia clínica** (ver bullet dedicado arriba): crear (`POST
+  /api/historias-clinicas`, MEDICO, valida que exista un turno entre ese
+  médico y ese paciente), listar por paciente (`GET
+  /api/historias-clinicas?pacienteId=X`, MEDICO), exportar como texto
+  descargable (`GET /api/historias-clinicas/exportar?pacienteId=X`,
+  ADMINISTRADOR, 404 si el paciente no existe).
 - **Frontend** (`frontend/src/App.jsx`, un solo archivo):
   - Sección "Médicos": un solo form sirve para alta y edición (botón "Editar"
     por fila precarga los datos, cambia a "Guardar cambios" y hace PUT; botón
@@ -144,7 +185,13 @@ rol: qué puede hacer cada uno de ADMINISTRADOR/MEDICO/PACIENTE).
     la lista cargada, p. ej. turnos de prueba con IDs que ya no existen).
     Columna "Acciones" con botón Confirmar (solo si `PENDIENTE`) y Cancelar
     (si no está ya `CANCELADO`), llaman al `PATCH .../estado` y refrescan.
-- Tests: 65 tests (unitarios de casos de uso + MockMvc de controllers +
+    Para `esMedico`, suma un botón "Ver historia" que despliega una fila
+    extra con la historia clínica del paciente de esa fila (registros
+    previos + form para agregar uno nuevo).
+  - Sección "Pacientes": además del alta/edición/eliminación, para `esAdmin`
+    hay un botón "Descargar historia" por fila que dispara la descarga del
+    `.txt` exportado.
+- Tests: 79 tests (unitarios de casos de uso + MockMvc de controllers +
   integración end-to-end con repos fake en memoria vía `@Profile("test")`).
   Todos verificados también contra Postgres real con curl y en navegador real
   con Playwright (no solo tests automatizados).
@@ -162,6 +209,13 @@ rol: qué puede hacer cada uno de ADMINISTRADOR/MEDICO/PACIENTE).
   objetos "solo id" a partir del id crudo (no trae nombre/especialidad); no es
   un problema hoy porque `TurnoResponse` solo expone los ids y el frontend
   resuelve el nombre por su cuenta desde `/api/medicos` y `/api/pacientes`.
+- **No hay ninguna forma legítima de crear un `ADMINISTRADOR`** (PR #18 le
+  sacó esa opción al registro público, a propósito, porque cualquiera podía
+  autoasignarse el rol). Hoy el único admin real es el que quedó de las
+  pruebas (`admin.rol@medconnect.com`) o uno insertado a mano en Postgres.
+  Falta decidir (si el usuario lo pide) un flujo — la idea que se charló fue
+  un endpoint tipo `POST /api/usuarios` protegido (solo `ADMINISTRADOR`) para
+  que un admin dé de alta a otro, reusando `RegistrarUsuarioService`.
 
 ## Cómo levantar todo (Windows / PowerShell o Git Bash)
 
@@ -295,9 +349,19 @@ curl http://localhost:8080/api/pacientes -H "Authorization: Bearer $TOKEN"
     (`SecurityConfig`, ver bloque dedicado arriba) + ocultar en el frontend
     las acciones que cada rol no puede usar + fix de un bug real (`apiFetch`
     deslogueaba también ante un 403, no solo 401).
+17. `fix/registro-publico-sin-admin` (PR #18) — el registro público aceptaba
+    `role=ADMINISTRADOR` sin ninguna validación, así que cualquiera podía
+    autoasignarse admin y saltear por completo la restricción del PR #17;
+    ahora el registro público solo acepta `MEDICO`/`PACIENTE`.
+18. `feature/historia-clinica` — historia clínica compartida por paciente
+    (`RegistroClinico`, ver bloque dedicado arriba): crear/listar/exportar
+    con permisos distintos para MEDICO/ADMINISTRADOR/PACIENTE, integrado en
+    la fila de Turnos ("Ver historia") y de Pacientes ("Descargar historia").
 
 ## Siguientes pasos sugeridos (sin decidir aún — preguntale al usuario)
 
+- Flujo para crear administradores (ver "huecos conocidos" arriba) — hoy no
+  hay ninguno legítimo más que insertarlo a mano en la base.
 - Restricción por datos propios (ver "huecos conocidos" arriba) — requiere
   vincular `Usuario` con `Medico`/`Paciente`, más grande que el PR #17.
 - Paginación en los listados si el volumen de datos crece.
