@@ -2,6 +2,7 @@ package com.medconnect.application.usecase;
 
 import com.medconnect.domain.exception.UsuarioInvalidoException;
 import com.medconnect.domain.model.Usuario;
+import com.medconnect.domain.model.UsuarioRole;
 import com.medconnect.domain.port.UsuarioRepository;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -30,6 +31,9 @@ public class RegistrarUsuarioService implements RegistrarUsuarioUseCase {
         }
         if (request.getRole() == null) {
             throw new UsuarioInvalidoException("role es obligatorio");
+        }
+        if (request.getRole() == UsuarioRole.ADMINISTRADOR) {
+            throw new UsuarioInvalidoException("no se puede autoregistrar como ADMINISTRADOR");
         }
         if (usuarioRepository.buscarPorEmail(request.getEmail()).isPresent()) {
             throw new UsuarioInvalidoException("ya existe un usuario con ese email");
