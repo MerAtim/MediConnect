@@ -2,9 +2,9 @@
 
 Este archivo se mantiene actualizado al final de cada sesión de trabajo para que,
 aunque pasen días sin conectarte, se pueda seguir sin releer el proyecto entero.
-Última actualización: **2026-08-22**, tras el fix de autoregistro como
-ADMINISTRADOR (PR #18) y la historia clínica compartida por paciente
-(`feature/historia-clinica`, todavía sin PR al momento de escribir esto).
+Última actualización: **2026-08-23**, en plena `feature/historia-clinica`
+(PR #19, todavía abierto): historia clínica compartida, pero además un
+rediseño grande del flujo de turnos — quién puede crear/ver qué, según rol.
 
 ## Stack y arquitectura
 
@@ -47,9 +47,16 @@ ADMINISTRADOR (PR #18) y la historia clínica compartida por paciente
   vez de `<input placeholder=...>` suelto**, salvo que ya tenga un `<label>`
   fijo arriba (como los filtros de Turnos). Los botones (`.btn` en
   `index.css`) tienen efecto ripple Material (listener global de `mousedown`
-  en `App`, busca `.btn-primary, .btn-secondary` — **ojo, `.btn` solo no
-  existe en el DOM**, Tailwind lo inlinea vía `@apply` dentro de esas dos
-  clases) más sombra/elevación al hover y `active:scale-[0.97]`.
+  en `App`, busca `.btn-primary, .btn-secondary, .btn-danger` — **ojo, `.btn`
+  solo no existe en el DOM**, Tailwind lo inlinea vía `@apply` dentro de esas
+  clases) más sombra/elevación al hover y `active:scale-[0.97]`. Para
+  confirmaciones destructivas (ej. un paciente cancelando su turno) **no usar
+  `window.confirm`** — hay un componente `ConfirmModal` (mismo `.card`,
+  overlay `bg-neutral-900/40`) que sigue el design system; `.btn-danger`
+  (rojo, `bg-danger-600`) es el estilo para su botón de confirmar cuando la
+  acción es irreversible. Si hace falta doble confirmación ("por las
+  dudas"), encadenar dos `ConfirmModal` con un estado de "paso" (ver
+  `pasoCancelacion` en `App` para el patrón).
 - **Validación y errores**: los mensajes nativos del navegador (`Please fill
   out this field`, etc.) están traducidos al español vía `handleInvalid`/
   `clearValidity` (Constraint Validation API, `el.setCustomValidity(...)`),
@@ -67,23 +74,50 @@ ADMINISTRADOR (PR #18) y la historia clínica compartida por paciente
   Pacientes, Turnos) muestran `SkeletonRows` mientras cargan por primera vez
   (guardado con `xLoading && x.length === 0`, no solo `xLoading`, para que no
   parpadee en cada refresco tras una acción).
-- **Restricción por rol** (PR #17): `ADMINISTRADOR` gestiona todo (CRUD
-  médicos/pacientes/turnos). `MEDICO` puede ver médicos/pacientes y
-  crear/confirmar/cancelar turnos, pero no crear/editar/eliminar médicos ni
-  pacientes. `PACIENTE` solo puede ver (ningún POST/PUT/DELETE/PATCH). Es
-  **restricción global por operación, no por dueño del dato** — no existe un
-  "MEDICO solo ve sus propios turnos" porque `Usuario` (login) no está
-  vinculado a `Medico`/`Paciente` en el modelo; si se pide esa restricción
-  más fina hace falta agregar esa relación primero (ver "huecos conocidos").
-  Se implementa 100% en `SecurityConfig` con `requestMatchers(HttpMethod.X,
-  "/api/...").hasRole(...)`/`hasAnyRole(...)`, sin tocar dominio ni casos de
-  uso — **si agregás un endpoint de escritura nuevo, hay que sumarle su
-  regla ahí, si no queda abierto a cualquier usuario autenticado**. En el
-  frontend, `esAdmin`/`puedeGestionarTurnos` (calculados de `auth.role` en
-  `App`) ocultan los forms/botones que el backend ya no permite — **si
-  agregás una acción nueva restringida por rol, hay que ocultarla en el
-  frontend además de bloquearla en el backend**, o el usuario ve un botón
-  que siempre falla.
+- **Restricción por rol** (PR #17, ampliada bastante en `feature/historia-clinica`):
+  ya no es solo "quién puede escribir", ahora también filtra **qué ve cada
+  quien**, por dueño del dato:
+  - `ADMINISTRADOR`: gestiona médicos y pacientes (CRUD completo, incluida la
+    lista completa de ambos), y es el **único que puede crear turnos**
+    (`POST /api/turnos` — antes también podía `MEDICO`, ya no: otorgar
+    turnos es tarea de recepción/admin). No navega la historia clínica
+    (ver bullet dedicado), solo la exporta.
+  - `MEDICO`: **no ve el listado de médicos** (`GET /api/medicos` → 403 para
+    este rol) ni la lista completa de pacientes — `GET /api/pacientes` le
+    devuelve **solo los pacientes con los que tiene al menos un turno**
+    (`PacienteController.buscarTodos()` resuelve el médico logueado por
+    email y cruza contra sus turnos). Tampoco crea turnos. Sí puede
+    confirmar/cancelar turnos y usar la historia clínica (crear/listar).
+  - `PACIENTE`: no ve médicos ni pacientes, no crea turnos, **no puede
+    confirmarlos** — solo puede **cancelar los suyos** (`PATCH
+    .../estado` con `estado=CANCELADO`, rechazado con 400 si pide otro
+    estado, y con 403 si el turno no es suyo). Ve únicamente sus propios
+    turnos.
+  - **Cómo se resuelve "de quién es este usuario logueado"**: `Medico` y
+    `Paciente` ya tenían un campo `email` opcional (se completa a mano desde
+    el form de alta/edición, sección Médicos/Pacientes, solo `esAdmin`). Si
+    ese email coincide con el email de login (`Usuario.email`), quedan
+    "vinculados" — `MedicoRepository.buscarPorEmail`/
+    `PacienteRepository.buscarPorEmail` (nuevos) resuelven esa identidad en
+    cada request vía `SecurityContextHolder.getContext().getAuthentication().getName()`
+    (el filtro JWT ya guarda el email ahí, ver `JwtAuthenticationFilter`).
+    **Si un médico/paciente no tiene el email cargado o no coincide, el
+    filtro por rol le devuelve todo vacío** (no cae a "ver todo" — falla
+    cerrado) — si un usuario de prueba ve listas vacías que no deberían
+    estarlo, lo primero a revisar es si su `Medico`/`Paciente` tiene el
+    email seteado igual al de su cuenta de login.
+  - Se implementa mitad en `SecurityConfig` (`requestMatchers(HttpMethod.X,
+    "/api/...").hasRole(...)`) para bloqueos duros por método, mitad **dentro
+    de los controllers** (`TurnoController`, `PacienteController`) para el
+    filtrado por dueño del dato, que no se puede expresar como regla de
+    path/método — **si agregás un endpoint de escritura o listado nuevo,
+    hay que decidir las dos cosas**: quién puede pegarle (SecurityConfig) y
+    si necesita filtrarse por dueño (lógica en el controller).
+  - En el frontend, `esAdmin`/`esMedico`/`esPaciente`/`puedeGestionarTurnos`
+    (calculados de `auth.role` en `App`) ocultan secciones/botones enteros
+    que el backend ya no permite — **si agregás una acción nueva restringida
+    por rol, hay que ocultarla en el frontend además de bloquearla en el
+    backend**, o el usuario ve un botón que siempre falla.
 - **Historia clínica** (`RegistroClinico`, `feature/historia-clinica`): un
   registro clínico por consulta (diagnóstico/tratamiento/observaciones),
   vinculado a un médico y un paciente. La "historia clínica" de un paciente
@@ -94,13 +128,17 @@ ADMINISTRADOR (PR #18) y la historia clínica compartida por paciente
   listar, no editar ni eliminar (a propósito — es un registro de auditoría
   médica). Reglas de permiso, **distintas del resto de la app**:
   - `MEDICO`: puede crear (`POST /api/historias-clinicas`) y navegar la lista
-    completa (`GET`) de cualquier paciente — con una validación: solo si ese
-    médico tiene al menos un turno con ese paciente (`CrearRegistroClinicoService`
-    cruza contra `TurnoRepository.buscarPorMedico`). Como `Usuario` no está
-    vinculado a `Medico`, el `medicoId` se manda explícito en el body (elegido
-    de un `<select>` en el frontend), igual que ya pasa al crear un turno — no
-    hay una garantía criptográfica de que el usuario logueado *sea* ese
-    médico, es la misma limitación que ya tiene la creación de turnos.
+    (`GET`) de cualquier paciente — con una validación: solo si ese médico
+    tiene al menos un turno con ese paciente (`CrearRegistroClinicoService`
+    cruza contra `TurnoRepository.buscarPorMedico`). El `medicoId` se manda
+    explícito en el body (elegido de un `<select>`, o directamente el de la
+    fila de turno expandida en el frontend), **no se resuelve del login por
+    email** aunque esa vinculación ya exista para otras cosas (ver bullet de
+    "Restricción por rol") — se mantuvo así por consistencia con
+    `CrearTurnoService`, que ya funcionaba igual. En la práctica ya no
+    importa mucho: como `GET /api/turnos` para `MEDICO` ahora solo devuelve
+    sus propios turnos, el panel de historia clínica que arma esa fila solo
+    puede pasar su propio `medicoId`.
   - `ADMINISTRADOR`: **no** puede navegar la lista (`GET` le da 403) — solo
     puede descargarla como archivo de texto (`GET
     /api/historias-clinicas/exportar?pacienteId=X`, `Content-Disposition:
@@ -118,6 +156,22 @@ ADMINISTRADOR (PR #18) y la historia clínica compartida por paciente
   completo, así que cualquier puerto de repositorio nuevo (`XRepository`)
   necesita un bean fake (`InMemoryXRepository`) en su `TestConfig` interno o
   el contexto no levanta — no lo olvides si agregás otra entidad.
+- **`Turno.preparacion`** (campo opcional, texto libre): instrucciones para
+  el paciente antes de la consulta (ej. "Asistir 15 minutos antes y pasar
+  por recepción para dar presente", o ayuno para un laboratorio). Se carga
+  al otorgar el turno (sección "Otorgar turno", solo `esAdmin`) y se
+  muestra en la tabla de Turnos para todos los roles que la ven, incluido
+  el paciente.
+- **`TurnoResponse`/`RegistroClinicoResponse` traen nombres embebidos**
+  (`medicoNombre`, `medicoEspecialidad`, `pacienteNombre` — resueltos en el
+  controller vía `BuscarMedicoUseCase`/`BuscarPacienteUseCase`, no en el
+  frontend). Esto **no es un capricho**: `MEDICO` y `PACIENTE` ya no tienen
+  acceso a `GET /api/medicos` (y `PACIENTE` tampoco a `GET /api/pacientes`),
+  así que el frontend no puede resolver esos nombres por su cuenta con un
+  `medicos.find(...)` como antes — **si un endpoint nuevo devuelve
+  medicoId/pacienteId y lo va a ver alguien que no sea `ADMINISTRADOR`,
+  hay que embeber el nombre en la respuesta, no asumir que el frontend
+  puede resolverlo con las listas cargadas**.
 - **Arquitectura backend**: hexagonal por entidad, calcada tres veces (Turno,
   Médico, Paciente):
   - `domain/model/` — clase de dominio plana (POJO)
@@ -141,27 +195,38 @@ ADMINISTRADOR (PR #18) y la historia clínica compartida por paciente
 
   **Si agregás una entidad nueva, copiá este patrón exacto** — no inventar uno nuevo.
 
-## Qué está implementado (PRs #1–#14, todos mergeados a `develop`)
+## Qué está implementado (ver "Historial de PRs" más abajo para el detalle)
 
 - **Auth**: `POST /api/auth/registro` (nombre/email/contraseña ≥6 caracteres/role,
   rechaza email duplicado), `POST /api/auth/login` (devuelve JWT + datos del
   usuario, 401 si las credenciales son incorrectas). Ver "Seguridad" arriba.
-- **Turno**: crear (`POST /api/turnos`, valida solapamiento por médico+fecha,
-  y que `medicoId`/`pacienteId` existan realmente), buscar por id
-  (`GET /api/turnos/{id}` → 404 si no existe), listar con filtro opcional por
-  `medicoId` o `pacienteId` (`GET /api/turnos?medicoId=..&pacienteId=..`),
-  cambiar estado (`PATCH /api/turnos/{id}/estado`, body `{"estado":"CONFIRMADO"}`
-  o `"CANCELADO"`; un turno `CANCELADO` no puede volver a modificarse → 400;
-  estado inválido en el body → 400; id inexistente → 404).
-- **Médico**: crear (`POST /api/medicos`, valida nombre/especialidad/matrícula
-  obligatorios), listar (`GET /api/medicos`), buscar por id (`GET /api/medicos/{id}`),
-  editar (`PUT /api/medicos/{id}`), eliminar (`DELETE /api/medicos/{id}`, soft delete).
-- **Paciente**: crear (`POST /api/pacientes`, valida nombre/dni obligatorios;
-  campos opcionales: `telefono`, `direccion`, `obraSocial`, `numeroAfiliado`,
-  `plan`, `email` — la obra social sola no alcanza, dos personas con la misma
-  prepaga pueden tener plan y número de afiliado distintos), listar
-  (`GET /api/pacientes`), buscar por id (`GET /api/pacientes/{id}`), editar
-  (`PUT /api/pacientes/{id}`), eliminar (`DELETE /api/pacientes/{id}`, soft delete).
+- **Turno**: crear (`POST /api/turnos`, **solo ADMINISTRADOR** desde
+  `feature/historia-clinica` — antes también `MEDICO`, ver bullet de
+  "Restricción por rol"; valida solapamiento por médico+fecha, que
+  `medicoId`/`pacienteId` existan, y acepta `preparacion` opcional), buscar
+  por id (`GET /api/turnos/{id}` → 404 si no existe, sin filtrar por dueño
+  todavía — ver "huecos conocidos"), listar (`GET /api/turnos`, con
+  `medicoId`/`pacienteId` como filtro opcional **solo para ADMINISTRADOR** —
+  para `MEDICO`/`PACIENTE` esos parámetros se ignoran y siempre devuelve
+  solo lo propio), cambiar estado (`PATCH /api/turnos/{id}/estado`, body
+  `{"estado":"CONFIRMADO"}` o `"CANCELADO"`; `CANCELADO` no puede volver a
+  modificarse → 400; estado inválido → 400; id inexistente → 404;
+  `PACIENTE` **solo puede pedir `CANCELADO`** de su propio turno — otro
+  estado → 400, turno ajeno → 403).
+- **Médico**: crear/editar/eliminar (`POST`/`PUT`/`DELETE /api/medicos`,
+  **solo ADMINISTRADOR**, igual que antes), listar/buscar por id (`GET
+  /api/medicos`, `GET /api/medicos/{id}`, **solo ADMINISTRADOR** desde
+  `feature/historia-clinica` — `MEDICO`/`PACIENTE` ya no navegan el
+  directorio de médicos, reciben 403).
+- **Paciente**: crear/editar/eliminar (`POST`/`PUT`/`DELETE /api/pacientes`,
+  **solo ADMINISTRADOR**; campos opcionales: `telefono`, `direccion`,
+  `obraSocial`, `numeroAfiliado`, `plan`, `email` — la obra social sola no
+  alcanza, dos personas con la misma prepaga pueden tener plan y número de
+  afiliado distintos). Listar (`GET /api/pacientes`): `ADMINISTRADOR` ve
+  todos; `MEDICO` ve solo los que tienen un turno con él (ver bullet de
+  "Restricción por rol"); `PACIENTE` no tiene acceso (403). Buscar por id
+  (`GET /api/pacientes/{id}`) sigue abierto a cualquier autenticado, sin
+  filtrar por dueño (mismo hueco que `GET /api/turnos/{id}`).
 - **Historia clínica** (ver bullet dedicado arriba): crear (`POST
   /api/historias-clinicas`, MEDICO, valida que exista un turno entre ese
   médico y ese paciente), listar por paciente (`GET
@@ -169,46 +234,71 @@ ADMINISTRADOR (PR #18) y la historia clínica compartida por paciente
   descargable (`GET /api/historias-clinicas/exportar?pacienteId=X`,
   ADMINISTRADOR, 404 si el paciente no existe).
 - **Frontend** (`frontend/src/App.jsx`, un solo archivo):
-  - Sección "Médicos": un solo form sirve para alta y edición (botón "Editar"
-    por fila precarga los datos, cambia a "Guardar cambios" y hace PUT; botón
-    "Cancelar" vuelve a modo alta). Botón "Eliminar" pide confirmación (`window.confirm`).
-    Ambos forms incluyen `direccion` (existía en el backend desde el principio
-    pero no estaba expuesta en la UI hasta el PR #13 — antes de asumir que un
-    campo "falta", conviene revisar si ya está en el modelo/API y solo no se
-    muestra en el frontend).
-  - Sección "Pacientes": mismo patrón de alta/edición/eliminación.
-  - Sección "Crear turno": selects de médico/paciente (poblados desde las APIs
-    de arriba, ya no son inputs numéricos de ID).
-  - Sección "Turnos": tabla con auto-carga al abrir, refresco automático tras
-    crear un turno, filtro por médico ID / paciente ID, botón "Ver todos".
-    Resuelve nombre de médico/paciente por id (fallback a `#id` si no está en
-    la lista cargada, p. ej. turnos de prueba con IDs que ya no existen).
-    Columna "Acciones" con botón Confirmar (solo si `PENDIENTE`) y Cancelar
-    (si no está ya `CANCELADO`), llaman al `PATCH .../estado` y refrescan.
-    Para `esMedico`, suma un botón "Ver historia" que despliega una fila
-    extra con la historia clínica del paciente de esa fila (registros
-    previos + form para agregar uno nuevo).
-  - Sección "Pacientes": además del alta/edición/eliminación, para `esAdmin`
-    hay un botón "Descargar historia" por fila que dispara la descarga del
-    `.txt` exportado.
-- Tests: 79 tests (unitarios de casos de uso + MockMvc de controllers +
+  - Sección "Médicos" (**solo `esAdmin`**): un solo form sirve para alta y
+    edición (botón "Editar" por fila precarga los datos, cambia a "Guardar
+    cambios" y hace PUT; botón "Cancelar" vuelve a modo alta). Botón
+    "Eliminar" pide confirmación (`window.confirm`). El form incluye
+    `direccion` y `email` — este último es clave para la vinculación de
+    identidad (ver "Restricción por rol"), no es solo un dato de contacto.
+  - Sección "Pacientes" (**`esAdmin` o `esMedico`**, título cambia a "Mis
+    pacientes" para `esMedico`): alta/edición/eliminación solo para
+    `esAdmin` (`esMedico` la ve de solo lectura, ya filtrada por el
+    backend a sus propios pacientes — la columna Acciones muestra "—").
+    Para `esAdmin`, cada fila suma "Descargar historia" (exporta el `.txt`
+    de ese paciente).
+  - Sección "Otorgar turno" (**solo `esAdmin`**, antes se llamaba "Crear
+    turno" y tenía selects planos de médico/paciente con todo el listado):
+    ahora es un flujo de dos pasos — 1) buscar paciente por DNI (filtro
+    client-side sobre `pacientes`, que `esAdmin` ya tiene cargado
+    completo); 2) recién con un paciente encontrado, se muestra el resto
+    del form: `<select>` de especialidad (opciones = especialidades
+    distintas presentes en `medicos`), `<select>` de médico **filtrado por
+    esa especialidad**, fecha/hora, y `preparacion` (texto libre opcional).
+    Pensado para el caso real: "el paciente dice que necesita
+    diabetología" → elegís la especialidad → el select de médico ya solo
+    muestra los de esa especialidad.
+  - Sección "Turnos" (título "Mis turnos" para `esPaciente`): tabla con
+    auto-carga al abrir, refresco automático tras crear/cambiar un turno.
+    El filtro por médico ID/paciente ID y el botón "Ver todos" son **solo
+    para `esAdmin`** (para los otros roles el backend ya devuelve solo lo
+    propio, filtrar por ID no tendría efecto). Nombres de médico/paciente
+    y `preparacion` vienen **embebidos en la respuesta** (`t.medicoNombre`,
+    etc.), no se resuelven más con un `.find()` sobre `medicos`/`pacientes`
+    (ver bullet dedicado más arriba). Para `esMedico`, arriba de la tabla
+    hay un banner grande "Turnos para hoy: DD/MM/AAAA" (pedido explícito:
+    los médicos necesitan la fecha bien visible para hacer recetas).
+    Columna "Acciones": `esAdmin`/`esMedico` ven Confirmar (si
+    `PENDIENTE`)/Cancelar (si no `CANCELADO`) + "Ver historia" (solo
+    `esMedico`, despliega una fila con la historia clínica de ese
+    paciente); `esPaciente` ve solo "Cancelar" (si no está ya
+    `CANCELADO`), que dispara un `ConfirmModal` **doble** (dos pasos, "por
+    las dudas") en vez de `window.confirm` — ver `pasoCancelacion` y
+    `ConfirmModal` en el bullet de Estilos.
+- Tests: 87 tests (unitarios de casos de uso + MockMvc de controllers +
   integración end-to-end con repos fake en memoria vía `@Profile("test")`).
   Todos verificados también contra Postgres real con curl y en navegador real
   con Playwright (no solo tests automatizados).
 
 ## Qué NO está implementado todavía (huecos conocidos)
 
-- Restricción por **datos propios**: la restricción por rol (PR #17) es
-  global por operación, no filtra por dueño del dato — un `MEDICO` ve todos
-  los turnos, no solo los suyos, y lo mismo un `PACIENTE`. Para eso hace
-  falta vincular `Usuario` con `Medico`/`Paciente` (no existe esa relación
-  hoy), que es un cambio de modelo más grande — no se hizo porque no se pidió
-  todavía.
+- Restricción por **datos propios**: en gran parte resuelta en
+  `feature/historia-clinica` — `MEDICO` ya ve solo sus turnos/pacientes,
+  `PACIENTE` ya ve solo los suyos (vinculación por email, ver bullet de
+  "Restricción por rol"). Lo que **falta** todavía:
+  - `GET /api/turnos/{id}` y `GET /api/pacientes/{id}` (buscar por id) NO
+    filtran por dueño — cualquier autenticado puede pedir un id puntual que
+    no sea suyo. No es explotable desde la UI actual (no se usan así), pero
+    es un hueco real si se llama a la API directo.
+  - La vinculación depende de que el `email` de `Medico`/`Paciente`
+    coincida EXACTO con el de `Usuario` — es manual (lo carga `esAdmin` en
+    el form), no hay UI para "vincular esta cuenta con este médico" más
+    allá de escribir el mismo email en los dos lados.
+  - Asume 1 email = 1 médico/paciente. No hay validación que lo fuerce.
 - Paginación en los listados (`buscarTodos()` trae todo).
-- El `TurnoRepositoryAdapter` sigue reconstruyendo `Medico`/`Paciente` como
-  objetos "solo id" a partir del id crudo (no trae nombre/especialidad); no es
-  un problema hoy porque `TurnoResponse` solo expone los ids y el frontend
-  resuelve el nombre por su cuenta desde `/api/medicos` y `/api/pacientes`.
+- `TurnoController.toResponse()` y `RegistroClinicoController.toResponse()`
+  hacen una consulta extra por fila para resolver `medicoNombre`/
+  `pacienteNombre` (N+1) — aceptable al volumen de datos actual, pero es lo
+  primero a mirar si un listado se pone lento.
 - **No hay ninguna forma legítima de crear un `ADMINISTRADOR`** (PR #18 le
   sacó esa opción al registro público, a propósito, porque cualquiera podía
   autoasignarse el rol). Hoy el único admin real es el que quedó de las
@@ -239,7 +329,7 @@ sesión de prueba, sin commitear ningún cambio de puerto en `App.jsx` (las URLs
 ahí están hardcodeadas a `:8080` a propósito).
 
 ```bash
-./mvnw.cmd test   # 65 tests, no necesita Postgres levantado (usa fakes en memoria)
+./mvnw.cmd test   # 87 tests, no necesita Postgres levantado (usa fakes en memoria)
 ```
 
 ### Frontend
@@ -261,27 +351,34 @@ en Git Bash: mangla el UTF-8 y da un 400/403 que parece un bug de seguridad
 pero no lo es — usar `--data-binary @archivo.json` con un archivo en vez de
 `-d '...'` inline si el body tiene tildes/ñ.
 
+**Ojo**: desde el PR #18 el registro público (`/api/auth/registro`) **no
+acepta `role=ADMINISTRADOR`** (400) — para probar cosas de admin, loguearse
+con la cuenta que ya existe en la base de pruebas
+(`admin.rol@medconnect.com` / `secreto123`), no intentar registrar una nueva.
+
 ```bash
-# registro (una sola vez) + login
-curl -X POST http://localhost:8080/api/auth/registro -H "Content-Type: application/json" \
-  -d '{"nombre":"Ana Perez","email":"ana@medconnect.com","contrasena":"secreto123","role":"ADMINISTRADOR"}'
+# login como admin (cuenta ya existente, ver arriba)
+TOKEN_ADMIN=$(curl -s -X POST http://localhost:8080/api/auth/login -H "Content-Type: application/json" \
+  -d '{"email":"admin.rol@medconnect.com","contrasena":"secreto123"}' | grep -o '"token":"[^"]*"' | cut -d'"' -f4)
 
-TOKEN=$(curl -s -X POST http://localhost:8080/api/auth/login -H "Content-Type: application/json" \
-  -d '{"email":"ana@medconnect.com","contrasena":"secreto123"}' | grep -o '"token":"[^"]*"' | cut -d'"' -f4)
+# alta de médico/paciente: solo ADMINISTRADOR
+curl -X POST http://localhost:8080/api/medicos -H "Content-Type: application/json" -H "Authorization: Bearer $TOKEN_ADMIN" \
+  -d '{"nombre":"Ana Perez","especialidad":"Cardiologia","matricula":"MP1234","email":"medico.rol@medconnect.com"}'
 
-# el resto de /api/** necesita el header Authorization
-curl -X POST http://localhost:8080/api/medicos -H "Content-Type: application/json" -H "Authorization: Bearer $TOKEN" \
-  -d '{"nombre":"Ana Perez","especialidad":"Cardiologia","matricula":"MP1234"}'
-
-curl -X POST http://localhost:8080/api/pacientes -H "Content-Type: application/json" -H "Authorization: Bearer $TOKEN" \
+curl -X POST http://localhost:8080/api/pacientes -H "Content-Type: application/json" -H "Authorization: Bearer $TOKEN_ADMIN" \
   -d '{"nombre":"Juan Gomez","dni":"30111222"}'
 
-curl -X POST http://localhost:8080/api/turnos -H "Content-Type: application/json" -H "Authorization: Bearer $TOKEN" \
-  -d '{"fechaHora":"2026-08-12T10:00:00","especialidad":"Cardiologia","medicoId":1,"pacienteId":1}'
+# crear turno: solo ADMINISTRADOR (preparacion es opcional)
+curl -X POST http://localhost:8080/api/turnos -H "Content-Type: application/json" -H "Authorization: Bearer $TOKEN_ADMIN" \
+  -d '{"fechaHora":"2026-08-12T10:00:00","especialidad":"Cardiologia","medicoId":1,"pacienteId":1,"preparacion":"Ayuno de 8 horas"}'
 
-curl http://localhost:8080/api/turnos -H "Authorization: Bearer $TOKEN"
-curl http://localhost:8080/api/medicos -H "Authorization: Bearer $TOKEN"
-curl http://localhost:8080/api/pacientes -H "Authorization: Bearer $TOKEN"
+curl http://localhost:8080/api/turnos -H "Authorization: Bearer $TOKEN_ADMIN"
+curl http://localhost:8080/api/medicos -H "Authorization: Bearer $TOKEN_ADMIN"
+curl http://localhost:8080/api/pacientes -H "Authorization: Bearer $TOKEN_ADMIN"
+
+# registro público: solo MEDICO o PACIENTE
+curl -X POST http://localhost:8080/api/auth/registro -H "Content-Type: application/json" \
+  -d '{"nombre":"Juan Gomez","email":"juan@medconnect.com","contrasena":"secreto123","role":"PACIENTE"}'
 ```
 
 ## Convenciones de trabajo confirmadas con el usuario
@@ -309,8 +406,18 @@ curl http://localhost:8080/api/pacientes -H "Authorization: Bearer $TOKEN"
   clases Tailwind sueltas.
 - Al terminar de probar en navegador, parar backend y frontend (no dejar
   procesos colgados).
+- **Gotcha real que pasó en esta sesión**: si arrancás un backend en un
+  puerto alternativo (ej. `:8090`) y ya había uno viejo colgado ahí de una
+  verificación anterior, `mvnw spring-boot:run` **falla en silencio** (el
+  proceso nuevo no levanta, "Port already in use", pero el viejo sigue
+  respondiendo) — un chequeo de salud tipo "pego a `/api/auth/login` y me
+  da 401" **no lo distingue**, porque el proceso viejo también responde eso.
+  Terminé verificando contra código desactualizado un buen rato sin darme
+  cuenta. Antes de confiar en que un backend nuevo está arriba, confirmar en
+  el log real la línea `Started MedConnectApplication` (no solo un 401
+  cualquiera), o mejor: matar cualquier proceso viejo en ese puerto primero.
 
-## Historial de PRs (todos mergeados)
+## Historial de PRs (todos mergeados salvo que se aclare lo contrario)
 
 1. `feature/dominio-usuarios-turnos` — modelos de dominio base
 2. `feature/turnos-rest` — endpoints REST iniciales de Turno
@@ -353,18 +460,33 @@ curl http://localhost:8080/api/pacientes -H "Authorization: Bearer $TOKEN"
     `role=ADMINISTRADOR` sin ninguna validación, así que cualquiera podía
     autoasignarse admin y saltear por completo la restricción del PR #17;
     ahora el registro público solo acepta `MEDICO`/`PACIENTE`.
-18. `feature/historia-clinica` — historia clínica compartida por paciente
-    (`RegistroClinico`, ver bloque dedicado arriba): crear/listar/exportar
-    con permisos distintos para MEDICO/ADMINISTRADOR/PACIENTE, integrado en
-    la fila de Turnos ("Ver historia") y de Pacientes ("Descargar historia").
+18. `feature/historia-clinica` (PR #19, **todavía abierto**) — arrancó como
+    historia clínica compartida por paciente (`RegistroClinico`: crear/
+    listar/exportar con permisos distintos para MEDICO/ADMINISTRADOR/
+    PACIENTE, integrado en la fila de Turnos y de Pacientes), pero mientras
+    el usuario lo probaba en vivo pidió una ronda grande de ajustes sobre
+    la misma rama: `POST /api/turnos` pasó a ser solo ADMINISTRADOR;
+    `MEDICO`/`PACIENTE` perdieron acceso a los directorios de
+    médicos/pacientes; se agregó vinculación de identidad por email
+    (`buscarPorEmail` en Medico/PacienteRepository) para que `MEDICO` vea
+    solo sus pacientes/turnos y `PACIENTE` solo los suyos; `PACIENTE` puede
+    cancelar (no confirmar) su propio turno, con un `ConfirmModal` doble;
+    se agregó `Turno.preparacion`; `TurnoResponse`/`RegistroClinicoResponse`
+    embeben nombres resueltos; y la sección "Crear turno" se rediseñó como
+    "Otorgar turno" (buscar paciente por DNI + especialidad → médico
+    filtrado). Ver los bloques dedicados de "Restricción por rol",
+    "Historia clínica" y los dos bullets nuevos justo debajo, más arriba.
 
 ## Siguientes pasos sugeridos (sin decidir aún — preguntale al usuario)
 
 - Flujo para crear administradores (ver "huecos conocidos" arriba) — hoy no
   hay ninguno legítimo más que insertarlo a mano en la base.
-- Restricción por datos propios (ver "huecos conocidos" arriba) — requiere
-  vincular `Usuario` con `Medico`/`Paciente`, más grande que el PR #17.
+- Filtrar por dueño también `GET /api/turnos/{id}` y `GET /api/pacientes/{id}`
+  (hoy cualquier autenticado puede pedir un id puntual ajeno) — no explotado
+  por la UI actual, pero es el resto de la restricción por datos propios.
+- Una UI para vincular una cuenta de login con su Médico/Paciente, en vez de
+  depender de que `esAdmin` escriba el mismo email a mano en los dos lados.
 - Paginación en los listados si el volumen de datos crece.
-- Editar/cancelar turno ya existe (PR #10); falta eliminar un turno del todo
-  si alguna vez hace falta (hoy solo se puede cancelar, que es lo correcto
-  para no perder historial — probablemente no haga falta un DELETE real).
+- Eliminar un turno del todo si alguna vez hace falta (hoy solo se puede
+  cancelar, que es lo correcto para no perder historial — probablemente no
+  haga falta un DELETE real).
