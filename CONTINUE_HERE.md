@@ -2,9 +2,8 @@
 
 Este archivo se mantiene actualizado al final de cada sesión de trabajo para que,
 aunque pasen días sin conectarte, se pueda seguir sin releer el proyecto entero.
-Última actualización: **2026-08-16**, tras mergear PR #16 (toasts, skeleton
-loaders, mensajes de validación en español y ripple/elevación Material en
-los botones).
+Última actualización: **2026-08-22**, tras mergear PR #17 (restricción por
+rol: qué puede hacer cada uno de ADMINISTRADOR/MEDICO/PACIENTE).
 
 ## Stack y arquitectura
 
@@ -15,19 +14,23 @@ los botones).
 - **Seguridad**: JWT stateless (HS512, expira a las 24hs, `jwt.secret`/`jwt.expiration-ms`
   en `application.properties`, override por env var `JWT_SECRET`/`JWT_EXPIRATION_MS`
   igual que `DB_PASSWORD`). `/api/auth/**` (`registro`, `login`) es lo único
-  público; el resto de `/api/**` requiere `Authorization: Bearer <token>` válido
-  — sin restricción por rol todavía (cualquier usuario autenticado puede usar
-  todo). `Usuario` (email/contrasena hasheada con BCrypt/role) es la identidad
-  de login, separada de Médico/Paciente a propósito (el campo `contrasena`
-  suelto que tenía `Medico` desde el primer PR sigue ahí sin usar, no se tocó).
-  `JwtAuthenticationFilter` (`infrastructure/security/`) puebla el
-  `SecurityContext`; `JwtTokenService` firma/valida. CSRF sigue deshabilitado
-  (no aplica con JWT).
+  público; el resto de `/api/**` requiere `Authorization: Bearer <token>` válido,
+  **y desde el PR #17 además está restringido por rol** (ver bloque dedicado
+  más abajo). `Usuario` (email/contrasena hasheada con BCrypt/role) es la
+  identidad de login, separada de Médico/Paciente a propósito (el campo
+  `contrasena` suelto que tenía `Medico` desde el primer PR sigue ahí sin
+  usar, no se tocó). `JwtAuthenticationFilter` (`infrastructure/security/`)
+  puebla el `SecurityContext`; `JwtTokenService` firma/valida. CSRF sigue
+  deshabilitado (no aplica con JWT).
 - **Frontend**: React 18 + Vite 5 (`frontend/`), `fetch` plano (sin axios). Sin
   sesión válida se muestra `LoginScreen` (login + link a registro) en vez de
   la app; el JWT se guarda en `localStorage` (`medconnect_auth`, incluye
   token/id/nombre/email/role) y se manda en cada request vía el helper
-  `apiFetch` — una respuesta 401/403 desloguea sola y vuelve al login.
+  `apiFetch` — una respuesta **401** (token inválido/expirado) desloguea sola
+  y vuelve al login. **Ojo**: un 403 (acción prohibida por rol) *no* debe
+  desloguear — es un error de permisos, no de sesión; ese bug existió hasta
+  el PR #17 y desconectaba a cualquier MEDICO/PACIENTE al primer intento de
+  una acción restringida.
 - **Estilos**: Tailwind CSS v3. Header/botones en teal (`primary`), texto en
   slate (`neutral`), y las **cards en tono "papel" cálido** (paleta custom
   `paper` en `tailwind.config.js`, usada en `.card` y en las franjas de
@@ -63,6 +66,23 @@ los botones).
   Pacientes, Turnos) muestran `SkeletonRows` mientras cargan por primera vez
   (guardado con `xLoading && x.length === 0`, no solo `xLoading`, para que no
   parpadee en cada refresco tras una acción).
+- **Restricción por rol** (PR #17): `ADMINISTRADOR` gestiona todo (CRUD
+  médicos/pacientes/turnos). `MEDICO` puede ver médicos/pacientes y
+  crear/confirmar/cancelar turnos, pero no crear/editar/eliminar médicos ni
+  pacientes. `PACIENTE` solo puede ver (ningún POST/PUT/DELETE/PATCH). Es
+  **restricción global por operación, no por dueño del dato** — no existe un
+  "MEDICO solo ve sus propios turnos" porque `Usuario` (login) no está
+  vinculado a `Medico`/`Paciente` en el modelo; si se pide esa restricción
+  más fina hace falta agregar esa relación primero (ver "huecos conocidos").
+  Se implementa 100% en `SecurityConfig` con `requestMatchers(HttpMethod.X,
+  "/api/...").hasRole(...)`/`hasAnyRole(...)`, sin tocar dominio ni casos de
+  uso — **si agregás un endpoint de escritura nuevo, hay que sumarle su
+  regla ahí, si no queda abierto a cualquier usuario autenticado**. En el
+  frontend, `esAdmin`/`puedeGestionarTurnos` (calculados de `auth.role` en
+  `App`) ocultan los forms/botones que el backend ya no permite — **si
+  agregás una acción nueva restringida por rol, hay que ocultarla en el
+  frontend además de bloquearla en el backend**, o el usuario ve un botón
+  que siempre falla.
 - **Arquitectura backend**: hexagonal por entidad, calcada tres veces (Turno,
   Médico, Paciente):
   - `domain/model/` — clase de dominio plana (POJO)
@@ -131,11 +151,12 @@ los botones).
 
 ## Qué NO está implementado todavía (huecos conocidos)
 
-- Restricción por rol: hoy cualquier usuario autenticado (sea `ADMINISTRADOR`,
-  `MEDICO` o `PACIENTE`) puede hacer todo lo mismo — crear/editar/eliminar
-  médicos, pacientes y turnos. Se decidió a propósito dejarlo así en la
-  primera etapa (PR #14); falta filtrar qué puede ver/hacer cada rol (ej. un
-  `MEDICO` solo debería ver sus propios turnos) si el usuario lo pide.
+- Restricción por **datos propios**: la restricción por rol (PR #17) es
+  global por operación, no filtra por dueño del dato — un `MEDICO` ve todos
+  los turnos, no solo los suyos, y lo mismo un `PACIENTE`. Para eso hace
+  falta vincular `Usuario` con `Medico`/`Paciente` (no existe esa relación
+  hoy), que es un cambio de modelo más grande — no se hizo porque no se pidió
+  todavía.
 - Paginación en los listados (`buscarTodos()` trae todo).
 - El `TurnoRepositoryAdapter` sigue reconstruyendo `Medico`/`Paciente` como
   objetos "solo id" a partir del id crudo (no trae nombre/especialidad); no es
@@ -153,6 +174,15 @@ cd backend
 DB_PASSWORD=postgres123 ./mvnw.cmd spring-boot:run   # sirve en :8080
 # o en PowerShell: $env:DB_PASSWORD='postgres123'; .\mvnw.cmd spring-boot:run
 ```
+**Ojo**: el usuario tiene contenedores Docker de otros proyectos (`capymeal-*`,
+`campus-*`, etc.) que a veces quedan corriendo y ocupan justo `:8080` (y
+`:5173`/`:5174`, ver más abajo) — `netstat -ano | grep LISTEN` + `tasklist //FI
+"PID eq <pid>"` identifica si es Docker (`com.docker.backend.exe`) y `docker ps`
+muestra qué contenedor específico tiene el mapeo. **No los toques** (son
+proyectos del usuario corriendo aparte) — si hace falta levantar el backend de
+MedConnect igual, usar `SERVER_PORT=8090` (o el que esté libre) solo para esa
+sesión de prueba, sin commitear ningún cambio de puerto en `App.jsx` (las URLs
+ahí están hardcodeadas a `:8080` a propósito).
 
 ```bash
 ./mvnw.cmd test   # 65 tests, no necesita Postgres levantado (usa fakes en memoria)
@@ -164,10 +194,12 @@ cd frontend
 npm install   # solo si no están instaladas las deps
 npm run dev
 ```
-**Ojo**: el puerto `5173` puede estar ocupado por otro proyecto del usuario
-("Campus Academia Mariana Casella", corre en Windows en ese puerto). Vite cae
-solo al siguiente puerto libre (normalmente `5174`) — mirá el log de `npm run dev`
-para confirmar el puerto real antes de probar en el navegador.
+**Ojo**: `5173` (proyecto "Campus") y `5174` (contenedor Docker
+`capymeal-frontend`) pueden estar ambos ocupados por otros proyectos del
+usuario — Vite cae solo al siguiente puerto libre (esta sesión terminó en
+`5175`), así que **no asumas el puerto, mirá el log de `npm run dev`** para
+confirmar el real antes de probar en el navegador o de apuntar un script de
+Playwright.
 
 ### Probar endpoints (ejemplos)
 `/api/**` ahora requiere JWT (salvo `/api/auth/**`). Ojo con tildes en `curl -d`
@@ -259,10 +291,15 @@ curl http://localhost:8080/api/pacientes -H "Authorization: Bearer $TOKEN"
     pushearon antes de mergear y borrar la rama anterior) — recuperados vía
     `git reflog`/`git fsck --dangling` y rebaseados sobre `develop`. Desde
     entonces, cada commit se pushea enseguida en vez de acumularlos.
+16. `feature/restriccion-por-rol` (PR #17) — restricción por rol en el backend
+    (`SecurityConfig`, ver bloque dedicado arriba) + ocultar en el frontend
+    las acciones que cada rol no puede usar + fix de un bug real (`apiFetch`
+    deslogueaba también ante un 403, no solo 401).
 
 ## Siguientes pasos sugeridos (sin decidir aún — preguntale al usuario)
 
-- Restricción por rol (ver "huecos conocidos" arriba).
+- Restricción por datos propios (ver "huecos conocidos" arriba) — requiere
+  vincular `Usuario` con `Medico`/`Paciente`, más grande que el PR #17.
 - Paginación en los listados si el volumen de datos crece.
 - Editar/cancelar turno ya existe (PR #10); falta eliminar un turno del todo
   si alguna vez hace falta (hoy solo se puede cancelar, que es lo correcto
