@@ -2,9 +2,9 @@
 
 Este archivo se mantiene actualizado al final de cada sesión de trabajo para que,
 aunque pasen días sin conectarte, se pueda seguir sin releer el proyecto entero.
-Última actualización: **2026-08-23**, en plena `feature/historia-clinica`
-(PR #19, todavía abierto): historia clínica compartida, pero además un
-rediseño grande del flujo de turnos — quién puede crear/ver qué, según rol.
+Última actualización: **2026-08-23**, tras mergear PR #19: historia clínica
+compartida + un rediseño grande del flujo de turnos (quién puede crear/ver
+qué, según rol — ver "Restricción por rol" más abajo).
 
 ## Stack y arquitectura
 
@@ -460,7 +460,7 @@ curl -X POST http://localhost:8080/api/auth/registro -H "Content-Type: applicati
     `role=ADMINISTRADOR` sin ninguna validación, así que cualquiera podía
     autoasignarse admin y saltear por completo la restricción del PR #17;
     ahora el registro público solo acepta `MEDICO`/`PACIENTE`.
-18. `feature/historia-clinica` (PR #19, **todavía abierto**) — arrancó como
+18. `feature/historia-clinica` (PR #19) — arrancó como
     historia clínica compartida por paciente (`RegistroClinico`: crear/
     listar/exportar con permisos distintos para MEDICO/ADMINISTRADOR/
     PACIENTE, integrado en la fila de Turnos y de Pacientes), pero mientras
@@ -477,16 +477,33 @@ curl -X POST http://localhost:8080/api/auth/registro -H "Content-Type: applicati
     filtrado). Ver los bloques dedicados de "Restricción por rol",
     "Historia clínica" y los dos bullets nuevos justo debajo, más arriba.
 
-## Siguientes pasos sugeridos (sin decidir aún — preguntale al usuario)
+## Plan sugerido para la próxima sesión (sin decidir aún — preguntale al usuario)
 
-- Flujo para crear administradores (ver "huecos conocidos" arriba) — hoy no
-  hay ninguno legítimo más que insertarlo a mano en la base.
-- Filtrar por dueño también `GET /api/turnos/{id}` y `GET /api/pacientes/{id}`
-  (hoy cualquier autenticado puede pedir un id puntual ajeno) — no explotado
-  por la UI actual, pero es el resto de la restricción por datos propios.
-- Una UI para vincular una cuenta de login con su Médico/Paciente, en vez de
-  depender de que `esAdmin` escriba el mismo email a mano en los dos lados.
-- Paginación en los listados si el volumen de datos crece.
-- Eliminar un turno del todo si alguna vez hace falta (hoy solo se puede
-  cancelar, que es lo correcto para no perder historial — probablemente no
-  haga falta un DELETE real).
+Orden sugerido, de más a menos urgente — pero es una sugerencia, confirmar
+con el usuario antes de arrancar cualquiera:
+
+1. **Flujo para crear administradores.** Hoy no hay ninguno legítimo (PR #18
+   le sacó esa opción al registro público). Bloquea el uso real día a día:
+   si el único admin (`admin.rol@medconnect.com`, cuenta de prueba) se
+   pierde el acceso, no hay forma de recuperarlo sin tocar la base a mano.
+   Alta prioridad. Idea ya charlada: `POST /api/usuarios` protegido (solo
+   `ADMINISTRADOR`) para que un admin dé de alta a otro.
+2. **Mensaje claro cuando un médico/paciente no está vinculado.** Hoy, si el
+   `email` de su `Medico`/`Paciente` no coincide con el de su cuenta de
+   login, simplemente ve listas vacías (Pacientes, Turnos) sin ninguna
+   explicación — indistinguible de "no tengo turnos todavía". Confunde.
+   Podría resolverse junto con el punto 3.
+3. **UI para vincular una cuenta de login con su Médico/Paciente**, en vez
+   de que `esAdmin` tenga que escribir el mismo email a mano en los dos
+   lados (frágil, silencioso si se equivoca). Ligado al punto 2: si existe
+   un flujo de vinculación explícito, es más fácil también decirle al
+   usuario sin vincular "todavía nadie te vinculó" en vez de una lista vacía.
+4. Cerrar los huecos de ownership que quedaron pendientes: `GET
+   /api/turnos/{id}` y `GET /api/pacientes/{id}` no filtran por dueño
+   todavía (no explotado por la UI actual, pero un llamado directo a la API
+   sí podría pedir un id ajeno).
+5. Paginación en los listados, si el volumen de datos crece lo suficiente
+   como para justificarlo — hoy no urge.
+6. Eliminar un turno del todo, si alguna vez hace falta (hoy solo se puede
+   cancelar, que es lo correcto para no perder historial — probablemente no
+   haga falta un DELETE real).
