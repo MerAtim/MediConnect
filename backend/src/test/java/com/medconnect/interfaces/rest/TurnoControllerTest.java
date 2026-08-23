@@ -35,16 +35,31 @@ public class TurnoControllerTest {
     private CrearTurnoUseCase crearTurnoUseCase;
     private BuscarTurnoUseCase buscarTurnoUseCase;
     private ActualizarEstadoTurnoUseCase actualizarEstadoTurnoUseCase;
+    private com.medconnect.application.usecase.BuscarMedicoUseCase buscarMedicoUseCase;
+    private com.medconnect.application.usecase.BuscarPacienteUseCase buscarPacienteUseCase;
 
     @BeforeEach
     public void setup() {
         crearTurnoUseCase = Mockito.mock(CrearTurnoUseCase.class);
         buscarTurnoUseCase = Mockito.mock(BuscarTurnoUseCase.class);
         actualizarEstadoTurnoUseCase = Mockito.mock(ActualizarEstadoTurnoUseCase.class);
-        TurnoController controller = new TurnoController(crearTurnoUseCase, buscarTurnoUseCase, actualizarEstadoTurnoUseCase);
+        buscarMedicoUseCase = Mockito.mock(com.medconnect.application.usecase.BuscarMedicoUseCase.class);
+        buscarPacienteUseCase = Mockito.mock(com.medconnect.application.usecase.BuscarPacienteUseCase.class);
+        TurnoController controller = new TurnoController(crearTurnoUseCase, buscarTurnoUseCase, actualizarEstadoTurnoUseCase, buscarMedicoUseCase, buscarPacienteUseCase);
         mockMvc = MockMvcBuilders.standaloneSetup(controller)
                 .setControllerAdvice(new GlobalExceptionHandler())
                 .build();
+    }
+
+    @org.junit.jupiter.api.AfterEach
+    public void tearDown() {
+        org.springframework.security.core.context.SecurityContextHolder.clearContext();
+    }
+
+    private void loguearComo(String rol, String email) {
+        org.springframework.security.core.context.SecurityContextHolder.getContext().setAuthentication(
+                new org.springframework.security.authentication.UsernamePasswordAuthenticationToken(
+                        email, null, List.of(new org.springframework.security.core.authority.SimpleGrantedAuthority("ROLE_" + rol))));
     }
 
     @Test
@@ -165,5 +180,96 @@ public class TurnoControllerTest {
                         .content("{\"estado\":\"CONFIRMADO\"}"))
                 .andExpect(status().isBadRequest())
                 .andExpect(content().string("No se puede modificar un turno cancelado"));
+    }
+
+    @Test
+    public void buscar_ignoraParametros_yFiltraPorMedicoLogueado_siRolEsMedico() throws Exception {
+        loguearComo("MEDICO", "medico@medconnect.com");
+        when(buscarMedicoUseCase.buscarPorEmail("medico@medconnect.com"))
+                .thenReturn(Optional.of(new Medico(2L, null, null, null, null, null, null, null)));
+        when(buscarTurnoUseCase.buscarPorMedico(2L)).thenReturn(List.of());
+
+        mockMvc.perform(get("/api/turnos").param("medicoId", "999").param("pacienteId", "888"))
+                .andExpect(status().isOk())
+                .andExpect(content().json("[]"));
+
+        Mockito.verify(buscarTurnoUseCase).buscarPorMedico(2L);
+        Mockito.verify(buscarTurnoUseCase, Mockito.never()).buscarPorMedico(999L);
+        Mockito.verify(buscarTurnoUseCase, Mockito.never()).buscarTodos();
+    }
+
+    @Test
+    public void buscar_devuelveVacio_siRolEsMedicoYNoEstaVinculado() throws Exception {
+        loguearComo("MEDICO", "sin-vincular@medconnect.com");
+        when(buscarMedicoUseCase.buscarPorEmail("sin-vincular@medconnect.com")).thenReturn(Optional.empty());
+
+        mockMvc.perform(get("/api/turnos"))
+                .andExpect(status().isOk())
+                .andExpect(content().json("[]"));
+
+        Mockito.verify(buscarTurnoUseCase, Mockito.never()).buscarTodos();
+    }
+
+    @Test
+    public void buscar_filtraPorPacienteLogueado_siRolEsPaciente() throws Exception {
+        loguearComo("PACIENTE", "paciente@medconnect.com");
+        when(buscarPacienteUseCase.buscarPorEmail("paciente@medconnect.com"))
+                .thenReturn(Optional.of(new Paciente(3L, null, null, null, null, null, null, null, null)));
+        when(buscarTurnoUseCase.buscarPorPaciente(3L)).thenReturn(List.of());
+
+        mockMvc.perform(get("/api/turnos"))
+                .andExpect(status().isOk())
+                .andExpect(content().json("[]"));
+
+        Mockito.verify(buscarTurnoUseCase).buscarPorPaciente(3L);
+        Mockito.verify(buscarTurnoUseCase, Mockito.never()).buscarTodos();
+    }
+
+    @Test
+    public void actualizarEstado_pacientePuedeCancelarSuPropioTurno() throws Exception {
+        loguearComo("PACIENTE", "paciente@medconnect.com");
+        Paciente paciente = new Paciente(3L, null, null, null, null, null, null, null, null);
+        Turno turno = new Turno(1L, LocalDateTime.of(2026, 8, 12, 10, 0), "Cardiología",
+                new Medico(2L, null, null, null, null, null, null, null), paciente, TurnoEstado.PENDIENTE);
+        when(buscarPacienteUseCase.buscarPorEmail("paciente@medconnect.com")).thenReturn(Optional.of(paciente));
+        when(buscarTurnoUseCase.buscarPorId(1L)).thenReturn(Optional.of(turno));
+        when(actualizarEstadoTurnoUseCase.actualizarEstado(eq(1L), eq(TurnoEstado.CANCELADO)))
+                .thenReturn(Optional.of(turno));
+
+        mockMvc.perform(patch("/api/turnos/1/estado")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"estado\":\"CANCELADO\"}"))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    public void actualizarEstado_pacienteNoPuedeConfirmar() throws Exception {
+        loguearComo("PACIENTE", "paciente@medconnect.com");
+
+        mockMvc.perform(patch("/api/turnos/1/estado")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"estado\":\"CONFIRMADO\"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(content().string("Un paciente solo puede cancelar su turno"));
+
+        Mockito.verify(actualizarEstadoTurnoUseCase, Mockito.never()).actualizarEstado(any(), any());
+    }
+
+    @Test
+    public void actualizarEstado_pacienteNoPuedeCancelarTurnoAjeno() throws Exception {
+        loguearComo("PACIENTE", "paciente@medconnect.com");
+        Paciente pacienteLogueado = new Paciente(3L, null, null, null, null, null, null, null, null);
+        Paciente pacienteDelTurno = new Paciente(99L, null, null, null, null, null, null, null, null);
+        Turno turno = new Turno(1L, LocalDateTime.of(2026, 8, 12, 10, 0), "Cardiología",
+                new Medico(2L, null, null, null, null, null, null, null), pacienteDelTurno, TurnoEstado.PENDIENTE);
+        when(buscarPacienteUseCase.buscarPorEmail("paciente@medconnect.com")).thenReturn(Optional.of(pacienteLogueado));
+        when(buscarTurnoUseCase.buscarPorId(1L)).thenReturn(Optional.of(turno));
+
+        mockMvc.perform(patch("/api/turnos/1/estado")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"estado\":\"CANCELADO\"}"))
+                .andExpect(status().isForbidden());
+
+        Mockito.verify(actualizarEstadoTurnoUseCase, Mockito.never()).actualizarEstado(any(), any());
     }
 }

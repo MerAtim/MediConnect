@@ -27,15 +27,18 @@ public class TurnoEntity {
     @Enumerated(EnumType.STRING)
     private TurnoEstado estado;
 
+    private String preparacion;
+
     protected TurnoEntity() {}
 
-    public TurnoEntity(Long id, LocalDateTime fechaHora, String especialidad, Long medicoId, Long pacienteId, TurnoEstado estado) {
+    public TurnoEntity(Long id, LocalDateTime fechaHora, String especialidad, Long medicoId, Long pacienteId, TurnoEstado estado, String preparacion) {
         this.id = id;
         this.fechaHora = fechaHora;
         this.especialidad = especialidad;
         this.medicoId = medicoId;
         this.pacienteId = pacienteId;
         this.estado = estado;
+        this.preparacion = preparacion;
     }
 
     public Long getId() {
@@ -60,5 +63,9 @@ public class TurnoEntity {
 
     public TurnoEstado getEstado() {
         return estado;
+    }
+
+    public String getPreparacion() {
+        return preparacion;
     }
 }

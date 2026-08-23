@@ -9,5 +9,7 @@ public interface BuscarPacienteUseCase {
 
     Optional<Paciente> buscarPorId(Long id);
 
+    Optional<Paciente> buscarPorEmail(String email);
+
     List<Paciente> buscarTodos();
 }

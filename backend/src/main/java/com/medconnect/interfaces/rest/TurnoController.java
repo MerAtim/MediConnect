@@ -1,15 +1,21 @@
 package com.medconnect.interfaces.rest;
 
 import com.medconnect.application.usecase.ActualizarEstadoTurnoUseCase;
+import com.medconnect.application.usecase.BuscarMedicoUseCase;
+import com.medconnect.application.usecase.BuscarPacienteUseCase;
 import com.medconnect.application.usecase.BuscarTurnoUseCase;
 import com.medconnect.application.usecase.CreateTurnoRequest;
 import com.medconnect.application.usecase.CreateTurnoResponse;
 import com.medconnect.application.usecase.CrearTurnoUseCase;
 import com.medconnect.domain.exception.TurnoInvalidoException;
+import com.medconnect.domain.model.Medico;
+import com.medconnect.domain.model.Paciente;
 import com.medconnect.domain.model.Turno;
 import com.medconnect.domain.model.TurnoEstado;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -21,6 +27,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
+import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/turnos")
@@ -30,11 +37,17 @@ public class TurnoController {
     private final CrearTurnoUseCase crearTurnoUseCase;
     private final BuscarTurnoUseCase buscarTurnoUseCase;
     private final ActualizarEstadoTurnoUseCase actualizarEstadoTurnoUseCase;
+    private final BuscarMedicoUseCase buscarMedicoUseCase;
+    private final BuscarPacienteUseCase buscarPacienteUseCase;
 
-    public TurnoController(CrearTurnoUseCase crearTurnoUseCase, BuscarTurnoUseCase buscarTurnoUseCase, ActualizarEstadoTurnoUseCase actualizarEstadoTurnoUseCase) {
+    public TurnoController(CrearTurnoUseCase crearTurnoUseCase, BuscarTurnoUseCase buscarTurnoUseCase,
+                            ActualizarEstadoTurnoUseCase actualizarEstadoTurnoUseCase, BuscarMedicoUseCase buscarMedicoUseCase,
+                            BuscarPacienteUseCase buscarPacienteUseCase) {
         this.crearTurnoUseCase = crearTurnoUseCase;
         this.buscarTurnoUseCase = buscarTurnoUseCase;
         this.actualizarEstadoTurnoUseCase = actualizarEstadoTurnoUseCase;
+        this.buscarMedicoUseCase = buscarMedicoUseCase;
+        this.buscarPacienteUseCase = buscarPacienteUseCase;
     }
 
     @PostMapping
@@ -43,7 +56,8 @@ public class TurnoController {
                 request.getFechaHora(),
                 request.getEspecialidad(),
                 request.getMedicoId(),
-                request.getPacienteId()
+                request.getPacienteId(),
+                request.getPreparacion()
         );
         CreateTurnoResponse resp = crearTurnoUseCase.crear(req);
         return ResponseEntity.status(HttpStatus.CREATED).body(resp);
@@ -60,8 +74,17 @@ public class TurnoController {
     public ResponseEntity<List<TurnoResponse>> buscar(
             @RequestParam(required = false) Long medicoId,
             @RequestParam(required = false) Long pacienteId) {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         List<Turno> turnos;
-        if (medicoId != null) {
+        if (tieneRol(auth, "MEDICO")) {
+            turnos = buscarMedicoUseCase.buscarPorEmail(auth.getName())
+                    .map(medico -> buscarTurnoUseCase.buscarPorMedico(medico.getId()))
+                    .orElseGet(List::of);
+        } else if (tieneRol(auth, "PACIENTE")) {
+            turnos = buscarPacienteUseCase.buscarPorEmail(auth.getName())
+                    .map(paciente -> buscarTurnoUseCase.buscarPorPaciente(paciente.getId()))
+                    .orElseGet(List::of);
+        } else if (medicoId != null) {
             turnos = buscarTurnoUseCase.buscarPorMedico(medicoId);
         } else if (pacienteId != null) {
             turnos = buscarTurnoUseCase.buscarPorPaciente(pacienteId);
@@ -79,19 +102,48 @@ public class TurnoController {
         } catch (IllegalArgumentException | NullPointerException e) {
             throw new TurnoInvalidoException("estado invalido: " + request.getEstado());
         }
+
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (tieneRol(auth, "PACIENTE")) {
+            if (nuevoEstado != TurnoEstado.CANCELADO) {
+                throw new TurnoInvalidoException("Un paciente solo puede cancelar su turno");
+            }
+            Optional<Paciente> paciente = buscarPacienteUseCase.buscarPorEmail(auth.getName());
+            Optional<Turno> turno = buscarTurnoUseCase.buscarPorId(id);
+            boolean esPropio = paciente.isPresent() && turno.isPresent()
+                    && turno.get().getPaciente() != null
+                    && paciente.get().getId().equals(turno.get().getPaciente().getId());
+            if (!esPropio) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+            }
+        }
+
         return actualizarEstadoTurnoUseCase.actualizarEstado(id, nuevoEstado)
                 .map(turno -> ResponseEntity.ok(toResponse(turno)))
                 .orElseGet(() -> ResponseEntity.notFound().build());
     }
 
+    private boolean tieneRol(Authentication auth, String rol) {
+        return auth != null && auth.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_" + rol));
+    }
+
     private TurnoResponse toResponse(Turno turno) {
+        Long medicoId = turno.getMedico() != null ? turno.getMedico().getId() : null;
+        Long pacienteId = turno.getPaciente() != null ? turno.getPaciente().getId() : null;
+        Medico medico = medicoId != null ? buscarMedicoUseCase.buscarPorId(medicoId).orElse(null) : null;
+        Paciente paciente = pacienteId != null ? buscarPacienteUseCase.buscarPorId(pacienteId).orElse(null) : null;
         return new TurnoResponse(
                 turno.getId(),
                 turno.getFechaHora(),
                 turno.getEspecialidad(),
-                turno.getMedico() != null ? turno.getMedico().getId() : null,
-                turno.getPaciente() != null ? turno.getPaciente().getId() : null,
-                turno.getEstado()
+                medicoId,
+                medico != null ? medico.getNombre() : null,
+                medico != null ? medico.getEspecialidad() : null,
+                pacienteId,
+                paciente != null ? paciente.getNombre() : null,
+                turno.getEstado(),
+                turno.getPreparacion()
         );
     }
 }

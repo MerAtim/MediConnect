@@ -28,7 +28,8 @@ public class TurnoRepositoryAdapter implements TurnoRepository {
                 turno.getEspecialidad(),
                 turno.getMedico() != null ? turno.getMedico().getId() : null,
                 turno.getPaciente() != null ? turno.getPaciente().getId() : null,
-                turno.getEstado()
+                turno.getEstado(),
+                turno.getPreparacion()
         );
         TurnoEntity guardado = jpaRepository.save(entity);
         turno.setId(guardado.getId());
@@ -62,6 +63,8 @@ public class TurnoRepositoryAdapter implements TurnoRepository {
         Paciente paciente = entity.getPacienteId() != null
                 ? new Paciente(entity.getPacienteId(), null, null, null, null, null, null, null, null)
                 : null;
-        return new Turno(entity.getId(), entity.getFechaHora(), entity.getEspecialidad(), medico, paciente, entity.getEstado());
+        Turno turno = new Turno(entity.getId(), entity.getFechaHora(), entity.getEspecialidad(), medico, paciente, entity.getEstado());
+        turno.setPreparacion(entity.getPreparacion());
+        return turno;
     }
 }

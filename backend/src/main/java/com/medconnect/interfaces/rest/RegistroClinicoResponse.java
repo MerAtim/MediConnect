@@ -7,6 +7,8 @@ public class RegistroClinicoResponse {
     private Long id;
     private LocalDateTime fecha;
     private Long medicoId;
+    private String medicoNombre;
+    private String medicoEspecialidad;
     private Long pacienteId;
     private String diagnostico;
     private String tratamiento;
@@ -14,10 +16,13 @@ public class RegistroClinicoResponse {
 
     public RegistroClinicoResponse() {}
 
-    public RegistroClinicoResponse(Long id, LocalDateTime fecha, Long medicoId, Long pacienteId, String diagnostico, String tratamiento, String observaciones) {
+    public RegistroClinicoResponse(Long id, LocalDateTime fecha, Long medicoId, String medicoNombre, String medicoEspecialidad,
+                                    Long pacienteId, String diagnostico, String tratamiento, String observaciones) {
         this.id = id;
         this.fecha = fecha;
         this.medicoId = medicoId;
+        this.medicoNombre = medicoNombre;
+        this.medicoEspecialidad = medicoEspecialidad;
         this.pacienteId = pacienteId;
         this.diagnostico = diagnostico;
         this.tratamiento = tratamiento;
@@ -30,6 +35,10 @@ public class RegistroClinicoResponse {
     public void setFecha(LocalDateTime fecha) { this.fecha = fecha; }
     public Long getMedicoId() { return medicoId; }
     public void setMedicoId(Long medicoId) { this.medicoId = medicoId; }
+    public String getMedicoNombre() { return medicoNombre; }
+    public void setMedicoNombre(String medicoNombre) { this.medicoNombre = medicoNombre; }
+    public String getMedicoEspecialidad() { return medicoEspecialidad; }
+    public void setMedicoEspecialidad(String medicoEspecialidad) { this.medicoEspecialidad = medicoEspecialidad; }
     public Long getPacienteId() { return pacienteId; }
     public void setPacienteId(Long pacienteId) { this.pacienteId = pacienteId; }
     public String getDiagnostico() { return diagnostico; }

@@ -22,6 +22,11 @@ public class BuscarMedicoService implements BuscarMedicoUseCase {
     }
 
     @Override
+    public Optional<Medico> buscarPorEmail(String email) {
+        return medicoRepository.buscarPorEmail(email);
+    }
+
+    @Override
     public List<Medico> buscarTodos() {
         return medicoRepository.buscarTodos();
     }

@@ -111,10 +111,14 @@ public class RegistroClinicoController {
     }
 
     private RegistroClinicoResponse toResponse(RegistroClinico r) {
+        Long medicoId = r.getMedico() != null ? r.getMedico().getId() : null;
+        Medico medico = medicoId != null ? buscarMedicoUseCase.buscarPorId(medicoId).orElse(null) : null;
         return new RegistroClinicoResponse(
                 r.getId(),
                 r.getFecha(),
-                r.getMedico() != null ? r.getMedico().getId() : null,
+                medicoId,
+                medico != null ? medico.getNombre() : null,
+                medico != null ? medico.getEspecialidad() : null,
                 r.getPaciente() != null ? r.getPaciente().getId() : null,
                 r.getDiagnostico(),
                 r.getTratamiento(),

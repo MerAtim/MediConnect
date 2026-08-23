@@ -34,6 +34,8 @@ public class PacienteControllerTest {
     private BuscarPacienteUseCase buscarPacienteUseCase;
     private ActualizarPacienteUseCase actualizarPacienteUseCase;
     private EliminarPacienteUseCase eliminarPacienteUseCase;
+    private com.medconnect.application.usecase.BuscarMedicoUseCase buscarMedicoUseCase;
+    private com.medconnect.application.usecase.BuscarTurnoUseCase buscarTurnoUseCase;
 
     @BeforeEach
     public void setup() {
@@ -41,10 +43,18 @@ public class PacienteControllerTest {
         buscarPacienteUseCase = Mockito.mock(BuscarPacienteUseCase.class);
         actualizarPacienteUseCase = Mockito.mock(ActualizarPacienteUseCase.class);
         eliminarPacienteUseCase = Mockito.mock(EliminarPacienteUseCase.class);
-        PacienteController controller = new PacienteController(crearPacienteUseCase, buscarPacienteUseCase, actualizarPacienteUseCase, eliminarPacienteUseCase);
+        buscarMedicoUseCase = Mockito.mock(com.medconnect.application.usecase.BuscarMedicoUseCase.class);
+        buscarTurnoUseCase = Mockito.mock(com.medconnect.application.usecase.BuscarTurnoUseCase.class);
+        PacienteController controller = new PacienteController(crearPacienteUseCase, buscarPacienteUseCase, actualizarPacienteUseCase,
+                eliminarPacienteUseCase, buscarMedicoUseCase, buscarTurnoUseCase);
         mockMvc = MockMvcBuilders.standaloneSetup(controller)
                 .setControllerAdvice(new GlobalExceptionHandler())
                 .build();
+    }
+
+    @org.junit.jupiter.api.AfterEach
+    public void tearDown() {
+        org.springframework.security.core.context.SecurityContextHolder.clearContext();
     }
 
     @Test
@@ -101,6 +111,42 @@ public class PacienteControllerTest {
         mockMvc.perform(get("/api/pacientes"))
                 .andExpect(status().isOk())
                 .andExpect(content().json("[]"));
+    }
+
+    @Test
+    public void buscarTodos_filtraPorMedicoLogueado_siRolEsMedico() throws Exception {
+        org.springframework.security.core.context.SecurityContextHolder.getContext().setAuthentication(
+                new org.springframework.security.authentication.UsernamePasswordAuthenticationToken(
+                        "medico@medconnect.com", null,
+                        List.of(new org.springframework.security.core.authority.SimpleGrantedAuthority("ROLE_MEDICO"))));
+        com.medconnect.domain.model.Medico medico = new com.medconnect.domain.model.Medico(2L, null, null, null, null, null, null, null);
+        Paciente paciente = new Paciente(3L, "Juan Gómez", "30111222", null, null, null, null, null, null);
+        com.medconnect.domain.model.Turno turno = new com.medconnect.domain.model.Turno(
+                1L, null, "Cardiología", medico, paciente, null);
+        when(buscarMedicoUseCase.buscarPorEmail("medico@medconnect.com")).thenReturn(Optional.of(medico));
+        when(buscarTurnoUseCase.buscarPorMedico(2L)).thenReturn(List.of(turno));
+        when(buscarPacienteUseCase.buscarPorId(3L)).thenReturn(Optional.of(paciente));
+
+        mockMvc.perform(get("/api/pacientes"))
+                .andExpect(status().isOk())
+                .andExpect(content().json("[{\"id\":3,\"nombre\":\"Juan Gómez\",\"dni\":\"30111222\"}]"));
+
+        Mockito.verify(buscarPacienteUseCase, Mockito.never()).buscarTodos();
+    }
+
+    @Test
+    public void buscarTodos_devuelveVacio_siRolEsMedicoYNoEstaVinculado() throws Exception {
+        org.springframework.security.core.context.SecurityContextHolder.getContext().setAuthentication(
+                new org.springframework.security.authentication.UsernamePasswordAuthenticationToken(
+                        "sin-vincular@medconnect.com", null,
+                        List.of(new org.springframework.security.core.authority.SimpleGrantedAuthority("ROLE_MEDICO"))));
+        when(buscarMedicoUseCase.buscarPorEmail("sin-vincular@medconnect.com")).thenReturn(Optional.empty());
+
+        mockMvc.perform(get("/api/pacientes"))
+                .andExpect(status().isOk())
+                .andExpect(content().json("[]"));
+
+        Mockito.verify(buscarPacienteUseCase, Mockito.never()).buscarTodos();
     }
 
     @Test

@@ -10,6 +10,7 @@ public class Turno {
     private Medico medico;
     private Paciente paciente;
     private TurnoEstado estado;
+    private String preparacion;
 
     public Turno(Long id, LocalDateTime fechaHora, String especialidad, Medico medico, Paciente paciente, TurnoEstado estado) {
         this.id = id;
@@ -66,6 +67,14 @@ public class Turno {
 
     public void setEstado(TurnoEstado estado) {
         this.estado = estado;
+    }
+
+    public String getPreparacion() {
+        return preparacion;
+    }
+
+    public void setPreparacion(String preparacion) {
+        this.preparacion = preparacion;
     }
 
     @Override
