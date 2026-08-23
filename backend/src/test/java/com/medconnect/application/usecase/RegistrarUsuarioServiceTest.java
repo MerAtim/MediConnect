@@ -86,4 +86,16 @@ public class RegistrarUsuarioServiceTest {
 
         assertThrows(UsuarioInvalidoException.class, () -> service.registrar(req));
     }
+
+    @Test
+    public void registrar_lanzaExcepcion_siRoleEsAdministrador() {
+        UsuarioRepository repo = Mockito.mock(UsuarioRepository.class);
+        PasswordEncoder encoder = Mockito.mock(PasswordEncoder.class);
+        RegistrarUsuarioService service = new RegistrarUsuarioService(repo, encoder);
+
+        RegistrarUsuarioRequest req = new RegistrarUsuarioRequest("Ana", "ana@medconnect.com", "secreto123", UsuarioRole.ADMINISTRADOR);
+
+        assertThrows(UsuarioInvalidoException.class, () -> service.registrar(req));
+        Mockito.verify(repo, Mockito.never()).guardar(any(Usuario.class));
+    }
 }
