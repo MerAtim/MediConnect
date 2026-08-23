@@ -3,6 +3,7 @@ package com.medconnect.interfaces.rest;
 import com.medconnect.domain.exception.CredencialesInvalidasException;
 import com.medconnect.domain.exception.MedicoInvalidoException;
 import com.medconnect.domain.exception.PacienteInvalidoException;
+import com.medconnect.domain.exception.RegistroClinicoInvalidoException;
 import com.medconnect.domain.exception.TurnoInvalidoException;
 import com.medconnect.domain.exception.UsuarioInvalidoException;
 import org.springframework.http.HttpStatus;
@@ -30,6 +31,11 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(UsuarioInvalidoException.class)
     public ResponseEntity<String> handleUsuarioInvalido(UsuarioInvalidoException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex.getMessage());
+    }
+
+    @ExceptionHandler(RegistroClinicoInvalidoException.class)
+    public ResponseEntity<String> handleRegistroClinicoInvalido(RegistroClinicoInvalidoException ex) {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex.getMessage());
     }
 

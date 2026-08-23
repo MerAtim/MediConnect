@@ -10,6 +10,8 @@ public interface MedicoRepository {
 
     Optional<Medico> buscarPorId(Long id);
 
+    Optional<Medico> buscarPorEmail(String email);
+
     List<Medico> buscarTodos();
 
     void eliminar(Long id);

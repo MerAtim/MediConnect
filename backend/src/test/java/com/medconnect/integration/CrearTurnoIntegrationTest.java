@@ -4,8 +4,10 @@ import com.medconnect.domain.model.Medico;
 import com.medconnect.domain.model.Paciente;
 import com.medconnect.domain.model.Turno;
 import com.medconnect.domain.model.Usuario;
+import com.medconnect.domain.model.RegistroClinico;
 import com.medconnect.domain.port.MedicoRepository;
 import com.medconnect.domain.port.PacienteRepository;
+import com.medconnect.domain.port.RegistroClinicoRepository;
 import com.medconnect.domain.port.TurnoRepository;
 import com.medconnect.domain.port.UsuarioRepository;
 import org.junit.jupiter.api.Test;
@@ -90,6 +92,22 @@ public class CrearTurnoIntegrationTest {
         public UsuarioRepository usuarioRepository() {
             return new InMemoryUsuarioRepository();
         }
+
+        @Bean
+        public RegistroClinicoRepository registroClinicoRepository() {
+            return new InMemoryRegistroClinicoRepository();
+        }
+
+        @Bean
+        public com.medconnect.application.usecase.CrearRegistroClinicoUseCase crearRegistroClinicoUseCase(
+                RegistroClinicoRepository repo, MedicoRepository medicoRepo, PacienteRepository pacienteRepo, TurnoRepository turnoRepo) {
+            return new com.medconnect.application.usecase.CrearRegistroClinicoService(repo, medicoRepo, pacienteRepo, turnoRepo);
+        }
+
+        @Bean
+        public com.medconnect.application.usecase.BuscarRegistroClinicoUseCase buscarRegistroClinicoUseCase(RegistroClinicoRepository repo) {
+            return new com.medconnect.application.usecase.BuscarRegistroClinicoService(repo);
+        }
     }
 
     @Test
@@ -165,6 +183,11 @@ public class CrearTurnoIntegrationTest {
         }
 
         @Override
+        public java.util.Optional<Medico> buscarPorEmail(String email) {
+            return store.stream().filter(m -> email.equals(m.getEmail())).findFirst();
+        }
+
+        @Override
         public List<Medico> buscarTodos() {
             return new ArrayList<>(store);
         }
@@ -192,6 +215,11 @@ public class CrearTurnoIntegrationTest {
         }
 
         @Override
+        public java.util.Optional<Paciente> buscarPorEmail(String email) {
+            return store.stream().filter(p -> email.equals(p.getEmail())).findFirst();
+        }
+
+        @Override
         public List<Paciente> buscarTodos() {
             return new ArrayList<>(store);
         }
@@ -216,6 +244,29 @@ public class CrearTurnoIntegrationTest {
         @Override
         public java.util.Optional<Usuario> buscarPorEmail(String email) {
             return store.stream().filter(u -> u.getEmail().equals(email)).findFirst();
+        }
+    }
+
+    static class InMemoryRegistroClinicoRepository implements RegistroClinicoRepository {
+        private final List<RegistroClinico> store = new ArrayList<>();
+        private long seq = 1;
+
+        @Override
+        public RegistroClinico guardar(RegistroClinico registro) {
+            registro.setId(seq++);
+            store.add(registro);
+            return registro;
+        }
+
+        @Override
+        public List<RegistroClinico> buscarPorPaciente(Long pacienteId) {
+            List<RegistroClinico> out = new ArrayList<>();
+            for (RegistroClinico r : store) {
+                if (r.getPaciente() != null && r.getPaciente().getId().equals(pacienteId)) {
+                    out.add(r);
+                }
+            }
+            return out;
         }
     }
 }

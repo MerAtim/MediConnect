@@ -66,6 +66,7 @@ public class CrearTurnoService implements CrearTurnoUseCase {
                 paciente,
                 TurnoEstado.PENDIENTE
         );
+        turno.setPreparacion(request.getPreparacion());
 
         Turno guardado = turnoRepository.guardar(turno);
         return new CreateTurnoResponse(guardado.getId());

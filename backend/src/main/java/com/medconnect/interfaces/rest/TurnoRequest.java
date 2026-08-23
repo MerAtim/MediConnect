@@ -10,6 +10,7 @@ public class TurnoRequest {
     private String especialidad;
     private Long medicoId;
     private Long pacienteId;
+    private String preparacion;
 
     public TurnoRequest() {}
 
@@ -43,5 +44,13 @@ public class TurnoRequest {
 
     public void setPacienteId(Long pacienteId) {
         this.pacienteId = pacienteId;
+    }
+
+    public String getPreparacion() {
+        return preparacion;
+    }
+
+    public void setPreparacion(String preparacion) {
+        this.preparacion = preparacion;
     }
 }

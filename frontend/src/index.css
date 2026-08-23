@@ -46,6 +46,10 @@
     @apply btn bg-white text-neutral-700 border border-neutral-300 hover:bg-neutral-50 focus:ring-primary-500;
   }
 
+  .btn-danger {
+    @apply btn bg-danger-600 text-white hover:bg-danger-700 focus:ring-danger-500;
+  }
+
   .badge {
     @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium;
   }

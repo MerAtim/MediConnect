@@ -10,6 +10,8 @@ public interface PacienteRepository {
 
     Optional<Paciente> buscarPorId(Long id);
 
+    Optional<Paciente> buscarPorEmail(String email);
+
     List<Paciente> buscarTodos();
 
     void eliminar(Long id);

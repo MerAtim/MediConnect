@@ -14,4 +14,7 @@ public interface MedicoJpaRepository extends JpaRepository<MedicoEntity, Long> {
 
     @Query("SELECT m FROM MedicoEntity m WHERE m.activo = true OR m.activo IS NULL")
     List<MedicoEntity> findAllActivos();
+
+    @Query("SELECT m FROM MedicoEntity m WHERE m.email = :email AND (m.activo = true OR m.activo IS NULL)")
+    Optional<MedicoEntity> findActivoByEmail(@Param("email") String email);
 }
