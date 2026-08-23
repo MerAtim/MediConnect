@@ -358,7 +358,7 @@ export default function App(){
       ...options,
       headers: {...(options.headers || {}), Authorization: `Bearer ${token}`}
     })
-    if(resp.status === 401 || resp.status === 403){
+    if(resp.status === 401){
       handleLogout()
       throw new Error('Sesión expirada, iniciá sesión de nuevo')
     }
@@ -515,6 +515,9 @@ export default function App(){
     )
   }
 
+  const esAdmin = auth.role === 'ADMINISTRADOR'
+  const puedeGestionarTurnos = auth.role === 'ADMINISTRADOR' || auth.role === 'MEDICO'
+
   return (
     <div className="min-h-screen bg-neutral-200 font-sans">
       <ToastContainer toasts={toasts} />
@@ -536,14 +539,16 @@ export default function App(){
       <main className="max-w-3xl mx-auto px-6 py-8 space-y-8">
         <section className="card">
           <h2 className="heading mb-4">Médicos</h2>
-          <MedicoForm
-            key={editingMedico?.id ?? 'new'}
-            medico={editingMedico}
-            token={token}
-            notify={notify}
-            onGuardado={async () => { setEditingMedico(null); await cargarMedicos() }}
-            onCancelarEdicion={() => setEditingMedico(null)}
-          />
+          {esAdmin && (
+            <MedicoForm
+              key={editingMedico?.id ?? 'new'}
+              medico={editingMedico}
+              token={token}
+              notify={notify}
+              onGuardado={async () => { setEditingMedico(null); await cargarMedicos() }}
+              onCancelarEdicion={() => setEditingMedico(null)}
+            />
+          )}
           <div className="overflow-x-auto rounded-lg border border-neutral-200">
             <table className="w-full text-sm">
               <thead>
@@ -569,14 +574,18 @@ export default function App(){
                         <td className="px-4 py-2 text-neutral-900">{m.matricula}</td>
                         <td className="px-4 py-2 text-neutral-900">{m.direccion}</td>
                         <td className="px-4 py-2">
-                          <div className="flex gap-2">
-                            <button type="button" onClick={() => setEditingMedico(m)} className="btn-secondary !px-2 !py-1 text-xs">
-                              Editar
-                            </button>
-                            <button type="button" onClick={() => eliminarMedico(m)} className="btn-secondary !px-2 !py-1 text-xs text-danger-600">
-                              Eliminar
-                            </button>
-                          </div>
+                          {esAdmin ? (
+                            <div className="flex gap-2">
+                              <button type="button" onClick={() => setEditingMedico(m)} className="btn-secondary !px-2 !py-1 text-xs">
+                                Editar
+                              </button>
+                              <button type="button" onClick={() => eliminarMedico(m)} className="btn-secondary !px-2 !py-1 text-xs text-danger-600">
+                                Eliminar
+                              </button>
+                            </div>
+                          ) : (
+                            <span className="text-neutral-400">—</span>
+                          )}
                         </td>
                       </tr>
                     ))}
@@ -596,14 +605,16 @@ export default function App(){
 
         <section className="card">
           <h2 className="heading mb-4">Pacientes</h2>
-          <PacienteForm
-            key={editingPaciente?.id ?? 'new'}
-            paciente={editingPaciente}
-            token={token}
-            notify={notify}
-            onGuardado={async () => { setEditingPaciente(null); await cargarPacientes() }}
-            onCancelarEdicion={() => setEditingPaciente(null)}
-          />
+          {esAdmin && (
+            <PacienteForm
+              key={editingPaciente?.id ?? 'new'}
+              paciente={editingPaciente}
+              token={token}
+              notify={notify}
+              onGuardado={async () => { setEditingPaciente(null); await cargarPacientes() }}
+              onCancelarEdicion={() => setEditingPaciente(null)}
+            />
+          )}
           <div className="overflow-x-auto rounded-lg border border-neutral-200">
             <table className="w-full text-sm">
               <thead>
@@ -633,14 +644,18 @@ export default function App(){
                         <td className="px-4 py-2 text-neutral-900">{p.numeroAfiliado}</td>
                         <td className="px-4 py-2 text-neutral-900">{p.plan}</td>
                         <td className="px-4 py-2">
-                          <div className="flex gap-2">
-                            <button type="button" onClick={() => setEditingPaciente(p)} className="btn-secondary !px-2 !py-1 text-xs">
-                              Editar
-                            </button>
-                            <button type="button" onClick={() => eliminarPaciente(p)} className="btn-secondary !px-2 !py-1 text-xs text-danger-600">
-                              Eliminar
-                            </button>
-                          </div>
+                          {esAdmin ? (
+                            <div className="flex gap-2">
+                              <button type="button" onClick={() => setEditingPaciente(p)} className="btn-secondary !px-2 !py-1 text-xs">
+                                Editar
+                              </button>
+                              <button type="button" onClick={() => eliminarPaciente(p)} className="btn-secondary !px-2 !py-1 text-xs text-danger-600">
+                                Eliminar
+                              </button>
+                            </div>
+                          ) : (
+                            <span className="text-neutral-400">—</span>
+                          )}
                         </td>
                       </tr>
                     ))}
@@ -658,42 +673,44 @@ export default function App(){
           </div>
         </section>
 
-        <section className="card">
-          <h2 className="heading mb-4">Crear turno</h2>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label className="label">Fecha y hora</label>
-              <input className="input-field" value={fechaHora} onChange={e=>setFechaHora(e.target.value)} />
-            </div>
-            <div>
-              <label className="label">Especialidad</label>
-              <input className="input-field" value={especialidad} onChange={e=>setEspecialidad(e.target.value)} />
-            </div>
-            <div className="grid grid-cols-2 gap-4">
+        {puedeGestionarTurnos && (
+          <section className="card">
+            <h2 className="heading mb-4">Crear turno</h2>
+            <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <label className="label">Médico</label>
-                <select className="input-field" value={medicoId} onChange={e=>{clearValidity(e); setMedicoId(e.target.value)}} onInvalid={handleInvalid} required>
-                  <option value="" disabled>Seleccionar médico</option>
-                  {medicos.map(m => (
-                    <option key={m.id} value={m.id}>{m.nombre} — {m.especialidad}</option>
-                  ))}
-                </select>
+                <label className="label">Fecha y hora</label>
+                <input className="input-field" value={fechaHora} onChange={e=>setFechaHora(e.target.value)} />
               </div>
               <div>
-                <label className="label">Paciente</label>
-                <select className="input-field" value={pacienteId} onChange={e=>{clearValidity(e); setPacienteId(e.target.value)}} onInvalid={handleInvalid} required>
-                  <option value="" disabled>Seleccionar paciente</option>
-                  {pacientes.map(p => (
-                    <option key={p.id} value={p.id}>{p.nombre} — DNI {p.dni}</option>
-                  ))}
-                </select>
+                <label className="label">Especialidad</label>
+                <input className="input-field" value={especialidad} onChange={e=>setEspecialidad(e.target.value)} />
               </div>
-            </div>
-            <button type="submit" disabled={loading} className="btn-primary">
-              {loading ? 'Enviando…' : 'Crear turno'}
-            </button>
-          </form>
-        </section>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="label">Médico</label>
+                  <select className="input-field" value={medicoId} onChange={e=>{clearValidity(e); setMedicoId(e.target.value)}} onInvalid={handleInvalid} required>
+                    <option value="" disabled>Seleccionar médico</option>
+                    {medicos.map(m => (
+                      <option key={m.id} value={m.id}>{m.nombre} — {m.especialidad}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="label">Paciente</label>
+                  <select className="input-field" value={pacienteId} onChange={e=>{clearValidity(e); setPacienteId(e.target.value)}} onInvalid={handleInvalid} required>
+                    <option value="" disabled>Seleccionar paciente</option>
+                    {pacientes.map(p => (
+                      <option key={p.id} value={p.id}>{p.nombre} — DNI {p.dni}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              <button type="submit" disabled={loading} className="btn-primary">
+                {loading ? 'Enviando…' : 'Crear turno'}
+              </button>
+            </form>
+          </section>
+        )}
 
         <section className="card">
           <h2 className="heading mb-4">Turnos</h2>
@@ -743,31 +760,35 @@ export default function App(){
                     <td className="px-4 py-2 text-neutral-900">{nombrePaciente(t.pacienteId)}</td>
                     <td className="px-4 py-2"><EstadoBadge estado={t.estado} /></td>
                     <td className="px-4 py-2">
-                      <div className="flex gap-2">
-                        {t.estado === 'PENDIENTE' && (
-                          <button
-                            type="button"
-                            disabled={estadoUpdatingId === t.id}
-                            onClick={() => cambiarEstado(t.id, 'CONFIRMADO')}
-                            className="btn-primary !px-2 !py-1 text-xs"
-                          >
-                            Confirmar
-                          </button>
-                        )}
-                        {t.estado !== 'CANCELADO' && (
-                          <button
-                            type="button"
-                            disabled={estadoUpdatingId === t.id}
-                            onClick={() => cambiarEstado(t.id, 'CANCELADO')}
-                            className="btn-secondary !px-2 !py-1 text-xs"
-                          >
-                            Cancelar
-                          </button>
-                        )}
-                        {t.estado === 'CANCELADO' && (
-                          <span className="text-neutral-400">—</span>
-                        )}
-                      </div>
+                      {puedeGestionarTurnos ? (
+                        <div className="flex gap-2">
+                          {t.estado === 'PENDIENTE' && (
+                            <button
+                              type="button"
+                              disabled={estadoUpdatingId === t.id}
+                              onClick={() => cambiarEstado(t.id, 'CONFIRMADO')}
+                              className="btn-primary !px-2 !py-1 text-xs"
+                            >
+                              Confirmar
+                            </button>
+                          )}
+                          {t.estado !== 'CANCELADO' && (
+                            <button
+                              type="button"
+                              disabled={estadoUpdatingId === t.id}
+                              onClick={() => cambiarEstado(t.id, 'CANCELADO')}
+                              className="btn-secondary !px-2 !py-1 text-xs"
+                            >
+                              Cancelar
+                            </button>
+                          )}
+                          {t.estado === 'CANCELADO' && (
+                            <span className="text-neutral-400">—</span>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="text-neutral-400">—</span>
+                      )}
                     </td>
                   </tr>
                 ))}
