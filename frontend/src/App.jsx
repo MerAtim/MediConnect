@@ -12,7 +12,7 @@ const ESTADO_BADGE = {
   CANCELADO: 'badge-cancelado',
 }
 
-const ROLES = ['ADMINISTRADOR', 'MEDICO', 'PACIENTE']
+const ROLES = ['MEDICO', 'PACIENTE']
 
 // Los mensajes nativos de validación del navegador ("Please fill out this
 // field") vienen en el idioma del navegador, no de la página. Los pisamos
