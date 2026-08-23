@@ -3,6 +3,7 @@ import React, {useEffect, useState} from 'react'
 const TURNOS_API = 'http://localhost:8080/api/turnos'
 const MEDICOS_API = 'http://localhost:8080/api/medicos'
 const PACIENTES_API = 'http://localhost:8080/api/pacientes'
+const HISTORIAS_API = 'http://localhost:8080/api/historias-clinicas'
 const AUTH_API = 'http://localhost:8080/api/auth'
 const AUTH_STORAGE_KEY = 'medconnect_auth'
 
@@ -384,6 +385,14 @@ export default function App(){
   const [listLoading, setListLoading] = useState(false)
   const [estadoUpdatingId, setEstadoUpdatingId] = useState(null)
 
+  const [historiaAbiertaId, setHistoriaAbiertaId] = useState(null)
+  const [historiaPorPaciente, setHistoriaPorPaciente] = useState({})
+  const [historiaLoading, setHistoriaLoading] = useState(false)
+  const [diagnostico, setDiagnostico] = useState('')
+  const [tratamientoRegistro, setTratamientoRegistro] = useState('')
+  const [observacionesRegistro, setObservacionesRegistro] = useState('')
+  const [guardandoRegistro, setGuardandoRegistro] = useState(false)
+
   async function cargarMedicos(){
     setMedicosLoading(true)
     try{
@@ -496,9 +505,88 @@ export default function App(){
     }
   }
 
+  async function cargarHistoria(pacienteId){
+    setHistoriaLoading(true)
+    try{
+      const resp = await apiFetch(`${HISTORIAS_API}?pacienteId=${pacienteId}`)
+      if(!resp.ok) throw new Error(await readErrorMessage(resp))
+      const data = await resp.json()
+      setHistoriaPorPaciente(prev => ({...prev, [pacienteId]: data}))
+    }catch(err){
+      notify(err.message)
+    }finally{
+      setHistoriaLoading(false)
+    }
+  }
+
+  function toggleHistoria(turno){
+    if(historiaAbiertaId === turno.id){
+      setHistoriaAbiertaId(null)
+      return
+    }
+    setHistoriaAbiertaId(turno.id)
+    setDiagnostico('')
+    setTratamientoRegistro('')
+    setObservacionesRegistro('')
+    if(!historiaPorPaciente[turno.pacienteId]){
+      cargarHistoria(turno.pacienteId)
+    }
+  }
+
+  async function agregarRegistro(turno){
+    setGuardandoRegistro(true)
+    try{
+      const resp = await apiFetch(HISTORIAS_API, {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({
+          medicoId: turno.medicoId,
+          pacienteId: turno.pacienteId,
+          diagnostico,
+          tratamiento: tratamientoRegistro,
+          observaciones: observacionesRegistro
+        })
+      })
+      if(!resp.ok) throw new Error(await readErrorMessage(resp))
+      notify('Registro clínico agregado.', 'success')
+      setDiagnostico('')
+      setTratamientoRegistro('')
+      setObservacionesRegistro('')
+      await cargarHistoria(turno.pacienteId)
+    }catch(err){
+      notify(err.message)
+    }finally{
+      setGuardandoRegistro(false)
+    }
+  }
+
+  async function descargarHistoria(pacienteId){
+    try{
+      const resp = await apiFetch(`${HISTORIAS_API}/exportar?pacienteId=${pacienteId}`)
+      if(!resp.ok) throw new Error(await readErrorMessage(resp))
+      const blob = await resp.blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `historia-clinica-paciente-${pacienteId}.txt`
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+      URL.revokeObjectURL(url)
+    }catch(err){
+      notify(err.message)
+    }
+  }
+
   function nombreMedico(id){
     const medico = medicos.find(m => m.id === id)
     return medico ? medico.nombre : `#${id}`
+  }
+
+  function nombreMedicoConEspecialidad(id){
+    const medico = medicos.find(m => m.id === id)
+    if(!medico) return `#${id}`
+    return medico.especialidad ? `${medico.nombre} (${medico.especialidad})` : medico.nombre
   }
 
   function nombrePaciente(id){
@@ -516,6 +604,7 @@ export default function App(){
   }
 
   const esAdmin = auth.role === 'ADMINISTRADOR'
+  const esMedico = auth.role === 'MEDICO'
   const puedeGestionarTurnos = auth.role === 'ADMINISTRADOR' || auth.role === 'MEDICO'
 
   return (
@@ -652,6 +741,9 @@ export default function App(){
                               <button type="button" onClick={() => eliminarPaciente(p)} className="btn-secondary !px-2 !py-1 text-xs text-danger-600">
                                 Eliminar
                               </button>
+                              <button type="button" onClick={() => descargarHistoria(p.id)} className="btn-secondary !px-2 !py-1 text-xs">
+                                Descargar historia
+                              </button>
                             </div>
                           ) : (
                             <span className="text-neutral-400">—</span>
@@ -752,45 +844,116 @@ export default function App(){
               <tbody className="divide-y divide-neutral-100">
                 {listLoading && turnos.length === 0 && <SkeletonRows columns={7} />}
                 {turnos.map(t => (
-                  <tr key={t.id} className="hover:bg-paper-100/60">
-                    <td className="px-4 py-2 text-neutral-500">{t.id}</td>
-                    <td className="px-4 py-2 text-neutral-900">{t.fechaHora}</td>
-                    <td className="px-4 py-2 text-neutral-900">{t.especialidad}</td>
-                    <td className="px-4 py-2 text-neutral-900">{nombreMedico(t.medicoId)}</td>
-                    <td className="px-4 py-2 text-neutral-900">{nombrePaciente(t.pacienteId)}</td>
-                    <td className="px-4 py-2"><EstadoBadge estado={t.estado} /></td>
-                    <td className="px-4 py-2">
-                      {puedeGestionarTurnos ? (
-                        <div className="flex gap-2">
-                          {t.estado === 'PENDIENTE' && (
-                            <button
-                              type="button"
-                              disabled={estadoUpdatingId === t.id}
-                              onClick={() => cambiarEstado(t.id, 'CONFIRMADO')}
-                              className="btn-primary !px-2 !py-1 text-xs"
-                            >
-                              Confirmar
-                            </button>
-                          )}
-                          {t.estado !== 'CANCELADO' && (
-                            <button
-                              type="button"
-                              disabled={estadoUpdatingId === t.id}
-                              onClick={() => cambiarEstado(t.id, 'CANCELADO')}
-                              className="btn-secondary !px-2 !py-1 text-xs"
-                            >
-                              Cancelar
-                            </button>
-                          )}
-                          {t.estado === 'CANCELADO' && (
-                            <span className="text-neutral-400">—</span>
-                          )}
-                        </div>
-                      ) : (
-                        <span className="text-neutral-400">—</span>
-                      )}
-                    </td>
-                  </tr>
+                  <React.Fragment key={t.id}>
+                    <tr className="hover:bg-paper-100/60">
+                      <td className="px-4 py-2 text-neutral-500">{t.id}</td>
+                      <td className="px-4 py-2 text-neutral-900">{t.fechaHora}</td>
+                      <td className="px-4 py-2 text-neutral-900">{t.especialidad}</td>
+                      <td className="px-4 py-2 text-neutral-900">{nombreMedico(t.medicoId)}</td>
+                      <td className="px-4 py-2 text-neutral-900">{nombrePaciente(t.pacienteId)}</td>
+                      <td className="px-4 py-2"><EstadoBadge estado={t.estado} /></td>
+                      <td className="px-4 py-2">
+                        {puedeGestionarTurnos ? (
+                          <div className="flex flex-wrap gap-2">
+                            {t.estado === 'PENDIENTE' && (
+                              <button
+                                type="button"
+                                disabled={estadoUpdatingId === t.id}
+                                onClick={() => cambiarEstado(t.id, 'CONFIRMADO')}
+                                className="btn-primary !px-2 !py-1 text-xs"
+                              >
+                                Confirmar
+                              </button>
+                            )}
+                            {t.estado !== 'CANCELADO' && (
+                              <button
+                                type="button"
+                                disabled={estadoUpdatingId === t.id}
+                                onClick={() => cambiarEstado(t.id, 'CANCELADO')}
+                                className="btn-secondary !px-2 !py-1 text-xs"
+                              >
+                                Cancelar
+                              </button>
+                            )}
+                            {t.estado === 'CANCELADO' && !esMedico && (
+                              <span className="text-neutral-400">—</span>
+                            )}
+                            {esMedico && (
+                              <button
+                                type="button"
+                                onClick={() => toggleHistoria(t)}
+                                className="btn-secondary !px-2 !py-1 text-xs"
+                              >
+                                {historiaAbiertaId === t.id ? 'Ocultar historia' : 'Ver historia'}
+                              </button>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="text-neutral-400">—</span>
+                        )}
+                      </td>
+                    </tr>
+                    {esMedico && historiaAbiertaId === t.id && (
+                      <tr className="bg-paper-100/40">
+                        <td colSpan={7} className="px-4 py-4">
+                          <div className="space-y-3">
+                            <h3 className="font-medium text-neutral-700">
+                              Historia clínica de {nombrePaciente(t.pacienteId)}
+                            </h3>
+                            {historiaLoading ? (
+                              <p className="text-sm text-neutral-400">Cargando…</p>
+                            ) : (historiaPorPaciente[t.pacienteId]?.length ?? 0) === 0 ? (
+                              <p className="text-sm text-neutral-400">Sin registros previos.</p>
+                            ) : (
+                              <ul className="space-y-2">
+                                {historiaPorPaciente[t.pacienteId].map(r => (
+                                  <li key={r.id} className="rounded-lg border border-neutral-200 bg-paper-50 px-3 py-2 text-sm">
+                                    <div className="text-neutral-500">
+                                      {r.fecha} — {nombreMedicoConEspecialidad(r.medicoId)}
+                                    </div>
+                                    <div><span className="font-medium">Diagnóstico:</span> {r.diagnostico}</div>
+                                    <div><span className="font-medium">Tratamiento:</span> {r.tratamiento}</div>
+                                    {r.observaciones && (
+                                      <div><span className="font-medium">Observaciones:</span> {r.observaciones}</div>
+                                    )}
+                                  </li>
+                                ))}
+                              </ul>
+                            )}
+                            <div className="space-y-2 pt-2 border-t border-neutral-200">
+                              <p className="text-sm font-medium text-neutral-700">Agregar registro de esta consulta</p>
+                              <input
+                                className="input-field"
+                                placeholder="Diagnóstico"
+                                value={diagnostico}
+                                onChange={e => setDiagnostico(e.target.value)}
+                              />
+                              <input
+                                className="input-field"
+                                placeholder="Tratamiento"
+                                value={tratamientoRegistro}
+                                onChange={e => setTratamientoRegistro(e.target.value)}
+                              />
+                              <input
+                                className="input-field"
+                                placeholder="Observaciones (opcional)"
+                                value={observacionesRegistro}
+                                onChange={e => setObservacionesRegistro(e.target.value)}
+                              />
+                              <button
+                                type="button"
+                                disabled={guardandoRegistro || !diagnostico || !tratamientoRegistro}
+                                onClick={() => agregarRegistro(t)}
+                                className="btn-primary !px-3 !py-1.5 text-xs"
+                              >
+                                {guardandoRegistro ? 'Guardando…' : 'Guardar registro'}
+                              </button>
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </React.Fragment>
                 ))}
                 {turnos.length === 0 && !listLoading && (
                   <tr>
