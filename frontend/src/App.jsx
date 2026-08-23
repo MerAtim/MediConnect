@@ -66,6 +66,22 @@ function ToastContainer({toasts}){
   )
 }
 
+function ConfirmModal({open, title, message, confirmLabel, cancelLabel = 'Volver', onConfirm, onCancel, danger = false}){
+  if(!open) return null
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-neutral-900/40 px-4">
+      <div className="card max-w-sm w-full">
+        <h3 className="heading mb-2">{title}</h3>
+        <p className="text-sm text-neutral-600 mb-6">{message}</p>
+        <div className="flex justify-end gap-3">
+          <button type="button" onClick={onCancel} className="btn-secondary">{cancelLabel}</button>
+          <button type="button" onClick={onConfirm} className={danger ? 'btn-danger' : 'btn-primary'}>{confirmLabel}</button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function SkeletonRows({columns, rows = 3}){
   return Array.from({length: rows}).map((_, i) => (
     <tr key={i}>
@@ -311,7 +327,7 @@ export default function App(){
   // botones .btn (actuales y futuros), sin tener que instrumentar cada uno.
   useEffect(() => {
     function handleRipple(e){
-      const btn = e.target.closest('.btn-primary, .btn-secondary')
+      const btn = e.target.closest('.btn-primary, .btn-secondary, .btn-danger')
       if(!btn || btn.disabled) return
       const rect = btn.getBoundingClientRect()
       const size = Math.max(rect.width, rect.height)
@@ -374,16 +390,21 @@ export default function App(){
   const [editingPaciente, setEditingPaciente] = useState(null)
 
   const [fechaHora, setFechaHora] = useState('2026-08-12T10:00:00')
-  const [especialidad, setEspecialidad] = useState('Cardiología')
+  const [especialidad, setEspecialidad] = useState('')
   const [medicoId, setMedicoId] = useState('')
-  const [pacienteId, setPacienteId] = useState('')
+  const [preparacion, setPreparacion] = useState('')
   const [loading, setLoading] = useState(false)
+
+  const [dniBusqueda, setDniBusqueda] = useState('')
+  const [pacienteEncontrado, setPacienteEncontrado] = useState(null)
 
   const [turnos, setTurnos] = useState([])
   const [filtroMedicoId, setFiltroMedicoId] = useState('')
   const [filtroPacienteId, setFiltroPacienteId] = useState('')
   const [listLoading, setListLoading] = useState(false)
   const [estadoUpdatingId, setEstadoUpdatingId] = useState(null)
+  const [turnoACancelar, setTurnoACancelar] = useState(null)
+  const [pasoCancelacion, setPasoCancelacion] = useState(0)
 
   const [historiaAbiertaId, setHistoriaAbiertaId] = useState(null)
   const [historiaPorPaciente, setHistoriaPorPaciente] = useState({})
@@ -457,8 +478,18 @@ export default function App(){
   }
 
   useEffect(() => {
-    if(token){ cargarMedicos(); cargarPacientes(); cargarTurnos() }
+    if(!token) return
+    if(auth.role === 'ADMINISTRADOR') cargarMedicos()
+    if(auth.role === 'ADMINISTRADOR' || auth.role === 'MEDICO') cargarPacientes()
+    cargarTurnos()
   }, [token])
+
+  function buscarPacientePorDni(e){
+    e.preventDefault()
+    const encontrado = pacientes.find(p => p.dni === dniBusqueda.trim())
+    setPacienteEncontrado(encontrado ?? null)
+    if(!encontrado) notify('No se encontró ningún paciente con ese DNI. Dalo de alta primero en la sección Pacientes.')
+  }
 
   async function handleSubmit(e){
     e.preventDefault()
@@ -468,14 +499,17 @@ export default function App(){
         method: 'POST',
         headers: {'Content-Type':'application/json'},
         body: JSON.stringify({
-          fechaHora, especialidad, medicoId: Number(medicoId), pacienteId: Number(pacienteId)
+          fechaHora, especialidad, medicoId: Number(medicoId), pacienteId: pacienteEncontrado.id, preparacion
         })
       })
       if(!resp.ok) throw new Error(await readErrorMessage(resp))
       const data = await resp.json()
-      notify(`Turno creado con id ${data?.id}.`, 'success')
+      notify(`Turno creado para ${pacienteEncontrado.nombre} el ${fechaHora}.`, 'success')
+      setEspecialidad('')
       setMedicoId('')
-      setPacienteId('')
+      setPreparacion('')
+      setDniBusqueda('')
+      setPacienteEncontrado(null)
       await cargarTurnos()
     }catch(err){
       notify(err.message)
@@ -503,6 +537,25 @@ export default function App(){
     }finally{
       setEstadoUpdatingId(null)
     }
+  }
+
+  function iniciarCancelacionComoPaciente(turno){
+    setTurnoACancelar(turno)
+    setPasoCancelacion(1)
+  }
+
+  function cerrarModalCancelacion(){
+    setTurnoACancelar(null)
+    setPasoCancelacion(0)
+  }
+
+  function confirmarPrimerPaso(){
+    setPasoCancelacion(2)
+  }
+
+  function confirmarCancelacionDefinitiva(){
+    cambiarEstado(turnoACancelar.id, 'CANCELADO')
+    cerrarModalCancelacion()
   }
 
   async function cargarHistoria(pacienteId){
@@ -578,22 +631,6 @@ export default function App(){
     }
   }
 
-  function nombreMedico(id){
-    const medico = medicos.find(m => m.id === id)
-    return medico ? medico.nombre : `#${id}`
-  }
-
-  function nombreMedicoConEspecialidad(id){
-    const medico = medicos.find(m => m.id === id)
-    if(!medico) return `#${id}`
-    return medico.especialidad ? `${medico.nombre} (${medico.especialidad})` : medico.nombre
-  }
-
-  function nombrePaciente(id){
-    const paciente = pacientes.find(p => p.id === id)
-    return paciente ? paciente.nombre : `#${id}`
-  }
-
   if(!auth){
     return (
       <>
@@ -605,11 +642,32 @@ export default function App(){
 
   const esAdmin = auth.role === 'ADMINISTRADOR'
   const esMedico = auth.role === 'MEDICO'
-  const puedeGestionarTurnos = auth.role === 'ADMINISTRADOR' || auth.role === 'MEDICO'
+  const esPaciente = auth.role === 'PACIENTE'
+  const puedeGestionarTurnos = esAdmin || esMedico
+  const hoy = new Date().toLocaleDateString('es-AR', {day: '2-digit', month: '2-digit', year: 'numeric'})
 
   return (
     <div className="min-h-screen bg-neutral-200 font-sans">
       <ToastContainer toasts={toasts} />
+      <ConfirmModal
+        open={pasoCancelacion === 1}
+        title="Cancelar turno"
+        message={turnoACancelar ? `¿Seguro que querés cancelar el turno del ${turnoACancelar.fechaHora}?` : ''}
+        confirmLabel="Sí, cancelar"
+        cancelLabel="No, mantener el turno"
+        onConfirm={confirmarPrimerPaso}
+        onCancel={cerrarModalCancelacion}
+      />
+      <ConfirmModal
+        open={pasoCancelacion === 2}
+        title="¿Confirmás la cancelación?"
+        message="Esta acción no se puede deshacer y libera el horario para otro paciente."
+        confirmLabel="Confirmar cancelación"
+        cancelLabel="Volver"
+        danger
+        onConfirm={confirmarCancelacionDefinitiva}
+        onCancel={cerrarModalCancelacion}
+      />
       <header className="bg-primary-800 text-white">
         <div className="max-w-3xl mx-auto px-6 py-4 flex items-center justify-between">
           <div>
@@ -626,9 +684,9 @@ export default function App(){
       </header>
 
       <main className="max-w-3xl mx-auto px-6 py-8 space-y-8">
-        <section className="card">
-          <h2 className="heading mb-4">Médicos</h2>
-          {esAdmin && (
+        {esAdmin && (
+          <section className="card">
+            <h2 className="heading mb-4">Médicos</h2>
             <MedicoForm
               key={editingMedico?.id ?? 'new'}
               medico={editingMedico}
@@ -637,33 +695,31 @@ export default function App(){
               onGuardado={async () => { setEditingMedico(null); await cargarMedicos() }}
               onCancelarEdicion={() => setEditingMedico(null)}
             />
-          )}
-          <div className="overflow-x-auto rounded-lg border border-neutral-200">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="bg-paper-100 text-left text-neutral-500">
-                  <th className="px-4 py-2 font-medium">ID</th>
-                  <th className="px-4 py-2 font-medium">Nombre</th>
-                  <th className="px-4 py-2 font-medium">Especialidad</th>
-                  <th className="px-4 py-2 font-medium">Matrícula</th>
-                  <th className="px-4 py-2 font-medium">Dirección</th>
-                  <th className="px-4 py-2 font-medium">Acciones</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-neutral-100">
-                {medicosLoading && medicos.length === 0 ? (
-                  <SkeletonRows columns={6} />
-                ) : (
-                  <>
-                    {medicos.map(m => (
-                      <tr key={m.id} className="hover:bg-paper-100/60">
-                        <td className="px-4 py-2 text-neutral-500">{m.id}</td>
-                        <td className="px-4 py-2 text-neutral-900">{m.nombre}</td>
-                        <td className="px-4 py-2 text-neutral-900">{m.especialidad}</td>
-                        <td className="px-4 py-2 text-neutral-900">{m.matricula}</td>
-                        <td className="px-4 py-2 text-neutral-900">{m.direccion}</td>
-                        <td className="px-4 py-2">
-                          {esAdmin ? (
+            <div className="overflow-x-auto rounded-lg border border-neutral-200">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-paper-100 text-left text-neutral-500">
+                    <th className="px-4 py-2 font-medium">ID</th>
+                    <th className="px-4 py-2 font-medium">Nombre</th>
+                    <th className="px-4 py-2 font-medium">Especialidad</th>
+                    <th className="px-4 py-2 font-medium">Matrícula</th>
+                    <th className="px-4 py-2 font-medium">Dirección</th>
+                    <th className="px-4 py-2 font-medium">Acciones</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-neutral-100">
+                  {medicosLoading && medicos.length === 0 ? (
+                    <SkeletonRows columns={6} />
+                  ) : (
+                    <>
+                      {medicos.map(m => (
+                        <tr key={m.id} className="hover:bg-paper-100/60">
+                          <td className="px-4 py-2 text-neutral-500">{m.id}</td>
+                          <td className="px-4 py-2 text-neutral-900">{m.nombre}</td>
+                          <td className="px-4 py-2 text-neutral-900">{m.especialidad}</td>
+                          <td className="px-4 py-2 text-neutral-900">{m.matricula}</td>
+                          <td className="px-4 py-2 text-neutral-900">{m.direccion}</td>
+                          <td className="px-4 py-2">
                             <div className="flex gap-2">
                               <button type="button" onClick={() => setEditingMedico(m)} className="btn-secondary !px-2 !py-1 text-xs">
                                 Editar
@@ -672,28 +728,27 @@ export default function App(){
                                 Eliminar
                               </button>
                             </div>
-                          ) : (
-                            <span className="text-neutral-400">—</span>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                    {medicos.length === 0 && (
-                      <tr>
-                        <td colSpan={6} className="px-4 py-6 text-center text-neutral-400">
-                          Sin médicos registrados.
-                        </td>
-                      </tr>
-                    )}
-                  </>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </section>
+                          </td>
+                        </tr>
+                      ))}
+                      {medicos.length === 0 && (
+                        <tr>
+                          <td colSpan={6} className="px-4 py-6 text-center text-neutral-400">
+                            Sin médicos registrados.
+                          </td>
+                        </tr>
+                      )}
+                    </>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        )}
 
+        {(esAdmin || esMedico) && (
         <section className="card">
-          <h2 className="heading mb-4">Pacientes</h2>
+          <h2 className="heading mb-4">{esAdmin ? 'Pacientes' : 'Mis pacientes'}</h2>
           {esAdmin && (
             <PacienteForm
               key={editingPaciente?.id ?? 'new'}
@@ -764,69 +819,104 @@ export default function App(){
             </table>
           </div>
         </section>
+        )}
 
-        {puedeGestionarTurnos && (
+        {esAdmin && (
           <section className="card">
-            <h2 className="heading mb-4">Crear turno</h2>
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <h2 className="heading mb-4">Otorgar turno</h2>
+            <form onSubmit={buscarPacientePorDni} className="flex flex-wrap items-end gap-3 mb-4">
               <div>
-                <label className="label">Fecha y hora</label>
-                <input className="input-field" value={fechaHora} onChange={e=>setFechaHora(e.target.value)} />
+                <label className="label">DNI del paciente</label>
+                <input className="input-field w-40" value={dniBusqueda} onChange={e=>{setDniBusqueda(e.target.value); setPacienteEncontrado(null)}} />
               </div>
-              <div>
-                <label className="label">Especialidad</label>
-                <input className="input-field" value={especialidad} onChange={e=>setEspecialidad(e.target.value)} />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="label">Médico</label>
-                  <select className="input-field" value={medicoId} onChange={e=>{clearValidity(e); setMedicoId(e.target.value)}} onInvalid={handleInvalid} required>
-                    <option value="" disabled>Seleccionar médico</option>
-                    {medicos.map(m => (
-                      <option key={m.id} value={m.id}>{m.nombre} — {m.especialidad}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="label">Paciente</label>
-                  <select className="input-field" value={pacienteId} onChange={e=>{clearValidity(e); setPacienteId(e.target.value)}} onInvalid={handleInvalid} required>
-                    <option value="" disabled>Seleccionar paciente</option>
-                    {pacientes.map(p => (
-                      <option key={p.id} value={p.id}>{p.nombre} — DNI {p.dni}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-              <button type="submit" disabled={loading} className="btn-primary">
-                {loading ? 'Enviando…' : 'Crear turno'}
-              </button>
+              <button type="submit" className="btn-primary">Buscar paciente</button>
             </form>
+
+            {pacienteEncontrado && (
+              <div className="mb-4 rounded-lg border border-neutral-200 bg-paper-100 px-4 py-3 text-sm">
+                <p className="font-medium text-neutral-800">{pacienteEncontrado.nombre} — DNI {pacienteEncontrado.dni}</p>
+                {pacienteEncontrado.obraSocial && (
+                  <p className="text-neutral-500">{pacienteEncontrado.obraSocial}{pacienteEncontrado.plan ? ` · ${pacienteEncontrado.plan}` : ''}</p>
+                )}
+              </div>
+            )}
+
+            {pacienteEncontrado && (
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <div>
+                  <label className="label">Fecha y hora</label>
+                  <input className="input-field" value={fechaHora} onChange={e=>setFechaHora(e.target.value)} />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="label">Especialidad</label>
+                    <select className="input-field" value={especialidad} onChange={e=>{clearValidity(e); setEspecialidad(e.target.value); setMedicoId('')}} onInvalid={handleInvalid} required>
+                      <option value="" disabled>Seleccionar especialidad</option>
+                      {[...new Set(medicos.map(m => m.especialidad).filter(Boolean))].sort().map(esp => (
+                        <option key={esp} value={esp}>{esp}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="label">Médico</label>
+                    <select className="input-field" value={medicoId} onChange={e=>{clearValidity(e); setMedicoId(e.target.value)}} onInvalid={handleInvalid} required disabled={!especialidad}>
+                      <option value="" disabled>Seleccionar médico</option>
+                      {medicos.filter(m => m.especialidad === especialidad).map(m => (
+                        <option key={m.id} value={m.id}>{m.nombre}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+                <div>
+                  <label className="label">Preparación (opcional)</label>
+                  <input
+                    className="input-field"
+                    placeholder="Ej: asistir 15 minutos antes y pasar por recepción para dar presente"
+                    value={preparacion}
+                    onChange={e=>setPreparacion(e.target.value)}
+                  />
+                </div>
+                <button type="submit" disabled={loading} className="btn-primary">
+                  {loading ? 'Enviando…' : 'Otorgar turno'}
+                </button>
+              </form>
+            )}
           </section>
         )}
 
         <section className="card">
-          <h2 className="heading mb-4">Turnos</h2>
-          <form onSubmit={handleFiltrar} className="flex flex-wrap items-end gap-3 mb-4">
-            <div>
-              <label className="label">Médico ID</label>
-              <input type="number" className="input-field w-32" value={filtroMedicoId} onChange={e=>setFiltroMedicoId(e.target.value)} />
+          <h2 className="heading mb-4">{esPaciente ? 'Mis turnos' : 'Turnos'}</h2>
+
+          {esMedico && (
+            <div className="mb-4 rounded-lg bg-primary-800 text-white px-4 py-3">
+              <p className="text-xs uppercase tracking-wide text-primary-100">Turnos para hoy</p>
+              <p className="text-2xl font-semibold tabular-nums">{hoy}</p>
             </div>
-            <div>
-              <label className="label">Paciente ID</label>
-              <input type="number" className="input-field w-32" value={filtroPacienteId} onChange={e=>setFiltroPacienteId(e.target.value)} />
-            </div>
-            <button type="submit" disabled={listLoading} className="btn-primary">
-              {listLoading ? 'Buscando…' : 'Buscar'}
-            </button>
-            <button
-              type="button"
-              disabled={listLoading}
-              onClick={() => { setFiltroMedicoId(''); setFiltroPacienteId(''); cargarTurnos('', '') }}
-              className="btn-secondary"
-            >
-              Ver todos
-            </button>
-          </form>
+          )}
+
+          {esAdmin && (
+            <form onSubmit={handleFiltrar} className="flex flex-wrap items-end gap-3 mb-4">
+              <div>
+                <label className="label">Médico ID</label>
+                <input type="number" className="input-field w-32" value={filtroMedicoId} onChange={e=>setFiltroMedicoId(e.target.value)} />
+              </div>
+              <div>
+                <label className="label">Paciente ID</label>
+                <input type="number" className="input-field w-32" value={filtroPacienteId} onChange={e=>setFiltroPacienteId(e.target.value)} />
+              </div>
+              <button type="submit" disabled={listLoading} className="btn-primary">
+                {listLoading ? 'Buscando…' : 'Buscar'}
+              </button>
+              <button
+                type="button"
+                disabled={listLoading}
+                onClick={() => { setFiltroMedicoId(''); setFiltroPacienteId(''); cargarTurnos('', '') }}
+                className="btn-secondary"
+              >
+                Ver todos
+              </button>
+            </form>
+          )}
 
           <div className="overflow-x-auto rounded-lg border border-neutral-200">
             <table className="w-full text-sm">
@@ -837,20 +927,24 @@ export default function App(){
                   <th className="px-4 py-2 font-medium">Especialidad</th>
                   <th className="px-4 py-2 font-medium">Médico</th>
                   <th className="px-4 py-2 font-medium">Paciente</th>
+                  <th className="px-4 py-2 font-medium">Preparación</th>
                   <th className="px-4 py-2 font-medium">Estado</th>
                   <th className="px-4 py-2 font-medium">Acciones</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-neutral-100">
-                {listLoading && turnos.length === 0 && <SkeletonRows columns={7} />}
+                {listLoading && turnos.length === 0 && <SkeletonRows columns={8} />}
                 {turnos.map(t => (
                   <React.Fragment key={t.id}>
                     <tr className="hover:bg-paper-100/60">
                       <td className="px-4 py-2 text-neutral-500">{t.id}</td>
                       <td className="px-4 py-2 text-neutral-900">{t.fechaHora}</td>
                       <td className="px-4 py-2 text-neutral-900">{t.especialidad}</td>
-                      <td className="px-4 py-2 text-neutral-900">{nombreMedico(t.medicoId)}</td>
-                      <td className="px-4 py-2 text-neutral-900">{nombrePaciente(t.pacienteId)}</td>
+                      <td className="px-4 py-2 text-neutral-900">
+                        {t.medicoNombre ?? `#${t.medicoId}`}{t.medicoEspecialidad ? ` (${t.medicoEspecialidad})` : ''}
+                      </td>
+                      <td className="px-4 py-2 text-neutral-900">{t.pacienteNombre ?? `#${t.pacienteId}`}</td>
+                      <td className="px-4 py-2 text-neutral-500">{t.preparacion || '—'}</td>
                       <td className="px-4 py-2"><EstadoBadge estado={t.estado} /></td>
                       <td className="px-4 py-2">
                         {puedeGestionarTurnos ? (
@@ -888,6 +982,19 @@ export default function App(){
                               </button>
                             )}
                           </div>
+                        ) : esPaciente ? (
+                          t.estado !== 'CANCELADO' ? (
+                            <button
+                              type="button"
+                              disabled={estadoUpdatingId === t.id}
+                              onClick={() => iniciarCancelacionComoPaciente(t)}
+                              className="btn-secondary !px-2 !py-1 text-xs text-danger-600"
+                            >
+                              Cancelar
+                            </button>
+                          ) : (
+                            <span className="text-neutral-400">—</span>
+                          )
                         ) : (
                           <span className="text-neutral-400">—</span>
                         )}
@@ -895,10 +1002,10 @@ export default function App(){
                     </tr>
                     {esMedico && historiaAbiertaId === t.id && (
                       <tr className="bg-paper-100/40">
-                        <td colSpan={7} className="px-4 py-4">
+                        <td colSpan={8} className="px-4 py-4">
                           <div className="space-y-3">
                             <h3 className="font-medium text-neutral-700">
-                              Historia clínica de {nombrePaciente(t.pacienteId)}
+                              Historia clínica de {t.pacienteNombre ?? `#${t.pacienteId}`}
                             </h3>
                             {historiaLoading ? (
                               <p className="text-sm text-neutral-400">Cargando…</p>
@@ -909,7 +1016,7 @@ export default function App(){
                                 {historiaPorPaciente[t.pacienteId].map(r => (
                                   <li key={r.id} className="rounded-lg border border-neutral-200 bg-paper-50 px-3 py-2 text-sm">
                                     <div className="text-neutral-500">
-                                      {r.fecha} — {nombreMedicoConEspecialidad(r.medicoId)}
+                                      {r.fecha} — {r.medicoNombre ?? `#${r.medicoId}`}{r.medicoEspecialidad ? ` (${r.medicoEspecialidad})` : ''}
                                     </div>
                                     <div><span className="font-medium">Diagnóstico:</span> {r.diagnostico}</div>
                                     <div><span className="font-medium">Tratamiento:</span> {r.tratamiento}</div>
@@ -957,7 +1064,7 @@ export default function App(){
                 ))}
                 {turnos.length === 0 && !listLoading && (
                   <tr>
-                    <td colSpan={7} className="px-4 py-6 text-center text-neutral-400">
+                    <td colSpan={8} className="px-4 py-6 text-center text-neutral-400">
                       Sin turnos para mostrar.
                     </td>
                   </tr>
