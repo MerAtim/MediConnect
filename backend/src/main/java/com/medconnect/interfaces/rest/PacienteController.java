@@ -68,6 +68,14 @@ public class PacienteController {
         return ResponseEntity.status(HttpStatus.CREATED).body(resp);
     }
 
+    @GetMapping("/me")
+    public ResponseEntity<PacienteResponse> obtenerPropio() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        return buscarPacienteUseCase.buscarPorEmail(auth.getName())
+                .map(paciente -> ResponseEntity.ok(toResponse(paciente)))
+                .orElseGet(() -> ResponseEntity.status(HttpStatus.NOT_FOUND).build());
+    }
+
     @GetMapping("/{id}")
     public ResponseEntity<PacienteResponse> buscarPorId(@PathVariable Long id) {
         return buscarPacienteUseCase.buscarPorId(id)

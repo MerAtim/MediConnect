@@ -274,7 +274,7 @@ qué, según rol — ver "Restricción por rol" más abajo).
     `CANCELADO`), que dispara un `ConfirmModal` **doble** (dos pasos, "por
     las dudas") en vez de `window.confirm` — ver `pasoCancelacion` y
     `ConfirmModal` en el bullet de Estilos.
-- Tests: 91 tests (unitarios de casos de uso + MockMvc de controllers +
+- Tests: 95 tests (unitarios de casos de uso + MockMvc de controllers +
   integración end-to-end con repos fake en memoria vía `@Profile("test")`).
   Todos verificados también contra Postgres real con curl y en navegador real
   con Playwright (no solo tests automatizados).
@@ -325,7 +325,7 @@ sesión de prueba, sin commitear ningún cambio de puerto en `App.jsx` (las URLs
 ahí están hardcodeadas a `:8080` a propósito).
 
 ```bash
-./mvnw.cmd test   # 91 tests, no necesita Postgres levantado (usa fakes en memoria)
+./mvnw.cmd test   # 95 tests, no necesita Postgres levantado (usa fakes en memoria)
 ```
 
 ### Frontend
@@ -490,11 +490,18 @@ con el usuario antes de arrancar cualquiera:
    contra Postgres real: login admin → crear ADMINISTRADOR nuevo → logout →
    login con la cuenta nueva → ve el panel de admin. Verificado también con
    curl que un token `MEDICO` o una request sin token dan 403.
-2. **Mensaje claro cuando un médico/paciente no está vinculado.** Hoy, si el
-   `email` de su `Medico`/`Paciente` no coincide con el de su cuenta de
-   login, simplemente ve listas vacías (Pacientes, Turnos) sin ninguna
-   explicación — indistinguible de "no tengo turnos todavía". Confunde.
-   Podría resolverse junto con el punto 3.
+2. ~~Mensaje claro cuando un médico/paciente no está vinculado.~~ **Hecho**
+   (rama `feature/mensaje-usuario-no-vinculado`): nuevo `GET /api/medicos/me`
+   (solo `MEDICO`) y `GET /api/pacientes/me` (solo `PACIENTE`) — devuelven el
+   propio médico/paciente vinculado (200) o 404 si el email de la cuenta no
+   coincide con ninguno. El frontend los llama una vez al cargar
+   (`chequearVinculacion()`) y, si da 404, muestra un banner persistente
+   arriba de todo (`vinculado === false`, solo para `esMedico`/`esPaciente`)
+   explicando por qué las listas están vacías y pidiendo al admin que cargue
+   el email exacto de la cuenta (`auth.email`, mostrado en el mensaje) en la
+   ficha correspondiente. Verificado con Playwright: un `MEDICO` recién
+   creado sin ficha vinculada ve el banner; el admin no lo ve nunca (no
+   aplica a su rol).
 3. **UI para vincular una cuenta de login con su Médico/Paciente**, en vez
    de que `esAdmin` tenga que escribir el mismo email a mano en los dos
    lados (frágil, silencioso si se equivoca). Ligado al punto 2: si existe

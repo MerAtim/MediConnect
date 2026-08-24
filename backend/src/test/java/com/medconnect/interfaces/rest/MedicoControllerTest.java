@@ -7,10 +7,14 @@ import com.medconnect.application.usecase.CrearMedicoUseCase;
 import com.medconnect.application.usecase.EliminarMedicoUseCase;
 import com.medconnect.domain.exception.MedicoInvalidoException;
 import com.medconnect.domain.model.Medico;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import org.springframework.http.MediaType;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
@@ -47,6 +51,17 @@ public class MedicoControllerTest {
                 .build();
     }
 
+    @AfterEach
+    public void tearDown() {
+        SecurityContextHolder.clearContext();
+    }
+
+    private void loguearComo(String rol, String email) {
+        SecurityContextHolder.getContext().setAuthentication(
+                new UsernamePasswordAuthenticationToken(
+                        email, null, List.of(new SimpleGrantedAuthority("ROLE_" + rol))));
+    }
+
     @Test
     public void crearMedico_devuelve400_siValidacionFalla() throws Exception {
         when(crearMedicoUseCase.crear(any()))
@@ -73,6 +88,26 @@ public class MedicoControllerTest {
                         .content(body))
                 .andExpect(status().isCreated())
                 .andExpect(content().json("{\"id\":42}"));
+    }
+
+    @Test
+    public void obtenerPropio_devuelve200_siMedicoEstaVinculado() throws Exception {
+        loguearComo("MEDICO", "medico@medconnect.com");
+        Medico medico = new Medico(1L, "Ana Pérez", "Cardiología", "MP1234", null, null, "medico@medconnect.com", null);
+        when(buscarMedicoUseCase.buscarPorEmail("medico@medconnect.com")).thenReturn(Optional.of(medico));
+
+        mockMvc.perform(get("/api/medicos/me"))
+                .andExpect(status().isOk())
+                .andExpect(content().json("{\"id\":1,\"nombre\":\"Ana Pérez\"}"));
+    }
+
+    @Test
+    public void obtenerPropio_devuelve404_siMedicoNoEstaVinculado() throws Exception {
+        loguearComo("MEDICO", "sin-vincular@medconnect.com");
+        when(buscarMedicoUseCase.buscarPorEmail("sin-vincular@medconnect.com")).thenReturn(Optional.empty());
+
+        mockMvc.perform(get("/api/medicos/me"))
+                .andExpect(status().isNotFound());
     }
 
     @Test
