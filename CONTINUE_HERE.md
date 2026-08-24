@@ -2,9 +2,11 @@
 
 Este archivo se mantiene actualizado al final de cada sesión de trabajo para que,
 aunque pasen días sin conectarte, se pueda seguir sin releer el proyecto entero.
-Última actualización: **2026-08-23**, tras mergear PR #19: historia clínica
-compartida + un rediseño grande del flujo de turnos (quién puede crear/ver
-qué, según rol — ver "Restricción por rol" más abajo).
+Última actualización: **2026-08-24**, tras mergear PRs #20–#24: los 6 puntos
+del plan sugerido de la sesión anterior — alta de administradores, aviso de
+cuenta no vinculada, UI para vincular cuenta↔médico/paciente, ownership en
+`GET /api/turnos/{id}` y `GET /api/pacientes/{id}`, y paginación de
+`GET /api/turnos` (Médicos/Pacientes se dejaron sin paginar a propósito).
 
 ## Stack y arquitectura
 
@@ -486,68 +488,31 @@ curl -X POST http://localhost:8080/api/auth/registro -H "Content-Type: applicati
     "Otorgar turno" (buscar paciente por DNI + especialidad → médico
     filtrado). Ver los bloques dedicados de "Restricción por rol",
     "Historia clínica" y los dos bullets nuevos justo debajo, más arriba.
+19. `feature/crear-administradores` (PR #20) — `POST /api/usuarios` (solo
+    `ADMINISTRADOR`) para dar de alta cualquier rol, incluido otro admin.
+20. `feature/mensaje-usuario-no-vinculado` (PR #21) — `GET /api/medicos/me` y
+    `GET /api/pacientes/me`, banner en el frontend cuando la cuenta no está
+    vinculada.
+21. `feature/vincular-cuenta-perfil` (PR #22) — `GET /api/usuarios` (lista de
+    cuentas) + selector "Cuenta de acceso vinculada" en los forms de
+    Médico/Paciente, reemplazando el campo de email libre.
+22. `feature/ownership-por-id` (PR #23) — `GET /api/turnos/{id}` y `GET
+    /api/pacientes/{id}` ahora filtran por dueño (403 si es ajeno).
+23. `feature/paginacion-turnos` (PR #24) — `GET /api/turnos` paginado
+    (`page`/`size`, `PageResponse`). Médicos/Pacientes quedaron sin paginar
+    a propósito (ver "huecos conocidos"). Se descartó agregar un DELETE real
+    de turno — cancelar ya cubre el caso de uso.
 
-## Plan sugerido para la próxima sesión (sin decidir aún — preguntale al usuario)
+## Plan sugerido para la próxima sesión
 
-Orden sugerido, de más a menos urgente — pero es una sugerencia, confirmar
-con el usuario antes de arrancar cualquiera:
+No hay pendientes urgentes anotados — el plan de la sesión anterior (6
+puntos: alta de administradores, aviso de cuenta no vinculada, UI de
+vinculación, ownership por id, paginación de turnos, evaluación de DELETE de
+turno) se completó entero, ver PRs #20–#24 en "Historial de PRs" arriba y
+"huecos conocidos" para el detalle de qué quedó explícitamente afuera y por
+qué (paginar Médicos/Pacientes, DELETE real de turno).
 
-1. ~~Flujo para crear administradores.~~ **Hecho** (rama
-   `feature/crear-administradores`): `POST /api/usuarios` (solo
-   `ADMINISTRADOR`) permite dar de alta cualquier rol, incluido otro
-   `ADMINISTRADOR`. Reutiliza `RegistrarUsuarioService` — se separó la
-   validación común (`guardar()`, privado) de la restricción "no autoregistro
-   como ADMINISTRADOR", que ahora solo aplica a `registrar()` (usado por
-   `/api/auth/registro`, público); `registrarComoAdmin()` la salta. Nueva
-   sección "Usuarios" en el frontend (`esAdmin`-only, arriba de Médicos) con
-   un formulario simple nombre/email/contraseña/rol. Probado con Playwright
-   contra Postgres real: login admin → crear ADMINISTRADOR nuevo → logout →
-   login con la cuenta nueva → ve el panel de admin. Verificado también con
-   curl que un token `MEDICO` o una request sin token dan 403.
-2. ~~Mensaje claro cuando un médico/paciente no está vinculado.~~ **Hecho**
-   (rama `feature/mensaje-usuario-no-vinculado`): nuevo `GET /api/medicos/me`
-   (solo `MEDICO`) y `GET /api/pacientes/me` (solo `PACIENTE`) — devuelven el
-   propio médico/paciente vinculado (200) o 404 si el email de la cuenta no
-   coincide con ninguno. El frontend los llama una vez al cargar
-   (`chequearVinculacion()`) y, si da 404, muestra un banner persistente
-   arriba de todo (`vinculado === false`, solo para `esMedico`/`esPaciente`)
-   explicando por qué las listas están vacías y pidiendo al admin que cargue
-   el email exacto de la cuenta (`auth.email`, mostrado en el mensaje) en la
-   ficha correspondiente. Verificado con Playwright: un `MEDICO` recién
-   creado sin ficha vinculada ve el banner; el admin no lo ve nunca (no
-   aplica a su rol).
-3. ~~UI para vincular una cuenta de login con su Médico/Paciente.~~ **Hecho**
-   (rama `feature/vincular-cuenta-perfil`): nuevo `GET /api/usuarios` (solo
-   `ADMINISTRADOR`, sin `contrasena` en la respuesta — `UsuarioResponse` es
-   un DTO propio) lista las cuentas de login existentes. En los forms de
-   Médico/Paciente, el campo `Email` de texto libre se reemplazó por un
-   `<select>` "Cuenta de acceso vinculada" que ofrece solo las cuentas del
-   rol correspondiente (`MEDICO`/`PACIENTE`) que **todavía no están
-   vinculadas a otro** médico/paciente (`emailsMedicosOcupados`/
-   `emailsPacientesOcupados` en `App`, excluyendo el registro que se está
-   editando). Si el email guardado no matchea ninguna cuenta (dato legado o
-   cuenta borrada), se agrega una opción extra "(cuenta no encontrada)" para
-   no perder el valor silenciosamente. Verificado con Playwright: crear una
-   cuenta `MEDICO` nueva desde "Usuarios" → aparece en el selector del form
-   de Médicos → al vincularla y guardar, deja de ofrecerse para otro médico.
-4. ~~Cerrar los huecos de ownership que quedaron pendientes.~~ **Hecho**
-   (rama `feature/ownership-por-id`): `GET /api/turnos/{id}` y `GET
-   /api/pacientes/{id}` ahora devuelven 403 si un `MEDICO`/`PACIENTE` pide un
-   id que no es suyo (`ADMINISTRADOR` sin cambios). Verificado con curl
-   contra Postgres real: médico/paciente dueño → 200, médico/paciente ajeno →
-   403, admin → 200 en ambos casos.
-5. ~~Paginación en los listados.~~ **Hecho parcialmente** (rama
-   `feature/paginacion-turnos`): solo `GET /api/turnos` — `page`/`size`
-   (default `page=0`, `size=20`), respuesta envuelta en `PageResponse`
-   (`content`/`page`/`size`/`totalElements`/`totalPages`), con controles
-   "← Anterior" / "Siguiente →" en el frontend. `GET /api/medicos` y `GET
-   /api/pacientes` se dejaron **deliberadamente sin paginar** — ver el
-   bullet nuevo en "huecos conocidos" más arriba, tienen tres dependencias
-   client-side (picker de especialidad, búsqueda por DNI, exclusión de
-   cuentas vinculadas) que se romperían en silencio con una segunda página.
-   Verificado con Playwright contra Postgres real (27 turnos): página 1
-   muestra 20, "Página 1 de 2", pasar a la página 2 cambia el contenido,
-   volver funciona.
-6. Se decidió **no** agregar un DELETE real de turno — cancelar ya cubre el
-   caso de uso sin perder el vínculo con la historia clínica, confirmado con
-   el usuario antes de tocar nada.
+Si el usuario no trae un pedido puntual al arrancar la próxima sesión, buen
+punto de partida: revisar si alguno de los huecos documentados (paginar
+Médicos/Pacientes cuando el volumen lo justifique, 1 email = 1 médico/
+paciente sin constraint de base) pasó a ser relevante.
