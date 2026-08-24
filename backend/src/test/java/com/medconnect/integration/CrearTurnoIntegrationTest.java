@@ -245,6 +245,11 @@ public class CrearTurnoIntegrationTest {
         public java.util.Optional<Usuario> buscarPorEmail(String email) {
             return store.stream().filter(u -> u.getEmail().equals(email)).findFirst();
         }
+
+        @Override
+        public List<Usuario> buscarTodos() {
+            return List.copyOf(store);
+        }
     }
 
     static class InMemoryRegistroClinicoRepository implements RegistroClinicoRepository {

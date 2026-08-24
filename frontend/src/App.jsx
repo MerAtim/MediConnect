@@ -214,7 +214,7 @@ function LoginScreen({onLoginExitoso, notify}){
   )
 }
 
-function MedicoForm({medico, token, onGuardado, onCancelarEdicion, notify}){
+function MedicoForm({medico, token, onGuardado, onCancelarEdicion, notify, cuentasDisponibles}){
   const isEditing = !!medico
   const [nombre, setNombre] = useState(medico?.nombre ?? '')
   const [especialidad, setEspecialidad] = useState(medico?.especialidad ?? '')
@@ -252,7 +252,18 @@ function MedicoForm({medico, token, onGuardado, onCancelarEdicion, notify}){
       <FloatingInput label="Matrícula" value={matricula} onChange={e=>setMatricula(e.target.value)} required />
       <FloatingInput label="Teléfono" value={telefono} onChange={e=>setTelefono(e.target.value)} />
       <FloatingInput className="sm:col-span-2" label="Dirección" value={direccion} onChange={e=>setDireccion(e.target.value)} />
-      <FloatingInput className="sm:col-span-2" label="Email" value={email} onChange={e=>setEmail(e.target.value)} />
+      <label className="sm:col-span-2 block">
+        <span className="label">Cuenta de acceso vinculada</span>
+        <select className="input-field" value={email} onChange={e=>setEmail(e.target.value)}>
+          <option value="">Sin vincular</option>
+          {email && !cuentasDisponibles.some(c => c.email === email) && (
+            <option value={email}>{email} (cuenta no encontrada)</option>
+          )}
+          {cuentasDisponibles.map(c => (
+            <option key={c.id} value={c.email}>{c.nombre} ({c.email})</option>
+          ))}
+        </select>
+      </label>
       <div className="sm:col-span-2 flex gap-3">
         <button type="submit" disabled={loading} className="btn-primary sm:w-fit">
           {loading ? 'Guardando…' : isEditing ? 'Guardar cambios' : 'Agregar médico'}
@@ -267,7 +278,7 @@ function MedicoForm({medico, token, onGuardado, onCancelarEdicion, notify}){
   )
 }
 
-function PacienteForm({paciente, token, onGuardado, onCancelarEdicion, notify}){
+function PacienteForm({paciente, token, onGuardado, onCancelarEdicion, notify, cuentasDisponibles}){
   const isEditing = !!paciente
   const [nombre, setNombre] = useState(paciente?.nombre ?? '')
   const [dni, setDni] = useState(paciente?.dni ?? '')
@@ -309,7 +320,18 @@ function PacienteForm({paciente, token, onGuardado, onCancelarEdicion, notify}){
       <FloatingInput label="Obra social / prepaga" value={obraSocial} onChange={e=>setObraSocial(e.target.value)} />
       <FloatingInput label="Número de afiliado" value={numeroAfiliado} onChange={e=>setNumeroAfiliado(e.target.value)} />
       <FloatingInput label="Plan" value={plan} onChange={e=>setPlan(e.target.value)} />
-      <FloatingInput className="sm:col-span-2" label="Email" value={email} onChange={e=>setEmail(e.target.value)} />
+      <label className="sm:col-span-2 block">
+        <span className="label">Cuenta de acceso vinculada</span>
+        <select className="input-field" value={email} onChange={e=>setEmail(e.target.value)}>
+          <option value="">Sin vincular</option>
+          {email && !cuentasDisponibles.some(c => c.email === email) && (
+            <option value={email}>{email} (cuenta no encontrada)</option>
+          )}
+          {cuentasDisponibles.map(c => (
+            <option key={c.id} value={c.email}>{c.nombre} ({c.email})</option>
+          ))}
+        </select>
+      </label>
       <div className="sm:col-span-2 flex gap-3">
         <button type="submit" disabled={loading} className="btn-primary sm:w-fit">
           {loading ? 'Guardando…' : isEditing ? 'Guardar cambios' : 'Agregar paciente'}
@@ -324,7 +346,7 @@ function PacienteForm({paciente, token, onGuardado, onCancelarEdicion, notify}){
   )
 }
 
-function UsuarioForm({token, notify}){
+function UsuarioForm({token, notify, onGuardado}){
   const [nombre, setNombre] = useState('')
   const [email, setEmail] = useState('')
   const [contrasena, setContrasena] = useState('')
@@ -343,6 +365,7 @@ function UsuarioForm({token, notify}){
       if(!resp.ok) throw new Error(await readErrorMessage(resp))
       notify(`Cuenta creada para ${email}.`, 'success')
       setNombre(''); setEmail(''); setContrasena(''); setRole('MEDICO')
+      await onGuardado()
     }catch(err){
       notify(err.message)
     }finally{
@@ -429,6 +452,7 @@ export default function App(){
 
   const [medicos, setMedicos] = useState([])
   const [pacientes, setPacientes] = useState([])
+  const [usuarios, setUsuarios] = useState([])
   const [medicosLoading, setMedicosLoading] = useState(false)
   const [pacientesLoading, setPacientesLoading] = useState(false)
   const [editingMedico, setEditingMedico] = useState(null)
@@ -465,6 +489,11 @@ export default function App(){
     const url = auth.role === 'MEDICO' ? `${MEDICOS_API}/me` : `${PACIENTES_API}/me`
     const resp = await apiFetch(url)
     setVinculado(resp.ok)
+  }
+
+  async function cargarUsuarios(){
+    const resp = await apiFetch(USUARIOS_API)
+    if(resp.ok) setUsuarios(await resp.json())
   }
 
   async function cargarMedicos(){
@@ -532,7 +561,7 @@ export default function App(){
 
   useEffect(() => {
     if(!token) return
-    if(auth.role === 'ADMINISTRADOR') cargarMedicos()
+    if(auth.role === 'ADMINISTRADOR') { cargarMedicos(); cargarUsuarios() }
     if(auth.role === 'ADMINISTRADOR' || auth.role === 'MEDICO') cargarPacientes()
     if(auth.role === 'MEDICO' || auth.role === 'PACIENTE') chequearVinculacion()
     cargarTurnos()
@@ -700,6 +729,16 @@ export default function App(){
   const puedeGestionarTurnos = esAdmin || esMedico
   const hoy = new Date().toLocaleDateString('es-AR', {day: '2-digit', month: '2-digit', year: 'numeric'})
 
+  const emailsMedicosOcupados = new Set(
+    medicos.filter(m => m.id !== editingMedico?.id).map(m => m.email).filter(Boolean)
+  )
+  const cuentasMedicoDisponibles = usuarios.filter(u => u.role === 'MEDICO' && !emailsMedicosOcupados.has(u.email))
+
+  const emailsPacientesOcupados = new Set(
+    pacientes.filter(p => p.id !== editingPaciente?.id).map(p => p.email).filter(Boolean)
+  )
+  const cuentasPacienteDisponibles = usuarios.filter(u => u.role === 'PACIENTE' && !emailsPacientesOcupados.has(u.email))
+
   return (
     <div className="min-h-screen bg-neutral-200 font-sans">
       <ToastContainer toasts={toasts} />
@@ -755,7 +794,7 @@ export default function App(){
             <p className="text-sm text-neutral-500 mb-4">
               Creá una cuenta de acceso (login) para otro administrador, médico o paciente.
             </p>
-            <UsuarioForm token={token} notify={notify} />
+            <UsuarioForm token={token} notify={notify} onGuardado={cargarUsuarios} />
           </section>
         )}
 
@@ -769,6 +808,7 @@ export default function App(){
               notify={notify}
               onGuardado={async () => { setEditingMedico(null); await cargarMedicos() }}
               onCancelarEdicion={() => setEditingMedico(null)}
+              cuentasDisponibles={cuentasMedicoDisponibles}
             />
             <div className="overflow-x-auto rounded-lg border border-neutral-200">
               <table className="w-full text-sm">
@@ -832,6 +872,7 @@ export default function App(){
               notify={notify}
               onGuardado={async () => { setEditingPaciente(null); await cargarPacientes() }}
               onCancelarEdicion={() => setEditingPaciente(null)}
+              cuentasDisponibles={cuentasPacienteDisponibles}
             />
           )}
           <div className="overflow-x-auto rounded-lg border border-neutral-200">
