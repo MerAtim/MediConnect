@@ -274,7 +274,7 @@ qué, según rol — ver "Restricción por rol" más abajo).
     `CANCELADO`), que dispara un `ConfirmModal` **doble** (dos pasos, "por
     las dudas") en vez de `window.confirm` — ver `pasoCancelacion` y
     `ConfirmModal` en el bullet de Estilos.
-- Tests: 95 tests (unitarios de casos de uso + MockMvc de controllers +
+- Tests: 97 tests (unitarios de casos de uso + MockMvc de controllers +
   integración end-to-end con repos fake en memoria vía `@Profile("test")`).
   Todos verificados también contra Postgres real con curl y en navegador real
   con Playwright (no solo tests automatizados).
@@ -325,7 +325,7 @@ sesión de prueba, sin commitear ningún cambio de puerto en `App.jsx` (las URLs
 ahí están hardcodeadas a `:8080` a propósito).
 
 ```bash
-./mvnw.cmd test   # 95 tests, no necesita Postgres levantado (usa fakes en memoria)
+./mvnw.cmd test   # 97 tests, no necesita Postgres levantado (usa fakes en memoria)
 ```
 
 ### Frontend
@@ -502,11 +502,20 @@ con el usuario antes de arrancar cualquiera:
    ficha correspondiente. Verificado con Playwright: un `MEDICO` recién
    creado sin ficha vinculada ve el banner; el admin no lo ve nunca (no
    aplica a su rol).
-3. **UI para vincular una cuenta de login con su Médico/Paciente**, en vez
-   de que `esAdmin` tenga que escribir el mismo email a mano en los dos
-   lados (frágil, silencioso si se equivoca). Ligado al punto 2: si existe
-   un flujo de vinculación explícito, es más fácil también decirle al
-   usuario sin vincular "todavía nadie te vinculó" en vez de una lista vacía.
+3. ~~UI para vincular una cuenta de login con su Médico/Paciente.~~ **Hecho**
+   (rama `feature/vincular-cuenta-perfil`): nuevo `GET /api/usuarios` (solo
+   `ADMINISTRADOR`, sin `contrasena` en la respuesta — `UsuarioResponse` es
+   un DTO propio) lista las cuentas de login existentes. En los forms de
+   Médico/Paciente, el campo `Email` de texto libre se reemplazó por un
+   `<select>` "Cuenta de acceso vinculada" que ofrece solo las cuentas del
+   rol correspondiente (`MEDICO`/`PACIENTE`) que **todavía no están
+   vinculadas a otro** médico/paciente (`emailsMedicosOcupados`/
+   `emailsPacientesOcupados` en `App`, excluyendo el registro que se está
+   editando). Si el email guardado no matchea ninguna cuenta (dato legado o
+   cuenta borrada), se agrega una opción extra "(cuenta no encontrada)" para
+   no perder el valor silenciosamente. Verificado con Playwright: crear una
+   cuenta `MEDICO` nueva desde "Usuarios" → aparece en el selector del form
+   de Médicos → al vincularla y guardar, deja de ofrecerse para otro médico.
 4. Cerrar los huecos de ownership que quedaron pendientes: `GET
    /api/turnos/{id}` y `GET /api/pacientes/{id}` no filtran por dueño
    todavía (no explotado por la UI actual, pero un llamado directo a la API
