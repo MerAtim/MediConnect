@@ -5,6 +5,7 @@ const MEDICOS_API = 'http://localhost:8080/api/medicos'
 const PACIENTES_API = 'http://localhost:8080/api/pacientes'
 const HISTORIAS_API = 'http://localhost:8080/api/historias-clinicas'
 const AUTH_API = 'http://localhost:8080/api/auth'
+const USUARIOS_API = 'http://localhost:8080/api/usuarios'
 const AUTH_STORAGE_KEY = 'medconnect_auth'
 
 const ESTADO_BADGE = {
@@ -14,6 +15,7 @@ const ESTADO_BADGE = {
 }
 
 const ROLES = ['MEDICO', 'PACIENTE']
+const ROLES_ADMIN = ['ADMINISTRADOR', 'MEDICO', 'PACIENTE']
 
 // Los mensajes nativos de validación del navegador ("Please fill out this
 // field") vienen en el idioma del navegador, no de la página. Los pisamos
@@ -317,6 +319,49 @@ function PacienteForm({paciente, token, onGuardado, onCancelarEdicion, notify}){
             Cancelar
           </button>
         )}
+      </div>
+    </form>
+  )
+}
+
+function UsuarioForm({token, notify}){
+  const [nombre, setNombre] = useState('')
+  const [email, setEmail] = useState('')
+  const [contrasena, setContrasena] = useState('')
+  const [role, setRole] = useState('MEDICO')
+  const [loading, setLoading] = useState(false)
+
+  async function handleSubmit(e){
+    e.preventDefault()
+    setLoading(true)
+    try{
+      const resp = await fetch(USUARIOS_API, {
+        method: 'POST',
+        headers: {'Content-Type':'application/json', 'Authorization': `Bearer ${token}`},
+        body: JSON.stringify({nombre, email, contrasena, role})
+      })
+      if(!resp.ok) throw new Error(await readErrorMessage(resp))
+      notify(`Cuenta creada para ${email}.`, 'success')
+      setNombre(''); setEmail(''); setContrasena(''); setRole('MEDICO')
+    }catch(err){
+      notify(err.message)
+    }finally{
+      setLoading(false)
+    }
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <FloatingInput label="Nombre" value={nombre} onChange={e=>setNombre(e.target.value)} required />
+      <FloatingInput label="Email" type="email" value={email} onChange={e=>setEmail(e.target.value)} required />
+      <FloatingInput label="Contraseña (mín. 6 caracteres)" type="password" value={contrasena} onChange={e=>setContrasena(e.target.value)} required />
+      <select className="input-field" value={role} onChange={e=>setRole(e.target.value)}>
+        {ROLES_ADMIN.map(r => <option key={r} value={r}>{r}</option>)}
+      </select>
+      <div className="sm:col-span-2">
+        <button type="submit" disabled={loading} className="btn-primary sm:w-fit">
+          {loading ? 'Creando cuenta…' : 'Crear cuenta'}
+        </button>
       </div>
     </form>
   )
@@ -684,6 +729,16 @@ export default function App(){
       </header>
 
       <main className="max-w-3xl mx-auto px-6 py-8 space-y-8">
+        {esAdmin && (
+          <section className="card">
+            <h2 className="heading mb-4">Usuarios</h2>
+            <p className="text-sm text-neutral-500 mb-4">
+              Creá una cuenta de acceso (login) para otro administrador, médico o paciente.
+            </p>
+            <UsuarioForm token={token} notify={notify} />
+          </section>
+        )}
+
         {esAdmin && (
           <section className="card">
             <h2 className="heading mb-4">Médicos</h2>

@@ -274,7 +274,7 @@ qué, según rol — ver "Restricción por rol" más abajo).
     `CANCELADO`), que dispara un `ConfirmModal` **doble** (dos pasos, "por
     las dudas") en vez de `window.confirm` — ver `pasoCancelacion` y
     `ConfirmModal` en el bullet de Estilos.
-- Tests: 87 tests (unitarios de casos de uso + MockMvc de controllers +
+- Tests: 91 tests (unitarios de casos de uso + MockMvc de controllers +
   integración end-to-end con repos fake en memoria vía `@Profile("test")`).
   Todos verificados también contra Postgres real con curl y en navegador real
   con Playwright (no solo tests automatizados).
@@ -299,13 +299,9 @@ qué, según rol — ver "Restricción por rol" más abajo).
   hacen una consulta extra por fila para resolver `medicoNombre`/
   `pacienteNombre` (N+1) — aceptable al volumen de datos actual, pero es lo
   primero a mirar si un listado se pone lento.
-- **No hay ninguna forma legítima de crear un `ADMINISTRADOR`** (PR #18 le
-  sacó esa opción al registro público, a propósito, porque cualquiera podía
-  autoasignarse el rol). Hoy el único admin real es el que quedó de las
-  pruebas (`admin.rol@medconnect.com`) o uno insertado a mano en Postgres.
-  Falta decidir (si el usuario lo pide) un flujo — la idea que se charló fue
-  un endpoint tipo `POST /api/usuarios` protegido (solo `ADMINISTRADOR`) para
-  que un admin dé de alta a otro, reusando `RegistrarUsuarioService`.
+- ~~No hay ninguna forma legítima de crear un `ADMINISTRADOR`~~ — resuelto:
+  `POST /api/usuarios` (solo `ADMINISTRADOR`, ver más abajo) permite dar de
+  alta cualquier rol, incluido `ADMINISTRADOR`.
 
 ## Cómo levantar todo (Windows / PowerShell o Git Bash)
 
@@ -329,7 +325,7 @@ sesión de prueba, sin commitear ningún cambio de puerto en `App.jsx` (las URLs
 ahí están hardcodeadas a `:8080` a propósito).
 
 ```bash
-./mvnw.cmd test   # 87 tests, no necesita Postgres levantado (usa fakes en memoria)
+./mvnw.cmd test   # 91 tests, no necesita Postgres levantado (usa fakes en memoria)
 ```
 
 ### Frontend
@@ -482,12 +478,18 @@ curl -X POST http://localhost:8080/api/auth/registro -H "Content-Type: applicati
 Orden sugerido, de más a menos urgente — pero es una sugerencia, confirmar
 con el usuario antes de arrancar cualquiera:
 
-1. **Flujo para crear administradores.** Hoy no hay ninguno legítimo (PR #18
-   le sacó esa opción al registro público). Bloquea el uso real día a día:
-   si el único admin (`admin.rol@medconnect.com`, cuenta de prueba) se
-   pierde el acceso, no hay forma de recuperarlo sin tocar la base a mano.
-   Alta prioridad. Idea ya charlada: `POST /api/usuarios` protegido (solo
-   `ADMINISTRADOR`) para que un admin dé de alta a otro.
+1. ~~Flujo para crear administradores.~~ **Hecho** (rama
+   `feature/crear-administradores`): `POST /api/usuarios` (solo
+   `ADMINISTRADOR`) permite dar de alta cualquier rol, incluido otro
+   `ADMINISTRADOR`. Reutiliza `RegistrarUsuarioService` — se separó la
+   validación común (`guardar()`, privado) de la restricción "no autoregistro
+   como ADMINISTRADOR", que ahora solo aplica a `registrar()` (usado por
+   `/api/auth/registro`, público); `registrarComoAdmin()` la salta. Nueva
+   sección "Usuarios" en el frontend (`esAdmin`-only, arriba de Médicos) con
+   un formulario simple nombre/email/contraseña/rol. Probado con Playwright
+   contra Postgres real: login admin → crear ADMINISTRADOR nuevo → logout →
+   login con la cuenta nueva → ve el panel de admin. Verificado también con
+   curl que un token `MEDICO` o una request sin token dan 403.
 2. **Mensaje claro cuando un médico/paciente no está vinculado.** Hoy, si el
    `email` de su `Medico`/`Paciente` no coincide con el de su cuenta de
    login, simplemente ve listas vacías (Pacientes, Turnos) sin ninguna
