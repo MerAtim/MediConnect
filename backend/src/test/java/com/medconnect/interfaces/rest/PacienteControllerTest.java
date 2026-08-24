@@ -86,6 +86,32 @@ public class PacienteControllerTest {
     }
 
     @Test
+    public void obtenerPropio_devuelve200_siPacienteEstaVinculado() throws Exception {
+        org.springframework.security.core.context.SecurityContextHolder.getContext().setAuthentication(
+                new org.springframework.security.authentication.UsernamePasswordAuthenticationToken(
+                        "paciente@medconnect.com", null,
+                        List.of(new org.springframework.security.core.authority.SimpleGrantedAuthority("ROLE_PACIENTE"))));
+        Paciente paciente = new Paciente(1L, "Juan Gómez", "30111222", null, null, null, null, null, "paciente@medconnect.com");
+        when(buscarPacienteUseCase.buscarPorEmail("paciente@medconnect.com")).thenReturn(Optional.of(paciente));
+
+        mockMvc.perform(get("/api/pacientes/me"))
+                .andExpect(status().isOk())
+                .andExpect(content().json("{\"id\":1,\"nombre\":\"Juan Gómez\"}"));
+    }
+
+    @Test
+    public void obtenerPropio_devuelve404_siPacienteNoEstaVinculado() throws Exception {
+        org.springframework.security.core.context.SecurityContextHolder.getContext().setAuthentication(
+                new org.springframework.security.authentication.UsernamePasswordAuthenticationToken(
+                        "sin-vincular@medconnect.com", null,
+                        List.of(new org.springframework.security.core.authority.SimpleGrantedAuthority("ROLE_PACIENTE"))));
+        when(buscarPacienteUseCase.buscarPorEmail("sin-vincular@medconnect.com")).thenReturn(Optional.empty());
+
+        mockMvc.perform(get("/api/pacientes/me"))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
     public void buscarPorId_devuelve200_siExiste() throws Exception {
         Paciente paciente = new Paciente(1L, "Juan Gómez", "30111222", null, null, "Swiss Medical", "123456", "SMG20", null);
         when(buscarPacienteUseCase.buscarPorId(1L)).thenReturn(Optional.of(paciente));

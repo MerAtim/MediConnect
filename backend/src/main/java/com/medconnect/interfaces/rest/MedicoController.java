@@ -9,6 +9,8 @@ import com.medconnect.application.usecase.EliminarMedicoUseCase;
 import com.medconnect.domain.model.Medico;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -51,6 +53,14 @@ public class MedicoController {
         );
         CreateMedicoResponse resp = crearMedicoUseCase.crear(req);
         return ResponseEntity.status(HttpStatus.CREATED).body(resp);
+    }
+
+    @GetMapping("/me")
+    public ResponseEntity<MedicoResponse> obtenerPropio() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        return buscarMedicoUseCase.buscarPorEmail(auth.getName())
+                .map(medico -> ResponseEntity.ok(toResponse(medico)))
+                .orElseGet(() -> ResponseEntity.status(HttpStatus.NOT_FOUND).build());
     }
 
     @GetMapping("/{id}")

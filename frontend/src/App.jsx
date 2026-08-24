@@ -459,6 +459,14 @@ export default function App(){
   const [observacionesRegistro, setObservacionesRegistro] = useState('')
   const [guardandoRegistro, setGuardandoRegistro] = useState(false)
 
+  const [vinculado, setVinculado] = useState(null)
+
+  async function chequearVinculacion(){
+    const url = auth.role === 'MEDICO' ? `${MEDICOS_API}/me` : `${PACIENTES_API}/me`
+    const resp = await apiFetch(url)
+    setVinculado(resp.ok)
+  }
+
   async function cargarMedicos(){
     setMedicosLoading(true)
     try{
@@ -526,6 +534,7 @@ export default function App(){
     if(!token) return
     if(auth.role === 'ADMINISTRADOR') cargarMedicos()
     if(auth.role === 'ADMINISTRADOR' || auth.role === 'MEDICO') cargarPacientes()
+    if(auth.role === 'MEDICO' || auth.role === 'PACIENTE') chequearVinculacion()
     cargarTurnos()
   }, [token])
 
@@ -729,6 +738,17 @@ export default function App(){
       </header>
 
       <main className="max-w-3xl mx-auto px-6 py-8 space-y-8">
+        {(esMedico || esPaciente) && vinculado === false && (
+          <div className="card border border-warning-300 bg-warning-50">
+            <p className="text-sm text-warning-800">
+              Tu cuenta todavía no está vinculada a ningún perfil de {esMedico ? 'médico' : 'paciente'}
+              {' '}en el sistema, por eso no ves {esMedico ? 'tus pacientes ni turnos' : 'tu turno ni tu historial'} todavía.
+              Pedile a un administrador que cargue tu email (<strong>{auth.email}</strong>) en tu ficha
+              {esMedico ? ' de médico' : ' de paciente'} para quedar vinculado.
+            </p>
+          </div>
+        )}
+
         {esAdmin && (
           <section className="card">
             <h2 className="heading mb-4">Usuarios</h2>
