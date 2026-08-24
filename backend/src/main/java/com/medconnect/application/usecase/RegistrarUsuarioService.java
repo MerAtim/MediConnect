@@ -20,6 +20,18 @@ public class RegistrarUsuarioService implements RegistrarUsuarioUseCase {
 
     @Override
     public RegistrarUsuarioResponse registrar(RegistrarUsuarioRequest request) {
+        if (request.getRole() == UsuarioRole.ADMINISTRADOR) {
+            throw new UsuarioInvalidoException("no se puede autoregistrar como ADMINISTRADOR");
+        }
+        return guardar(request);
+    }
+
+    @Override
+    public RegistrarUsuarioResponse registrarComoAdmin(RegistrarUsuarioRequest request) {
+        return guardar(request);
+    }
+
+    private RegistrarUsuarioResponse guardar(RegistrarUsuarioRequest request) {
         if (request.getNombre() == null || request.getNombre().trim().isEmpty()) {
             throw new UsuarioInvalidoException("nombre es obligatorio");
         }
@@ -31,9 +43,6 @@ public class RegistrarUsuarioService implements RegistrarUsuarioUseCase {
         }
         if (request.getRole() == null) {
             throw new UsuarioInvalidoException("role es obligatorio");
-        }
-        if (request.getRole() == UsuarioRole.ADMINISTRADOR) {
-            throw new UsuarioInvalidoException("no se puede autoregistrar como ADMINISTRADOR");
         }
         if (usuarioRepository.buscarPorEmail(request.getEmail()).isPresent()) {
             throw new UsuarioInvalidoException("ya existe un usuario con ese email");

@@ -98,4 +98,25 @@ public class RegistrarUsuarioServiceTest {
         assertThrows(UsuarioInvalidoException.class, () -> service.registrar(req));
         Mockito.verify(repo, Mockito.never()).guardar(any(Usuario.class));
     }
+
+    @Test
+    public void registrarComoAdmin_permiteRoleAdministrador() {
+        UsuarioRepository repo = Mockito.mock(UsuarioRepository.class);
+        PasswordEncoder encoder = Mockito.mock(PasswordEncoder.class);
+
+        when(repo.buscarPorEmail("ana@medconnect.com")).thenReturn(Optional.empty());
+        when(encoder.encode("secreto123")).thenReturn("hash-simulado");
+        when(repo.guardar(any(Usuario.class))).thenAnswer(invocation -> {
+            Usuario u = invocation.getArgument(0);
+            u.setId(1L);
+            return u;
+        });
+
+        RegistrarUsuarioService service = new RegistrarUsuarioService(repo, encoder);
+        RegistrarUsuarioRequest req = new RegistrarUsuarioRequest("Ana", "ana@medconnect.com", "secreto123", UsuarioRole.ADMINISTRADOR);
+
+        RegistrarUsuarioResponse resp = service.registrarComoAdmin(req);
+
+        assertEquals(1L, resp.getId());
+    }
 }
