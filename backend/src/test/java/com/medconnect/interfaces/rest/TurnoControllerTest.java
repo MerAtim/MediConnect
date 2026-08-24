@@ -113,6 +113,60 @@ public class TurnoControllerTest {
     }
 
     @Test
+    public void buscarPorId_devuelve200_siMedicoPideSuPropioTurno() throws Exception {
+        loguearComo("MEDICO", "medico@medconnect.com");
+        Medico medico = new Medico(2L, null, null, null, null, null, null, null);
+        Turno turno = new Turno(1L, LocalDateTime.of(2026, 8, 12, 10, 0), "Cardiología",
+                medico, new Paciente(3L, null, null, null, null, null, null, null, null), TurnoEstado.PENDIENTE);
+        when(buscarTurnoUseCase.buscarPorId(1L)).thenReturn(Optional.of(turno));
+        when(buscarMedicoUseCase.buscarPorEmail("medico@medconnect.com")).thenReturn(Optional.of(medico));
+
+        mockMvc.perform(get("/api/turnos/1"))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    public void buscarPorId_devuelve403_siMedicoPideTurnoAjeno() throws Exception {
+        loguearComo("MEDICO", "medico@medconnect.com");
+        Medico medicoLogueado = new Medico(2L, null, null, null, null, null, null, null);
+        Medico medicoDelTurno = new Medico(99L, null, null, null, null, null, null, null);
+        Turno turno = new Turno(1L, LocalDateTime.of(2026, 8, 12, 10, 0), "Cardiología",
+                medicoDelTurno, new Paciente(3L, null, null, null, null, null, null, null, null), TurnoEstado.PENDIENTE);
+        when(buscarTurnoUseCase.buscarPorId(1L)).thenReturn(Optional.of(turno));
+        when(buscarMedicoUseCase.buscarPorEmail("medico@medconnect.com")).thenReturn(Optional.of(medicoLogueado));
+
+        mockMvc.perform(get("/api/turnos/1"))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    public void buscarPorId_devuelve200_siPacientePideSuPropioTurno() throws Exception {
+        loguearComo("PACIENTE", "paciente@medconnect.com");
+        Paciente paciente = new Paciente(3L, null, null, null, null, null, null, null, null);
+        Turno turno = new Turno(1L, LocalDateTime.of(2026, 8, 12, 10, 0), "Cardiología",
+                new Medico(2L, null, null, null, null, null, null, null), paciente, TurnoEstado.PENDIENTE);
+        when(buscarTurnoUseCase.buscarPorId(1L)).thenReturn(Optional.of(turno));
+        when(buscarPacienteUseCase.buscarPorEmail("paciente@medconnect.com")).thenReturn(Optional.of(paciente));
+
+        mockMvc.perform(get("/api/turnos/1"))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    public void buscarPorId_devuelve403_siPacientePideTurnoAjeno() throws Exception {
+        loguearComo("PACIENTE", "paciente@medconnect.com");
+        Paciente pacienteLogueado = new Paciente(3L, null, null, null, null, null, null, null, null);
+        Paciente pacienteDelTurno = new Paciente(99L, null, null, null, null, null, null, null, null);
+        Turno turno = new Turno(1L, LocalDateTime.of(2026, 8, 12, 10, 0), "Cardiología",
+                new Medico(2L, null, null, null, null, null, null, null), pacienteDelTurno, TurnoEstado.PENDIENTE);
+        when(buscarTurnoUseCase.buscarPorId(1L)).thenReturn(Optional.of(turno));
+        when(buscarPacienteUseCase.buscarPorEmail("paciente@medconnect.com")).thenReturn(Optional.of(pacienteLogueado));
+
+        mockMvc.perform(get("/api/turnos/1"))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
     public void buscar_filtraPorMedicoId_cuandoSePasaComoParametro() throws Exception {
         when(buscarTurnoUseCase.buscarPorMedico(2L)).thenReturn(List.of());
 

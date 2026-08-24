@@ -131,6 +131,40 @@ public class PacienteControllerTest {
     }
 
     @Test
+    public void buscarPorId_devuelve200_siMedicoPideUnPacientePropio() throws Exception {
+        org.springframework.security.core.context.SecurityContextHolder.getContext().setAuthentication(
+                new org.springframework.security.authentication.UsernamePasswordAuthenticationToken(
+                        "medico@medconnect.com", null,
+                        List.of(new org.springframework.security.core.authority.SimpleGrantedAuthority("ROLE_MEDICO"))));
+        com.medconnect.domain.model.Medico medico = new com.medconnect.domain.model.Medico(2L, null, null, null, null, null, null, null);
+        Paciente paciente = new Paciente(3L, "Juan Gómez", "30111222", null, null, null, null, null, null);
+        com.medconnect.domain.model.Turno turno = new com.medconnect.domain.model.Turno(
+                1L, null, "Cardiología", medico, paciente, null);
+        when(buscarPacienteUseCase.buscarPorId(3L)).thenReturn(Optional.of(paciente));
+        when(buscarMedicoUseCase.buscarPorEmail("medico@medconnect.com")).thenReturn(Optional.of(medico));
+        when(buscarTurnoUseCase.buscarPorMedico(2L)).thenReturn(List.of(turno));
+
+        mockMvc.perform(get("/api/pacientes/3"))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    public void buscarPorId_devuelve403_siMedicoPideUnPacienteAjeno() throws Exception {
+        org.springframework.security.core.context.SecurityContextHolder.getContext().setAuthentication(
+                new org.springframework.security.authentication.UsernamePasswordAuthenticationToken(
+                        "medico@medconnect.com", null,
+                        List.of(new org.springframework.security.core.authority.SimpleGrantedAuthority("ROLE_MEDICO"))));
+        com.medconnect.domain.model.Medico medico = new com.medconnect.domain.model.Medico(2L, null, null, null, null, null, null, null);
+        Paciente pacienteAjeno = new Paciente(99L, "Otro Paciente", "40111222", null, null, null, null, null, null);
+        when(buscarPacienteUseCase.buscarPorId(99L)).thenReturn(Optional.of(pacienteAjeno));
+        when(buscarMedicoUseCase.buscarPorEmail("medico@medconnect.com")).thenReturn(Optional.of(medico));
+        when(buscarTurnoUseCase.buscarPorMedico(2L)).thenReturn(List.of());
+
+        mockMvc.perform(get("/api/pacientes/99"))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
     public void buscarTodos_devuelveListado() throws Exception {
         when(buscarPacienteUseCase.buscarTodos()).thenReturn(List.of());
 
