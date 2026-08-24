@@ -204,29 +204,36 @@ qué, según rol — ver "Restricción por rol" más abajo).
   `feature/historia-clinica` — antes también `MEDICO`, ver bullet de
   "Restricción por rol"; valida solapamiento por médico+fecha, que
   `medicoId`/`pacienteId` existan, y acepta `preparacion` opcional), buscar
-  por id (`GET /api/turnos/{id}` → 404 si no existe, sin filtrar por dueño
-  todavía — ver "huecos conocidos"), listar (`GET /api/turnos`, con
+  por id (`GET /api/turnos/{id}` → 404 si no existe; 403 si un
+  `MEDICO`/`PACIENTE` pide un turno que no es suyo, `ADMINISTRADOR` sin
+  restricción — `feature/ownership-por-id`), listar (`GET /api/turnos`, con
   `medicoId`/`pacienteId` como filtro opcional **solo para ADMINISTRADOR** —
   para `MEDICO`/`PACIENTE` esos parámetros se ignoran y siempre devuelve
-  solo lo propio), cambiar estado (`PATCH /api/turnos/{id}/estado`, body
-  `{"estado":"CONFIRMADO"}` o `"CANCELADO"`; `CANCELADO` no puede volver a
-  modificarse → 400; estado inválido → 400; id inexistente → 404;
-  `PACIENTE` **solo puede pedir `CANCELADO`** de su propio turno — otro
-  estado → 400, turno ajeno → 403).
+  solo lo propio; **paginado** desde `feature/paginacion-turnos`, `page`/
+  `size` opcionales, default `page=0`/`size=20`, respuesta envuelta en
+  `PageResponse` — ver "Paginación" en huecos conocidos), cambiar estado
+  (`PATCH /api/turnos/{id}/estado`, body `{"estado":"CONFIRMADO"}` o
+  `"CANCELADO"`; `CANCELADO` no puede volver a modificarse → 400; estado
+  inválido → 400; id inexistente → 404; `PACIENTE` **solo puede pedir
+  `CANCELADO`** de su propio turno — otro estado → 400, turno ajeno → 403).
 - **Médico**: crear/editar/eliminar (`POST`/`PUT`/`DELETE /api/medicos`,
   **solo ADMINISTRADOR**, igual que antes), listar/buscar por id (`GET
   /api/medicos`, `GET /api/medicos/{id}`, **solo ADMINISTRADOR** desde
   `feature/historia-clinica` — `MEDICO`/`PACIENTE` ya no navegan el
-  directorio de médicos, reciben 403).
+  directorio de médicos, reciben 403; **sin paginar a propósito**, ver
+  huecos conocidos), `GET /api/medicos/me` (solo `MEDICO`, devuelve el
+  propio médico vinculado o 404).
 - **Paciente**: crear/editar/eliminar (`POST`/`PUT`/`DELETE /api/pacientes`,
   **solo ADMINISTRADOR**; campos opcionales: `telefono`, `direccion`,
   `obraSocial`, `numeroAfiliado`, `plan`, `email` — la obra social sola no
   alcanza, dos personas con la misma prepaga pueden tener plan y número de
-  afiliado distintos). Listar (`GET /api/pacientes`): `ADMINISTRADOR` ve
-  todos; `MEDICO` ve solo los que tienen un turno con él (ver bullet de
-  "Restricción por rol"); `PACIENTE` no tiene acceso (403). Buscar por id
-  (`GET /api/pacientes/{id}`) sigue abierto a cualquier autenticado, sin
-  filtrar por dueño (mismo hueco que `GET /api/turnos/{id}`).
+  afiliado distintos). Listar (`GET /api/pacientes`, **sin paginar a
+  propósito**, ver huecos conocidos): `ADMINISTRADOR` ve todos; `MEDICO` ve
+  solo los que tienen un turno con él (ver bullet de "Restricción por
+  rol"); `PACIENTE` no tiene acceso (403, salvo `GET /api/pacientes/me`).
+  Buscar por id (`GET /api/pacientes/{id}`): 403 si un `MEDICO` pide un
+  paciente que no es suyo, `ADMINISTRADOR` sin restricción, `PACIENTE`
+  bloqueado a nivel `SecurityConfig` (`feature/ownership-por-id`).
 - **Historia clínica** (ver bullet dedicado arriba): crear (`POST
   /api/historias-clinicas`, MEDICO, valida que exista un turno entre ese
   médico y ese paciente), listar por paciente (`GET
@@ -274,7 +281,7 @@ qué, según rol — ver "Restricción por rol" más abajo).
     `CANCELADO`), que dispara un `ConfirmModal` **doble** (dos pasos, "por
     las dudas") en vez de `window.confirm` — ver `pasoCancelacion` y
     `ConfirmModal` en el bullet de Estilos.
-- Tests: 103 tests (unitarios de casos de uso + MockMvc de controllers +
+- Tests: 104 tests (unitarios de casos de uso + MockMvc de controllers +
   integración end-to-end con repos fake en memoria vía `@Profile("test")`).
   Todos verificados también contra Postgres real con curl y en navegador real
   con Playwright (no solo tests automatizados).
@@ -293,7 +300,15 @@ qué, según rol — ver "Restricción por rol" más abajo).
   cuenta↔médico/paciente: ya tiene UI (selector, `feature/vincular-cuenta-perfil`,
   ver más abajo); sigue asumiendo 1 email = 1 médico/paciente sin forzarlo
   con una constraint de base.
-- Paginación en los listados (`buscarTodos()` trae todo).
+- Paginación: `GET /api/turnos` ya está paginado (ver más abajo,
+  `feature/paginacion-turnos`). `GET /api/medicos` y `GET /api/pacientes`
+  siguen sin paginar **a propósito** — el frontend depende de tener la lista
+  completa de ambos en memoria para el picker de especialidad/médico en
+  "Otorgar turno", la búsqueda de paciente por DNI, y la exclusión de
+  cuentas ya vinculadas (selector "Cuenta de acceso vinculada", PR #22).
+  Paginar esos dos requeriría antes mover esas tres cosas a server-side
+  (búsqueda de paciente por DNI vía API, endpoint de médicos por
+  especialidad) — evaluar solo si el volumen realmente lo justifica.
 - `TurnoController.toResponse()` y `RegistroClinicoController.toResponse()`
   hacen una consulta extra por fila para resolver `medicoNombre`/
   `pacienteNombre` (N+1) — aceptable al volumen de datos actual, pero es lo
@@ -324,7 +339,7 @@ sesión de prueba, sin commitear ningún cambio de puerto en `App.jsx` (las URLs
 ahí están hardcodeadas a `:8080` a propósito).
 
 ```bash
-./mvnw.cmd test   # 103 tests, no necesita Postgres levantado (usa fakes en memoria)
+./mvnw.cmd test   # 104 tests, no necesita Postgres levantado (usa fakes en memoria)
 ```
 
 ### Frontend
@@ -521,8 +536,18 @@ con el usuario antes de arrancar cualquiera:
    id que no es suyo (`ADMINISTRADOR` sin cambios). Verificado con curl
    contra Postgres real: médico/paciente dueño → 200, médico/paciente ajeno →
    403, admin → 200 en ambos casos.
-5. Paginación en los listados, si el volumen de datos crece lo suficiente
-   como para justificarlo — hoy no urge.
-6. Eliminar un turno del todo, si alguna vez hace falta (hoy solo se puede
-   cancelar, que es lo correcto para no perder historial — probablemente no
-   haga falta un DELETE real).
+5. ~~Paginación en los listados.~~ **Hecho parcialmente** (rama
+   `feature/paginacion-turnos`): solo `GET /api/turnos` — `page`/`size`
+   (default `page=0`, `size=20`), respuesta envuelta en `PageResponse`
+   (`content`/`page`/`size`/`totalElements`/`totalPages`), con controles
+   "← Anterior" / "Siguiente →" en el frontend. `GET /api/medicos` y `GET
+   /api/pacientes` se dejaron **deliberadamente sin paginar** — ver el
+   bullet nuevo en "huecos conocidos" más arriba, tienen tres dependencias
+   client-side (picker de especialidad, búsqueda por DNI, exclusión de
+   cuentas vinculadas) que se romperían en silencio con una segunda página.
+   Verificado con Playwright contra Postgres real (27 turnos): página 1
+   muestra 20, "Página 1 de 2", pasar a la página 2 cambia el contenido,
+   volver funciona.
+6. Se decidió **no** agregar un DELETE real de turno — cancelar ya cubre el
+   caso de uso sin perder el vínculo con la historia clínica, confirmado con
+   el usuario antes de tocar nada.

@@ -470,6 +470,8 @@ export default function App(){
   const [turnos, setTurnos] = useState([])
   const [filtroMedicoId, setFiltroMedicoId] = useState('')
   const [filtroPacienteId, setFiltroPacienteId] = useState('')
+  const [paginaTurnos, setPaginaTurnos] = useState(0)
+  const [totalPaginasTurnos, setTotalPaginasTurnos] = useState(0)
   const [listLoading, setListLoading] = useState(false)
   const [estadoUpdatingId, setEstadoUpdatingId] = useState(null)
   const [turnoACancelar, setTurnoACancelar] = useState(null)
@@ -542,16 +544,19 @@ export default function App(){
     }
   }
 
-  async function cargarTurnos(medicoIdParam = filtroMedicoId, pacienteIdParam = filtroPacienteId){
+  async function cargarTurnos(medicoIdParam = filtroMedicoId, pacienteIdParam = filtroPacienteId, paginaParam = paginaTurnos){
     setListLoading(true)
     try{
       const params = new URLSearchParams()
       if(medicoIdParam) params.set('medicoId', medicoIdParam)
       if(pacienteIdParam) params.set('pacienteId', pacienteIdParam)
-      const url = params.toString() ? `${TURNOS_API}?${params}` : TURNOS_API
-      const resp = await apiFetch(url)
+      params.set('page', paginaParam)
+      const resp = await apiFetch(`${TURNOS_API}?${params}`)
       if(!resp.ok) throw new Error(`HTTP ${resp.status}`)
-      setTurnos(await resp.json())
+      const data = await resp.json()
+      setTurnos(data.content)
+      setPaginaTurnos(data.page)
+      setTotalPaginasTurnos(data.totalPages)
     }catch(err){
       notify(err.message)
     }finally{
@@ -601,7 +606,11 @@ export default function App(){
 
   function handleFiltrar(e){
     e.preventDefault()
-    cargarTurnos()
+    cargarTurnos(filtroMedicoId, filtroPacienteId, 0)
+  }
+
+  function irAPaginaTurnos(pagina){
+    cargarTurnos(filtroMedicoId, filtroPacienteId, pagina)
   }
 
   async function cambiarEstado(id, nuevoEstado){
@@ -1026,7 +1035,7 @@ export default function App(){
               <button
                 type="button"
                 disabled={listLoading}
-                onClick={() => { setFiltroMedicoId(''); setFiltroPacienteId(''); cargarTurnos('', '') }}
+                onClick={() => { setFiltroMedicoId(''); setFiltroPacienteId(''); cargarTurnos('', '', 0) }}
                 className="btn-secondary"
               >
                 Ver todos
@@ -1188,6 +1197,29 @@ export default function App(){
               </tbody>
             </table>
           </div>
+          {totalPaginasTurnos > 1 && (
+            <div className="flex items-center justify-between mt-4">
+              <button
+                type="button"
+                disabled={listLoading || paginaTurnos === 0}
+                onClick={() => irAPaginaTurnos(paginaTurnos - 1)}
+                className="btn-secondary !px-3 !py-1.5 text-xs"
+              >
+                ← Anterior
+              </button>
+              <span className="text-sm text-neutral-500">
+                Página {paginaTurnos + 1} de {totalPaginasTurnos}
+              </span>
+              <button
+                type="button"
+                disabled={listLoading || paginaTurnos + 1 >= totalPaginasTurnos}
+                onClick={() => irAPaginaTurnos(paginaTurnos + 1)}
+                className="btn-secondary !px-3 !py-1.5 text-xs"
+              >
+                Siguiente →
+              </button>
+            </div>
+          )}
         </section>
       </main>
     </div>

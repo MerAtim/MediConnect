@@ -172,7 +172,7 @@ public class TurnoControllerTest {
 
         mockMvc.perform(get("/api/turnos").param("medicoId", "2"))
                 .andExpect(status().isOk())
-                .andExpect(content().json("[]"));
+                .andExpect(content().json("{\"content\":[],\"totalElements\":0}"));
 
         Mockito.verify(buscarTurnoUseCase).buscarPorMedico(2L);
         Mockito.verify(buscarTurnoUseCase, Mockito.never()).buscarTodos();
@@ -184,9 +184,29 @@ public class TurnoControllerTest {
 
         mockMvc.perform(get("/api/turnos"))
                 .andExpect(status().isOk())
-                .andExpect(content().json("[]"));
+                .andExpect(content().json("{\"content\":[],\"totalElements\":0}"));
 
         Mockito.verify(buscarTurnoUseCase).buscarTodos();
+    }
+
+    @Test
+    public void buscar_pagina_conPageYSize() throws Exception {
+        List<Turno> turnos = java.util.stream.IntStream.rangeClosed(1, 25).mapToObj(i ->
+                new Turno((long) i, LocalDateTime.of(2026, 8, 12, 10, 0), "Cardiología",
+                        new Medico(2L, null, null, null, null, null, null, null),
+                        new Paciente(3L, null, null, null, null, null, null, null, null),
+                        TurnoEstado.PENDIENTE)
+        ).toList();
+        when(buscarTurnoUseCase.buscarTodos()).thenReturn(turnos);
+
+        mockMvc.perform(get("/api/turnos").param("page", "1").param("size", "10"))
+                .andExpect(status().isOk())
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$.content.length()").value(10))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$.content[0].id").value(11))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$.page").value(1))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$.size").value(10))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$.totalElements").value(25))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$.totalPages").value(3));
     }
 
     @Test
@@ -245,7 +265,7 @@ public class TurnoControllerTest {
 
         mockMvc.perform(get("/api/turnos").param("medicoId", "999").param("pacienteId", "888"))
                 .andExpect(status().isOk())
-                .andExpect(content().json("[]"));
+                .andExpect(content().json("{\"content\":[],\"totalElements\":0}"));
 
         Mockito.verify(buscarTurnoUseCase).buscarPorMedico(2L);
         Mockito.verify(buscarTurnoUseCase, Mockito.never()).buscarPorMedico(999L);
@@ -259,7 +279,7 @@ public class TurnoControllerTest {
 
         mockMvc.perform(get("/api/turnos"))
                 .andExpect(status().isOk())
-                .andExpect(content().json("[]"));
+                .andExpect(content().json("{\"content\":[],\"totalElements\":0}"));
 
         Mockito.verify(buscarTurnoUseCase, Mockito.never()).buscarTodos();
     }
@@ -273,7 +293,7 @@ public class TurnoControllerTest {
 
         mockMvc.perform(get("/api/turnos"))
                 .andExpect(status().isOk())
-                .andExpect(content().json("[]"));
+                .andExpect(content().json("{\"content\":[],\"totalElements\":0}"));
 
         Mockito.verify(buscarTurnoUseCase).buscarPorPaciente(3L);
         Mockito.verify(buscarTurnoUseCase, Mockito.never()).buscarTodos();
