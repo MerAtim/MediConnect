@@ -91,9 +91,11 @@ public class TurnoController {
     }
 
     @GetMapping
-    public ResponseEntity<List<TurnoResponse>> buscar(
+    public ResponseEntity<PageResponse<TurnoResponse>> buscar(
             @RequestParam(required = false) Long medicoId,
-            @RequestParam(required = false) Long pacienteId) {
+            @RequestParam(required = false) Long pacienteId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         List<Turno> turnos;
         if (tieneRol(auth, "MEDICO")) {
@@ -111,7 +113,8 @@ public class TurnoController {
         } else {
             turnos = buscarTurnoUseCase.buscarTodos();
         }
-        return ResponseEntity.ok(turnos.stream().map(this::toResponse).toList());
+        List<TurnoResponse> todos = turnos.stream().map(this::toResponse).toList();
+        return ResponseEntity.ok(PageResponse.of(todos, page, size));
     }
 
     @PatchMapping("/{id}/estado")
