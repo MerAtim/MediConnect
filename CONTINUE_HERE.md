@@ -274,26 +274,25 @@ qué, según rol — ver "Restricción por rol" más abajo).
     `CANCELADO`), que dispara un `ConfirmModal` **doble** (dos pasos, "por
     las dudas") en vez de `window.confirm` — ver `pasoCancelacion` y
     `ConfirmModal` en el bullet de Estilos.
-- Tests: 97 tests (unitarios de casos de uso + MockMvc de controllers +
+- Tests: 103 tests (unitarios de casos de uso + MockMvc de controllers +
   integración end-to-end con repos fake en memoria vía `@Profile("test")`).
   Todos verificados también contra Postgres real con curl y en navegador real
   con Playwright (no solo tests automatizados).
 
 ## Qué NO está implementado todavía (huecos conocidos)
 
-- Restricción por **datos propios**: en gran parte resuelta en
-  `feature/historia-clinica` — `MEDICO` ya ve solo sus turnos/pacientes,
-  `PACIENTE` ya ve solo los suyos (vinculación por email, ver bullet de
-  "Restricción por rol"). Lo que **falta** todavía:
-  - `GET /api/turnos/{id}` y `GET /api/pacientes/{id}` (buscar por id) NO
-    filtran por dueño — cualquier autenticado puede pedir un id puntual que
-    no sea suyo. No es explotable desde la UI actual (no se usan así), pero
-    es un hueco real si se llama a la API directo.
-  - La vinculación depende de que el `email` de `Medico`/`Paciente`
-    coincida EXACTO con el de `Usuario` — es manual (lo carga `esAdmin` en
-    el form), no hay UI para "vincular esta cuenta con este médico" más
-    allá de escribir el mismo email en los dos lados.
-  - Asume 1 email = 1 médico/paciente. No hay validación que lo fuerce.
+- Restricción por **datos propios**: resuelta por completo, incluidos los
+  endpoints por id (`feature/ownership-por-id`) — `MEDICO` y `PACIENTE` ya ven
+  solo lo suyo en listados Y en `GET /api/turnos/{id}` / `GET
+  /api/pacientes/{id}` (antes cualquier autenticado podía pedir un id puntual
+  ajeno; no era explotable desde la UI, que no llama a esos endpoints así,
+  pero sí desde la API directa). `TurnoController.puedeVerTurno()` y
+  `PacienteController.esPacienteDeEseMedico()` son los guardas nuevos — mismo
+  patrón que ya usaban los listados (`buscarPorEmail` + comparar contra el
+  dueño del recurso), `ADMINISTRADOR` sigue sin restricción. Vinculación
+  cuenta↔médico/paciente: ya tiene UI (selector, `feature/vincular-cuenta-perfil`,
+  ver más abajo); sigue asumiendo 1 email = 1 médico/paciente sin forzarlo
+  con una constraint de base.
 - Paginación en los listados (`buscarTodos()` trae todo).
 - `TurnoController.toResponse()` y `RegistroClinicoController.toResponse()`
   hacen una consulta extra por fila para resolver `medicoNombre`/
@@ -325,7 +324,7 @@ sesión de prueba, sin commitear ningún cambio de puerto en `App.jsx` (las URLs
 ahí están hardcodeadas a `:8080` a propósito).
 
 ```bash
-./mvnw.cmd test   # 97 tests, no necesita Postgres levantado (usa fakes en memoria)
+./mvnw.cmd test   # 103 tests, no necesita Postgres levantado (usa fakes en memoria)
 ```
 
 ### Frontend
@@ -516,10 +515,12 @@ con el usuario antes de arrancar cualquiera:
    no perder el valor silenciosamente. Verificado con Playwright: crear una
    cuenta `MEDICO` nueva desde "Usuarios" → aparece en el selector del form
    de Médicos → al vincularla y guardar, deja de ofrecerse para otro médico.
-4. Cerrar los huecos de ownership que quedaron pendientes: `GET
-   /api/turnos/{id}` y `GET /api/pacientes/{id}` no filtran por dueño
-   todavía (no explotado por la UI actual, pero un llamado directo a la API
-   sí podría pedir un id ajeno).
+4. ~~Cerrar los huecos de ownership que quedaron pendientes.~~ **Hecho**
+   (rama `feature/ownership-por-id`): `GET /api/turnos/{id}` y `GET
+   /api/pacientes/{id}` ahora devuelven 403 si un `MEDICO`/`PACIENTE` pide un
+   id que no es suyo (`ADMINISTRADOR` sin cambios). Verificado con curl
+   contra Postgres real: médico/paciente dueño → 200, médico/paciente ajeno →
+   403, admin → 200 en ambos casos.
 5. Paginación en los listados, si el volumen de datos crece lo suficiente
    como para justificarlo — hoy no urge.
 6. Eliminar un turno del todo, si alguna vez hace falta (hoy solo se puede

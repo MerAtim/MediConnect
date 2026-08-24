@@ -65,9 +65,29 @@ public class TurnoController {
 
     @GetMapping("/{id}")
     public ResponseEntity<TurnoResponse> buscarPorId(@PathVariable Long id) {
-        return buscarTurnoUseCase.buscarPorId(id)
-                .map(turno -> ResponseEntity.ok(toResponse(turno)))
-                .orElseGet(() -> ResponseEntity.notFound().build());
+        Optional<Turno> turno = buscarTurnoUseCase.buscarPorId(id);
+        if (turno.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (!puedeVerTurno(auth, turno.get())) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+        return ResponseEntity.ok(toResponse(turno.get()));
+    }
+
+    private boolean puedeVerTurno(Authentication auth, Turno turno) {
+        if (tieneRol(auth, "MEDICO")) {
+            return buscarMedicoUseCase.buscarPorEmail(auth.getName())
+                    .map(medico -> turno.getMedico() != null && medico.getId().equals(turno.getMedico().getId()))
+                    .orElse(false);
+        }
+        if (tieneRol(auth, "PACIENTE")) {
+            return buscarPacienteUseCase.buscarPorEmail(auth.getName())
+                    .map(paciente -> turno.getPaciente() != null && paciente.getId().equals(turno.getPaciente().getId()))
+                    .orElse(false);
+        }
+        return true;
     }
 
     @GetMapping

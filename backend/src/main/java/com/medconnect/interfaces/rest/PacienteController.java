@@ -78,9 +78,25 @@ public class PacienteController {
 
     @GetMapping("/{id}")
     public ResponseEntity<PacienteResponse> buscarPorId(@PathVariable Long id) {
-        return buscarPacienteUseCase.buscarPorId(id)
-                .map(paciente -> ResponseEntity.ok(toResponse(paciente)))
-                .orElseGet(() -> ResponseEntity.notFound().build());
+        Optional<Paciente> paciente = buscarPacienteUseCase.buscarPorId(id);
+        if (paciente.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (tieneRolMedico(auth) && !esPacienteDeEseMedico(auth, id)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+        return ResponseEntity.ok(toResponse(paciente.get()));
+    }
+
+    private boolean esPacienteDeEseMedico(Authentication auth, Long pacienteId) {
+        return buscarMedicoUseCase.buscarPorEmail(auth.getName())
+                .map(medico -> buscarTurnoUseCase.buscarPorMedico(medico.getId()).stream()
+                        .map(Turno::getPaciente)
+                        .filter(Objects::nonNull)
+                        .map(Paciente::getId)
+                        .anyMatch(pacienteId::equals))
+                .orElse(false);
     }
 
     @GetMapping
