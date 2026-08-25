@@ -26,6 +26,11 @@ public class CrearMedicoService implements CrearMedicoUseCase {
             throw new MedicoInvalidoException("matricula es obligatoria");
         }
 
+        String email = normalizarEmail(request.getEmail());
+        if (email != null && medicoRepository.buscarPorEmail(email).isPresent()) {
+            throw new MedicoInvalidoException("ya existe un medico con ese email");
+        }
+
         Medico medico = new Medico(
                 null,
                 request.getNombre(),
@@ -33,11 +38,15 @@ public class CrearMedicoService implements CrearMedicoUseCase {
                 request.getMatricula(),
                 request.getDireccion(),
                 request.getTelefono(),
-                request.getEmail(),
+                email,
                 null
         );
 
         Medico guardado = medicoRepository.guardar(medico);
         return new CreateMedicoResponse(guardado.getId());
+    }
+
+    private String normalizarEmail(String email) {
+        return (email == null || email.trim().isEmpty()) ? null : email.trim();
     }
 }

@@ -31,6 +31,14 @@ public class ActualizarMedicoService implements ActualizarMedicoUseCase {
             throw new MedicoInvalidoException("matricula es obligatoria");
         }
 
+        String email = normalizarEmail(request.getEmail());
+        if (email != null) {
+            Optional<Medico> existente = medicoRepository.buscarPorEmail(email);
+            if (existente.isPresent() && !existente.get().getId().equals(id)) {
+                throw new MedicoInvalidoException("ya existe un medico con ese email");
+            }
+        }
+
         Medico medico = new Medico(
                 id,
                 request.getNombre(),
@@ -38,10 +46,14 @@ public class ActualizarMedicoService implements ActualizarMedicoUseCase {
                 request.getMatricula(),
                 request.getDireccion(),
                 request.getTelefono(),
-                request.getEmail(),
+                email,
                 null
         );
 
         return Optional.of(medicoRepository.guardar(medico));
+    }
+
+    private String normalizarEmail(String email) {
+        return (email == null || email.trim().isEmpty()) ? null : email.trim();
     }
 }

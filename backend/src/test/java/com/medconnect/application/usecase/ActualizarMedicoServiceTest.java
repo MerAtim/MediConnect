@@ -55,4 +55,33 @@ public class ActualizarMedicoServiceTest {
         assertTrue(resultado.isPresent());
         assertEquals("Clínica Médica", resultado.get().getEspecialidad());
     }
+
+    @Test
+    public void actualizar_lanzaExcepcion_siEmailYaUsadoPorOtroMedico() {
+        MedicoRepository repo = Mockito.mock(MedicoRepository.class);
+        when(repo.buscarPorId(1L)).thenReturn(Optional.of(new Medico(1L, "Ana Pérez", "Cardiología", "MP1234", null, null, null, null)));
+        when(repo.buscarPorEmail("otro@medconnect.com"))
+                .thenReturn(Optional.of(new Medico(2L, "Otro", "Clínica Médica", "MP9999", null, null, "otro@medconnect.com", null)));
+
+        ActualizarMedicoService service = new ActualizarMedicoService(repo);
+
+        CreateMedicoRequest req = new CreateMedicoRequest("Ana Pérez", "Cardiología", "MP1234", null, null, "otro@medconnect.com");
+
+        assertThrows(MedicoInvalidoException.class, () -> service.actualizar(1L, req));
+    }
+
+    @Test
+    public void actualizar_permiteConservarSuPropioEmail() {
+        MedicoRepository repo = Mockito.mock(MedicoRepository.class);
+        when(repo.buscarPorId(1L)).thenReturn(Optional.of(new Medico(1L, "Ana Pérez", "Cardiología", "MP1234", null, null, "ana@medconnect.com", null)));
+        when(repo.buscarPorEmail("ana@medconnect.com"))
+                .thenReturn(Optional.of(new Medico(1L, "Ana Pérez", "Cardiología", "MP1234", null, null, "ana@medconnect.com", null)));
+        when(repo.guardar(any(Medico.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        ActualizarMedicoService service = new ActualizarMedicoService(repo);
+
+        CreateMedicoRequest req = new CreateMedicoRequest("Ana Pérez", "Clínica Médica", "MP1234", null, null, "ana@medconnect.com");
+
+        assertTrue(service.actualizar(1L, req).isPresent());
+    }
 }
