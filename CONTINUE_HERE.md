@@ -573,10 +573,16 @@ Se hizo una auditoría e2e del proyecto completo a pedido del usuario
 presentó. Estado de cada punto:
 
 1. ~~Doble reserva de turno por condición de carrera~~ — resuelto, PR #27.
-2. **Pendiente** — URLs del backend hardcodeadas en el frontend
-   (`http://localhost:8080` escrito 6 veces en `App.jsx`, líneas 3-8):
-   mover a una variable de entorno de Vite (`import.meta.env.VITE_API_URL`
-   con fallback a `localhost:8080` para no romper el flujo local actual).
+2. ~~URLs del backend hardcodeadas en el frontend~~ — resuelto, PR #28
+   (`feature/frontend-api-base-url`): `App.jsx` arma las 6 constantes de API
+   a partir de `API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8080'`.
+   Ojo con el detalle importante: Vite incrusta las env vars `VITE_*` en el
+   bundle en **build-time**, no runtime — no alcanza con setear la variable
+   al levantar el contenedor. `frontend/Dockerfile` ahora declara `ARG
+   VITE_API_URL` + `ENV VITE_API_URL=$VITE_API_URL` antes del `npm run
+   build`, hay que pasarla como `--build-arg` al armar la imagen. Se agregó
+   `frontend/.env.example` (con excepción en `.gitignore`, que por defecto
+   ignora todo `.env.*`) y una nota en el README.
 3. **Pendiente** — sin rate limiting en `POST /api/auth/login`: evaluar un
    filtro simple (por IP y/o por email) antes de escalar a algo más
    sofisticado.

@@ -48,4 +48,6 @@ Ejemplos en español:
 ### Frontend
 1. Ir a `frontend/`
 2. Ejecutar `npm install`
-3. Ejecutar `npm run dev`
+3. (Opcional) copiar `.env.example` a `.env` y ajustar `VITE_API_URL` si el
+   backend no corre en `http://localhost:8080`
+4. Ejecutar `npm run dev`
