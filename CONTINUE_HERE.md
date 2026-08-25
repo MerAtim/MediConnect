@@ -618,11 +618,17 @@ presentó. Estado de cada punto:
    login por ser el punto de entrada de toda la app; ampliar cobertura por
    sección es más natural una vez que el archivo esté partido en
    componentes.
-5. **Pendiente** — `README.md` promete "React + TypeScript" y "facturación
-   automatizada" que no existen (frontend es `.jsx` sin `tsconfig.json`,
-   `typescript` es una devDependency sin uso). Actualizar el README para
-   que refleje el estado real, y decidir si `typescript` se saca de
-   `package.json` o si en algún momento se migra de verdad.
+5. ~~README desactualizado~~ — resuelto, PR #31 (`feature/readme-realidad`):
+   se sacaron las menciones a "React + TypeScript" y "facturación
+   automatizada" (nunca existieron), se agregó una sección "Qué hace hoy"
+   con las funcionalidades reales (turnos, médicos/pacientes, historia
+   clínica, roles), se actualizó "Instalación" para mencionar
+   `DB_PASSWORD` y el uso del wrapper `./mvnw` (antes decía `mvn clean
+   install` a secas, sin mencionar que hace falta Postgres corriendo), y
+   se agregó una mención a `CONTINUE_HERE.md` como bitácora técnica. Se
+   sacó `typescript` de `frontend/package.json` (devDependency sin uso
+   real: sin `tsconfig.json`, sin ningún `.ts`/`.tsx`) — decisión tomada
+   en vez de dejarla, ya que no había ningún plan concreto de migrar.
 6. **Pendiente** — no hay "olvidé mi contraseña" ni cambio de contraseña
    para ningún rol, ni siquiera ADMINISTRADOR.
 7. **Pendiente** — JWT en `localStorage`, logout solo borra el token local
