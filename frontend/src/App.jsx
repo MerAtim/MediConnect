@@ -1,11 +1,15 @@
 import React, {useEffect, useState} from 'react'
 
-const TURNOS_API = 'http://localhost:8080/api/turnos'
-const MEDICOS_API = 'http://localhost:8080/api/medicos'
-const PACIENTES_API = 'http://localhost:8080/api/pacientes'
-const HISTORIAS_API = 'http://localhost:8080/api/historias-clinicas'
-const AUTH_API = 'http://localhost:8080/api/auth'
-const USUARIOS_API = 'http://localhost:8080/api/usuarios'
+// En build de produccion (Docker/CI) se fija con la env var VITE_API_URL al
+// correr `npm run build` (Vite la incrusta en el bundle en build-time, no en
+// runtime). En desarrollo local, sin esa env var, cae a localhost:8080.
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8080'
+const TURNOS_API = `${API_BASE}/api/turnos`
+const MEDICOS_API = `${API_BASE}/api/medicos`
+const PACIENTES_API = `${API_BASE}/api/pacientes`
+const HISTORIAS_API = `${API_BASE}/api/historias-clinicas`
+const AUTH_API = `${API_BASE}/api/auth`
+const USUARIOS_API = `${API_BASE}/api/usuarios`
 const AUTH_STORAGE_KEY = 'medconnect_auth'
 
 const ESTADO_BADGE = {
