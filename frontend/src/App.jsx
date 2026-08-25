@@ -92,7 +92,7 @@ function ConfirmModal({open, title, message, confirmLabel, cancelLabel = 'Volver
 // actual (PATCH /me/contrasena). modo 'reset': un ADMINISTRADOR resetea la
 // de otro usuario sin necesitar la vieja (PATCH /{id}/contrasena) — es el
 // mecanismo de recuperación, ya que el proyecto no manda emails.
-function CambiarContrasenaModal({open, modo, usuarioObjetivo, token, notify, onClose, onExito}){
+function CambiarContrasenaModal({open, modo, usuarioObjetivo, notify, onClose, onExito}){
   const [contrasenaActual, setContrasenaActual] = useState('')
   const [contrasenaNueva, setContrasenaNueva] = useState('')
   const [loading, setLoading] = useState(false)
@@ -107,7 +107,8 @@ function CambiarContrasenaModal({open, modo, usuarioObjetivo, token, notify, onC
       const body = modo === 'propia' ? {contrasenaActual, contrasenaNueva} : {contrasenaNueva}
       const resp = await fetch(url, {
         method: 'PATCH',
-        headers: {'Content-Type':'application/json', 'Authorization': `Bearer ${token}`},
+        credentials: 'include',
+        headers: {'Content-Type':'application/json'},
         body: JSON.stringify(body)
       })
       if(!resp.ok) throw new Error(await readErrorMessage(resp))
@@ -197,6 +198,7 @@ function LoginScreen({onLoginExitoso, notify}){
   async function iniciarSesion(emailParam, contrasenaParam){
     const resp = await fetch(`${AUTH_API}/login`, {
       method: 'POST',
+      credentials: 'include',
       headers: {'Content-Type':'application/json'},
       body: JSON.stringify({email: emailParam, contrasena: contrasenaParam})
     })
@@ -222,6 +224,7 @@ function LoginScreen({onLoginExitoso, notify}){
     try{
       const resp = await fetch(`${AUTH_API}/registro`, {
         method: 'POST',
+        credentials: 'include',
         headers: {'Content-Type':'application/json'},
         body: JSON.stringify({nombre, email, contrasena, role})
       })
@@ -275,7 +278,7 @@ function LoginScreen({onLoginExitoso, notify}){
   )
 }
 
-function MedicoForm({medico, token, onGuardado, onCancelarEdicion, notify, cuentasDisponibles}){
+function MedicoForm({medico, onGuardado, onCancelarEdicion, notify, cuentasDisponibles}){
   const isEditing = !!medico
   const [nombre, setNombre] = useState(medico?.nombre ?? '')
   const [especialidad, setEspecialidad] = useState(medico?.especialidad ?? '')
@@ -292,7 +295,8 @@ function MedicoForm({medico, token, onGuardado, onCancelarEdicion, notify, cuent
       const url = isEditing ? `${MEDICOS_API}/${medico.id}` : MEDICOS_API
       const resp = await fetch(url, {
         method: isEditing ? 'PUT' : 'POST',
-        headers: {'Content-Type':'application/json', 'Authorization': `Bearer ${token}`},
+        credentials: 'include',
+        headers: {'Content-Type':'application/json'},
         body: JSON.stringify({nombre, especialidad, matricula, telefono, direccion, email})
       })
       if(!resp.ok) throw new Error(await readErrorMessage(resp))
@@ -339,7 +343,7 @@ function MedicoForm({medico, token, onGuardado, onCancelarEdicion, notify, cuent
   )
 }
 
-function PacienteForm({paciente, token, onGuardado, onCancelarEdicion, notify, cuentasDisponibles}){
+function PacienteForm({paciente, onGuardado, onCancelarEdicion, notify, cuentasDisponibles}){
   const isEditing = !!paciente
   const [nombre, setNombre] = useState(paciente?.nombre ?? '')
   const [dni, setDni] = useState(paciente?.dni ?? '')
@@ -358,7 +362,8 @@ function PacienteForm({paciente, token, onGuardado, onCancelarEdicion, notify, c
       const url = isEditing ? `${PACIENTES_API}/${paciente.id}` : PACIENTES_API
       const resp = await fetch(url, {
         method: isEditing ? 'PUT' : 'POST',
-        headers: {'Content-Type':'application/json', 'Authorization': `Bearer ${token}`},
+        credentials: 'include',
+        headers: {'Content-Type':'application/json'},
         body: JSON.stringify({nombre, dni, telefono, direccion, obraSocial, numeroAfiliado, plan, email})
       })
       if(!resp.ok) throw new Error(await readErrorMessage(resp))
@@ -407,7 +412,7 @@ function PacienteForm({paciente, token, onGuardado, onCancelarEdicion, notify, c
   )
 }
 
-function UsuarioForm({token, notify, onGuardado}){
+function UsuarioForm({notify, onGuardado}){
   const [nombre, setNombre] = useState('')
   const [email, setEmail] = useState('')
   const [contrasena, setContrasena] = useState('')
@@ -420,7 +425,8 @@ function UsuarioForm({token, notify, onGuardado}){
     try{
       const resp = await fetch(USUARIOS_API, {
         method: 'POST',
-        headers: {'Content-Type':'application/json', 'Authorization': `Bearer ${token}`},
+        credentials: 'include',
+        headers: {'Content-Type':'application/json'},
         body: JSON.stringify({nombre, email, contrasena, role})
       })
       if(!resp.ok) throw new Error(await readErrorMessage(resp))
@@ -483,27 +489,34 @@ export default function App(){
     }, 3500)
   }
 
+  // El JWT vive en una cookie httpOnly que el navegador manda solo
+  // (credentials: 'include' en cada fetch) — JS no puede leerla ni
+  // escribirla, así que acá solo guardamos datos no sensibles para
+  // renderizar la UI sin esperar un round-trip.
   const [auth, setAuth] = useState(() => {
     const stored = localStorage.getItem(AUTH_STORAGE_KEY)
     return stored ? JSON.parse(stored) : null
   })
-  const token = auth?.token
 
   function handleLoginExitoso(data){
     setAuth(data)
     localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(data))
   }
 
-  function handleLogout(){
+  async function handleLogout(){
     setAuth(null)
     localStorage.removeItem(AUTH_STORAGE_KEY)
+    try{
+      // Limpia la cookie del lado del servidor. Best-effort: si la llamada
+      // de red falla igual ya deslogueamos localmente.
+      await fetch(`${AUTH_API}/logout`, {method: 'POST', credentials: 'include'})
+    }catch{
+      // ignorado a propósito
+    }
   }
 
   async function apiFetch(url, options = {}){
-    const resp = await fetch(url, {
-      ...options,
-      headers: {...(options.headers || {}), Authorization: `Bearer ${token}`}
-    })
+    const resp = await fetch(url, {...options, credentials: 'include'})
     if(resp.status === 401){
       handleLogout()
       throw new Error('Sesión expirada, iniciá sesión de nuevo')
@@ -687,7 +700,7 @@ export default function App(){
   }
 
   useEffect(() => {
-    if(!token) return
+    if(!auth) return
     if(auth.role === 'ADMINISTRADOR') {
       cargarMedicos(); cargarUsuarios(); cargarMedicosVinculados(); cargarEspecialidades()
     }
@@ -695,7 +708,7 @@ export default function App(){
     if(auth.role === 'ADMINISTRADOR') cargarPacientesVinculados()
     if(auth.role === 'MEDICO' || auth.role === 'PACIENTE') chequearVinculacion()
     cargarTurnos()
-  }, [token])
+  }, [auth])
 
   async function buscarPacientePorDni(e){
     e.preventDefault()
@@ -903,7 +916,6 @@ export default function App(){
       <CambiarContrasenaModal
         open={mostrarCambiarPropia}
         modo="propia"
-        token={token}
         notify={notify}
         onClose={() => setMostrarCambiarPropia(false)}
       />
@@ -911,7 +923,6 @@ export default function App(){
         open={!!usuarioAResetear}
         modo="reset"
         usuarioObjetivo={usuarioAResetear}
-        token={token}
         notify={notify}
         onClose={() => setUsuarioAResetear(null)}
       />
@@ -951,7 +962,7 @@ export default function App(){
             <p className="text-sm text-neutral-500 mb-4">
               Creá una cuenta de acceso (login) para otro administrador, médico o paciente.
             </p>
-            <UsuarioForm token={token} notify={notify} onGuardado={cargarUsuarios} />
+            <UsuarioForm notify={notify} onGuardado={cargarUsuarios} />
             <div className="overflow-x-auto rounded-lg border border-neutral-200 mt-4">
               <table className="w-full text-sm">
                 <thead>
@@ -994,7 +1005,6 @@ export default function App(){
             <MedicoForm
               key={editingMedico?.id ?? 'new'}
               medico={editingMedico}
-              token={token}
               notify={notify}
               onGuardado={async () => { setEditingMedico(null); await cargarMedicos(); await cargarMedicosVinculados() }}
               onCancelarEdicion={() => setEditingMedico(null)}
@@ -1081,7 +1091,6 @@ export default function App(){
             <PacienteForm
               key={editingPaciente?.id ?? 'new'}
               paciente={editingPaciente}
-              token={token}
               notify={notify}
               onGuardado={async () => { setEditingPaciente(null); await cargarPacientes(); await cargarPacientesVinculados() }}
               onCancelarEdicion={() => setEditingPaciente(null)}

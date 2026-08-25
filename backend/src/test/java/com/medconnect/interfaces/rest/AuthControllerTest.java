@@ -19,6 +19,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.cookie;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 public class AuthControllerTest {
@@ -31,7 +32,7 @@ public class AuthControllerTest {
     public void setup() {
         registrarUsuarioUseCase = Mockito.mock(RegistrarUsuarioUseCase.class);
         loginUseCase = Mockito.mock(LoginUseCase.class);
-        AuthController controller = new AuthController(registrarUsuarioUseCase, loginUseCase);
+        AuthController controller = new AuthController(registrarUsuarioUseCase, loginUseCase, false, 86400000L);
         mockMvc = MockMvcBuilders.standaloneSetup(controller)
                 .setControllerAdvice(new GlobalExceptionHandler())
                 .build();
@@ -75,7 +76,7 @@ public class AuthControllerTest {
     }
 
     @Test
-    public void login_devuelve200_yToken_siValido() throws Exception {
+    public void login_devuelve200_yPoneElTokenEnUnaCookieHttpOnly_siValido() throws Exception {
         when(loginUseCase.login(any())).thenReturn(
                 new LoginResponse("token-simulado", 1L, "Ana Pérez", "ana@medconnect.com", UsuarioRole.PACIENTE));
 
@@ -85,7 +86,10 @@ public class AuthControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isOk())
-                .andExpect(content().json("{\"token\":\"token-simulado\",\"id\":1,\"role\":\"PACIENTE\"}"));
+                .andExpect(content().json("{\"id\":1,\"nombre\":\"Ana Pérez\",\"role\":\"PACIENTE\"}"))
+                .andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("token-simulado"))))
+                .andExpect(cookie().value("jwt", "token-simulado"))
+                .andExpect(cookie().httpOnly("jwt", true));
     }
 
     @Test
@@ -114,5 +118,12 @@ public class AuthControllerTest {
                         .content(body))
                 .andExpect(status().isTooManyRequests())
                 .andExpect(content().string("Demasiados intentos fallidos. Probá de nuevo en unos minutos."));
+    }
+
+    @Test
+    public void logout_devuelve204_yLimpiaLaCookie() throws Exception {
+        mockMvc.perform(post("/api/auth/logout"))
+                .andExpect(status().isNoContent())
+                .andExpect(cookie().maxAge("jwt", 0));
     }
 }
