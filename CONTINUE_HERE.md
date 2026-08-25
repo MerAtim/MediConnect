@@ -597,11 +597,23 @@ presentó. Estado de cada punto:
    compartido (Redis). Clave por email (no por IP) a propósito, para no
    bloquear a usuarios legítimos detrás de un NAT/proxy compartido que
    comparten IP con un atacante.
-4. **Pendiente** — cero tests automatizados de frontend y el CI
-   (`.github/workflows/maven.yml`) no corre nada de `frontend/` (ni
-   siquiera `npm run build`). Agregar al menos un job de CI que corra
-   `npm run build`; tests de componentes (Vitest + Testing Library) son un
-   paso más grande a evaluar aparte.
+4. ~~Cero tests automatizados de frontend~~ — resuelto, PR #30
+   (`feature/frontend-tests-ci`): Vitest + React Testing Library
+   (`frontend/vitest.config.js`, separado de `vite.config` porque este
+   último no existe — el build normal sigue en modo zero-config, sin
+   tocarlo). 3 tests en `src/App.test.jsx` cubriendo el flujo más crítico
+   (login): se muestra el form sin sesión, error prolijo si falla, y tras
+   loguearse aparece la app con las secciones del rol correspondiente
+   (mockeando `fetch` para todas las llamadas en cascada del `useEffect` de
+   init). `.github/workflows/maven.yml` tiene un job `frontend` nuevo
+   (`npm ci` + `npm test` + `npm run build`) al lado del `build` de
+   backend — no se renombró el job existente por si algún branch
+   protection rule en GitHub ya lo referencia por nombre. **Cobertura
+   deliberadamente acotada**: no se testeó cada sección de `App.jsx`
+   (archivo de 1200+ líneas, ver punto 8 de esta lista) — se prioriza el
+   login por ser el punto de entrada de toda la app; ampliar cobertura por
+   sección es más natural una vez que el archivo esté partido en
+   componentes.
 5. **Pendiente** — `README.md` promete "React + TypeScript" y "facturación
    automatizada" que no existen (frontend es `.jsx` sin `tsconfig.json`,
    `typescript` es una devDependency sin uso). Actualizar el README para
