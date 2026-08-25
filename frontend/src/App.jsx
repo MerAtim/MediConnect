@@ -457,6 +457,14 @@ export default function App(){
   const [pacientesLoading, setPacientesLoading] = useState(false)
   const [editingMedico, setEditingMedico] = useState(null)
   const [editingPaciente, setEditingPaciente] = useState(null)
+  const [paginaMedicos, setPaginaMedicos] = useState(0)
+  const [totalPaginasMedicos, setTotalPaginasMedicos] = useState(0)
+  const [paginaPacientes, setPaginaPacientes] = useState(0)
+  const [totalPaginasPacientes, setTotalPaginasPacientes] = useState(0)
+  const [medicosVinculados, setMedicosVinculados] = useState([])
+  const [pacientesVinculados, setPacientesVinculados] = useState([])
+  const [especialidades, setEspecialidades] = useState([])
+  const [medicosPorEspecialidad, setMedicosPorEspecialidad] = useState([])
 
   const [fechaHora, setFechaHora] = useState('2026-08-12T10:00:00')
   const [especialidad, setEspecialidad] = useState('')
@@ -498,23 +506,72 @@ export default function App(){
     if(resp.ok) setUsuarios(await resp.json())
   }
 
-  async function cargarMedicos(){
+  async function cargarMedicos(paginaParam = paginaMedicos){
     setMedicosLoading(true)
     try{
-      const resp = await apiFetch(MEDICOS_API)
-      if(resp.ok) setMedicos(await resp.json())
+      const params = new URLSearchParams()
+      params.set('page', paginaParam)
+      const resp = await apiFetch(`${MEDICOS_API}?${params}`)
+      if(resp.ok){
+        const data = await resp.json()
+        setMedicos(data.content)
+        setPaginaMedicos(data.page)
+        setTotalPaginasMedicos(data.totalPages)
+      }
     }finally{
       setMedicosLoading(false)
     }
   }
 
-  async function cargarPacientes(){
+  function irAPaginaMedicos(pagina){
+    cargarMedicos(pagina)
+  }
+
+  async function cargarPacientes(paginaParam = paginaPacientes){
     setPacientesLoading(true)
     try{
-      const resp = await apiFetch(PACIENTES_API)
-      if(resp.ok) setPacientes(await resp.json())
+      const params = new URLSearchParams()
+      params.set('page', paginaParam)
+      const resp = await apiFetch(`${PACIENTES_API}?${params}`)
+      if(resp.ok){
+        const data = await resp.json()
+        setPacientes(data.content)
+        setPaginaPacientes(data.page)
+        setTotalPaginasPacientes(data.totalPages)
+      }
     }finally{
       setPacientesLoading(false)
+    }
+  }
+
+  function irAPaginaPacientes(pagina){
+    cargarPacientes(pagina)
+  }
+
+  async function cargarMedicosVinculados(){
+    const resp = await apiFetch(`${MEDICOS_API}/emails-vinculados`)
+    if(resp.ok) setMedicosVinculados(await resp.json())
+  }
+
+  async function cargarPacientesVinculados(){
+    const resp = await apiFetch(`${PACIENTES_API}/emails-vinculados`)
+    if(resp.ok) setPacientesVinculados(await resp.json())
+  }
+
+  async function cargarEspecialidades(){
+    const resp = await apiFetch(`${MEDICOS_API}/especialidades`)
+    if(resp.ok) setEspecialidades(await resp.json())
+  }
+
+  async function handleEspecialidadChange(valor){
+    setEspecialidad(valor)
+    setMedicoId('')
+    if(!valor){ setMedicosPorEspecialidad([]); return }
+    const params = new URLSearchParams({especialidad: valor, size: '500'})
+    const resp = await apiFetch(`${MEDICOS_API}?${params}`)
+    if(resp.ok){
+      const data = await resp.json()
+      setMedicosPorEspecialidad(data.content)
     }
   }
 
@@ -526,6 +583,7 @@ export default function App(){
       if(editingMedico?.id === medico.id) setEditingMedico(null)
       notify('Médico eliminado.', 'success')
       await cargarMedicos()
+      await cargarMedicosVinculados()
     }catch(err){
       notify(err.message)
     }
@@ -539,6 +597,7 @@ export default function App(){
       if(editingPaciente?.id === paciente.id) setEditingPaciente(null)
       notify('Paciente eliminado.', 'success')
       await cargarPacientes()
+      await cargarPacientesVinculados()
     }catch(err){
       notify(err.message)
     }
@@ -566,17 +625,25 @@ export default function App(){
 
   useEffect(() => {
     if(!token) return
-    if(auth.role === 'ADMINISTRADOR') { cargarMedicos(); cargarUsuarios() }
+    if(auth.role === 'ADMINISTRADOR') {
+      cargarMedicos(); cargarUsuarios(); cargarMedicosVinculados(); cargarEspecialidades()
+    }
     if(auth.role === 'ADMINISTRADOR' || auth.role === 'MEDICO') cargarPacientes()
+    if(auth.role === 'ADMINISTRADOR') cargarPacientesVinculados()
     if(auth.role === 'MEDICO' || auth.role === 'PACIENTE') chequearVinculacion()
     cargarTurnos()
   }, [token])
 
-  function buscarPacientePorDni(e){
+  async function buscarPacientePorDni(e){
     e.preventDefault()
-    const encontrado = pacientes.find(p => p.dni === dniBusqueda.trim())
-    setPacienteEncontrado(encontrado ?? null)
-    if(!encontrado) notify('No se encontró ningún paciente con ese DNI. Dalo de alta primero en la sección Pacientes.')
+    const params = new URLSearchParams({dni: dniBusqueda.trim()})
+    const resp = await apiFetch(`${PACIENTES_API}/buscar-por-dni?${params}`)
+    if(resp.ok){
+      setPacienteEncontrado(await resp.json())
+    }else{
+      setPacienteEncontrado(null)
+      notify('No se encontró ningún paciente con ese DNI. Dalo de alta primero en la sección Pacientes.')
+    }
   }
 
   async function handleSubmit(e){
@@ -739,12 +806,12 @@ export default function App(){
   const hoy = new Date().toLocaleDateString('es-AR', {day: '2-digit', month: '2-digit', year: 'numeric'})
 
   const emailsMedicosOcupados = new Set(
-    medicos.filter(m => m.id !== editingMedico?.id).map(m => m.email).filter(Boolean)
+    medicosVinculados.filter(m => m.id !== editingMedico?.id).map(m => m.email).filter(Boolean)
   )
   const cuentasMedicoDisponibles = usuarios.filter(u => u.role === 'MEDICO' && !emailsMedicosOcupados.has(u.email))
 
   const emailsPacientesOcupados = new Set(
-    pacientes.filter(p => p.id !== editingPaciente?.id).map(p => p.email).filter(Boolean)
+    pacientesVinculados.filter(p => p.id !== editingPaciente?.id).map(p => p.email).filter(Boolean)
   )
   const cuentasPacienteDisponibles = usuarios.filter(u => u.role === 'PACIENTE' && !emailsPacientesOcupados.has(u.email))
 
@@ -815,7 +882,7 @@ export default function App(){
               medico={editingMedico}
               token={token}
               notify={notify}
-              onGuardado={async () => { setEditingMedico(null); await cargarMedicos() }}
+              onGuardado={async () => { setEditingMedico(null); await cargarMedicos(); await cargarMedicosVinculados() }}
               onCancelarEdicion={() => setEditingMedico(null)}
               cuentasDisponibles={cuentasMedicoDisponibles}
             />
@@ -867,6 +934,29 @@ export default function App(){
                 </tbody>
               </table>
             </div>
+            {totalPaginasMedicos > 1 && (
+              <div className="flex items-center justify-between mt-4">
+                <button
+                  type="button"
+                  disabled={medicosLoading || paginaMedicos === 0}
+                  onClick={() => irAPaginaMedicos(paginaMedicos - 1)}
+                  className="btn-secondary !px-3 !py-1.5 text-xs"
+                >
+                  ← Anterior
+                </button>
+                <span className="text-sm text-neutral-500">
+                  Página {paginaMedicos + 1} de {totalPaginasMedicos}
+                </span>
+                <button
+                  type="button"
+                  disabled={medicosLoading || paginaMedicos + 1 >= totalPaginasMedicos}
+                  onClick={() => irAPaginaMedicos(paginaMedicos + 1)}
+                  className="btn-secondary !px-3 !py-1.5 text-xs"
+                >
+                  Siguiente →
+                </button>
+              </div>
+            )}
           </section>
         )}
 
@@ -879,7 +969,7 @@ export default function App(){
               paciente={editingPaciente}
               token={token}
               notify={notify}
-              onGuardado={async () => { setEditingPaciente(null); await cargarPacientes() }}
+              onGuardado={async () => { setEditingPaciente(null); await cargarPacientes(); await cargarPacientesVinculados() }}
               onCancelarEdicion={() => setEditingPaciente(null)}
               cuentasDisponibles={cuentasPacienteDisponibles}
             />
@@ -943,6 +1033,29 @@ export default function App(){
               </tbody>
             </table>
           </div>
+          {totalPaginasPacientes > 1 && (
+            <div className="flex items-center justify-between mt-4">
+              <button
+                type="button"
+                disabled={pacientesLoading || paginaPacientes === 0}
+                onClick={() => irAPaginaPacientes(paginaPacientes - 1)}
+                className="btn-secondary !px-3 !py-1.5 text-xs"
+              >
+                ← Anterior
+              </button>
+              <span className="text-sm text-neutral-500">
+                Página {paginaPacientes + 1} de {totalPaginasPacientes}
+              </span>
+              <button
+                type="button"
+                disabled={pacientesLoading || paginaPacientes + 1 >= totalPaginasPacientes}
+                onClick={() => irAPaginaPacientes(paginaPacientes + 1)}
+                className="btn-secondary !px-3 !py-1.5 text-xs"
+              >
+                Siguiente →
+              </button>
+            </div>
+          )}
         </section>
         )}
 
@@ -975,9 +1088,9 @@ export default function App(){
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="label">Especialidad</label>
-                    <select className="input-field" value={especialidad} onChange={e=>{clearValidity(e); setEspecialidad(e.target.value); setMedicoId('')}} onInvalid={handleInvalid} required>
+                    <select className="input-field" value={especialidad} onChange={e=>{clearValidity(e); handleEspecialidadChange(e.target.value)}} onInvalid={handleInvalid} required>
                       <option value="" disabled>Seleccionar especialidad</option>
-                      {[...new Set(medicos.map(m => m.especialidad).filter(Boolean))].sort().map(esp => (
+                      {especialidades.map(esp => (
                         <option key={esp} value={esp}>{esp}</option>
                       ))}
                     </select>
@@ -986,7 +1099,7 @@ export default function App(){
                     <label className="label">Médico</label>
                     <select className="input-field" value={medicoId} onChange={e=>{clearValidity(e); setMedicoId(e.target.value)}} onInvalid={handleInvalid} required disabled={!especialidad}>
                       <option value="" disabled>Seleccionar médico</option>
-                      {medicos.filter(m => m.especialidad === especialidad).map(m => (
+                      {medicosPorEspecialidad.map(m => (
                         <option key={m.id} value={m.id}>{m.nombre}</option>
                       ))}
                     </select>

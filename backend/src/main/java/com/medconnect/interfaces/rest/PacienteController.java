@@ -23,6 +23,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
@@ -99,18 +100,41 @@ public class PacienteController {
                 .orElse(false);
     }
 
-    @GetMapping
-    public ResponseEntity<List<PacienteResponse>> buscarTodos() {
+    @GetMapping("/buscar-por-dni")
+    public ResponseEntity<PacienteResponse> buscarPorDni(@RequestParam String dni) {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        List<Paciente> pacientes;
+        return pacientesVisibles(auth).stream()
+                .filter(p -> dni.equals(p.getDni()))
+                .findFirst()
+                .map(p -> ResponseEntity.ok(toResponse(p)))
+                .orElseGet(() -> ResponseEntity.notFound().build());
+    }
+
+    @GetMapping("/emails-vinculados")
+    public ResponseEntity<List<EmailVinculadoResponse>> emailsVinculados() {
+        List<EmailVinculadoResponse> emails = buscarPacienteUseCase.buscarTodos().stream()
+                .filter(p -> p.getEmail() != null && !p.getEmail().isBlank())
+                .map(p -> new EmailVinculadoResponse(p.getId(), p.getEmail()))
+                .toList();
+        return ResponseEntity.ok(emails);
+    }
+
+    @GetMapping
+    public ResponseEntity<PageResponse<PacienteResponse>> buscarTodos(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        List<PacienteResponse> todos = pacientesVisibles(auth).stream().map(this::toResponse).toList();
+        return ResponseEntity.ok(PageResponse.of(todos, page, size));
+    }
+
+    private List<Paciente> pacientesVisibles(Authentication auth) {
         if (tieneRolMedico(auth)) {
-            pacientes = buscarMedicoUseCase.buscarPorEmail(auth.getName())
+            return buscarMedicoUseCase.buscarPorEmail(auth.getName())
                     .map(this::pacientesDeEseMedico)
                     .orElseGet(List::of);
-        } else {
-            pacientes = buscarPacienteUseCase.buscarTodos();
         }
-        return ResponseEntity.ok(pacientes.stream().map(this::toResponse).toList());
+        return buscarPacienteUseCase.buscarTodos();
     }
 
     private List<Paciente> pacientesDeEseMedico(Medico medico) {

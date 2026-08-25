@@ -19,6 +19,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
@@ -70,10 +71,37 @@ public class MedicoController {
                 .orElseGet(() -> ResponseEntity.notFound().build());
     }
 
+    @GetMapping("/especialidades")
+    public ResponseEntity<List<String>> especialidades() {
+        List<String> especialidades = buscarMedicoUseCase.buscarTodos().stream()
+                .map(Medico::getEspecialidad)
+                .filter(e -> e != null && !e.isBlank())
+                .distinct()
+                .sorted()
+                .toList();
+        return ResponseEntity.ok(especialidades);
+    }
+
+    @GetMapping("/emails-vinculados")
+    public ResponseEntity<List<EmailVinculadoResponse>> emailsVinculados() {
+        List<EmailVinculadoResponse> emails = buscarMedicoUseCase.buscarTodos().stream()
+                .filter(m -> m.getEmail() != null && !m.getEmail().isBlank())
+                .map(m -> new EmailVinculadoResponse(m.getId(), m.getEmail()))
+                .toList();
+        return ResponseEntity.ok(emails);
+    }
+
     @GetMapping
-    public ResponseEntity<List<MedicoResponse>> buscarTodos() {
+    public ResponseEntity<PageResponse<MedicoResponse>> buscarTodos(
+            @RequestParam(required = false) String especialidad,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
         List<Medico> medicos = buscarMedicoUseCase.buscarTodos();
-        return ResponseEntity.ok(medicos.stream().map(this::toResponse).toList());
+        if (especialidad != null && !especialidad.isBlank()) {
+            medicos = medicos.stream().filter(m -> especialidad.equals(m.getEspecialidad())).toList();
+        }
+        List<MedicoResponse> todos = medicos.stream().map(this::toResponse).toList();
+        return ResponseEntity.ok(PageResponse.of(todos, page, size));
     }
 
     @PutMapping("/{id}")
