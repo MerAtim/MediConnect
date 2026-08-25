@@ -247,6 +247,11 @@ public class CrearTurnoIntegrationTest {
         }
 
         @Override
+        public java.util.Optional<Usuario> buscarPorId(Long id) {
+            return store.stream().filter(u -> u.getId().equals(id)).findFirst();
+        }
+
+        @Override
         public List<Usuario> buscarTodos() {
             return List.copyOf(store);
         }

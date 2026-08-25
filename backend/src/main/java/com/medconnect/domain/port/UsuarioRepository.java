@@ -10,5 +10,7 @@ public interface UsuarioRepository {
 
     Optional<Usuario> buscarPorEmail(String email);
 
+    Optional<Usuario> buscarPorId(Long id);
+
     List<Usuario> buscarTodos();
 }

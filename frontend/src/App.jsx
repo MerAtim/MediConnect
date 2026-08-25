@@ -88,6 +88,63 @@ function ConfirmModal({open, title, message, confirmLabel, cancelLabel = 'Volver
   )
 }
 
+// modo 'propia': el usuario logueado cambia su contraseña sabiendo la
+// actual (PATCH /me/contrasena). modo 'reset': un ADMINISTRADOR resetea la
+// de otro usuario sin necesitar la vieja (PATCH /{id}/contrasena) — es el
+// mecanismo de recuperación, ya que el proyecto no manda emails.
+function CambiarContrasenaModal({open, modo, usuarioObjetivo, token, notify, onClose, onExito}){
+  const [contrasenaActual, setContrasenaActual] = useState('')
+  const [contrasenaNueva, setContrasenaNueva] = useState('')
+  const [loading, setLoading] = useState(false)
+
+  if(!open) return null
+
+  async function handleSubmit(e){
+    e.preventDefault()
+    setLoading(true)
+    try{
+      const url = modo === 'propia' ? `${USUARIOS_API}/me/contrasena` : `${USUARIOS_API}/${usuarioObjetivo.id}/contrasena`
+      const body = modo === 'propia' ? {contrasenaActual, contrasenaNueva} : {contrasenaNueva}
+      const resp = await fetch(url, {
+        method: 'PATCH',
+        headers: {'Content-Type':'application/json', 'Authorization': `Bearer ${token}`},
+        body: JSON.stringify(body)
+      })
+      if(!resp.ok) throw new Error(await readErrorMessage(resp))
+      notify(modo === 'propia' ? 'Contraseña actualizada.' : `Contraseña reseteada para ${usuarioObjetivo.email}.`, 'success')
+      setContrasenaActual(''); setContrasenaNueva('')
+      onExito?.()
+      onClose()
+    }catch(err){
+      notify(err.message)
+    }finally{
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-neutral-900/40 px-4">
+      <div className="card max-w-sm w-full">
+        <h3 className="heading mb-4">
+          {modo === 'propia' ? 'Cambiar mi contraseña' : `Resetear contraseña de ${usuarioObjetivo?.nombre}`}
+        </h3>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {modo === 'propia' && (
+            <FloatingInput label="Contraseña actual" type="password" value={contrasenaActual} onChange={e=>setContrasenaActual(e.target.value)} required />
+          )}
+          <FloatingInput label="Contraseña nueva (mín. 6 caracteres)" type="password" value={contrasenaNueva} onChange={e=>setContrasenaNueva(e.target.value)} required />
+          <div className="flex justify-end gap-3">
+            <button type="button" onClick={onClose} className="btn-secondary">Cancelar</button>
+            <button type="submit" disabled={loading} className="btn-primary">
+              {loading ? 'Guardando…' : 'Guardar'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  )
+}
+
 function SkeletonRows({columns, rows = 3}){
   return Array.from({length: rows}).map((_, i) => (
     <tr key={i}>
@@ -498,6 +555,8 @@ export default function App(){
   const [guardandoRegistro, setGuardandoRegistro] = useState(false)
 
   const [vinculado, setVinculado] = useState(null)
+  const [mostrarCambiarPropia, setMostrarCambiarPropia] = useState(false)
+  const [usuarioAResetear, setUsuarioAResetear] = useState(null)
 
   async function chequearVinculacion(){
     const url = auth.role === 'MEDICO' ? `${MEDICOS_API}/me` : `${PACIENTES_API}/me`
@@ -841,6 +900,21 @@ export default function App(){
         onConfirm={confirmarCancelacionDefinitiva}
         onCancel={cerrarModalCancelacion}
       />
+      <CambiarContrasenaModal
+        open={mostrarCambiarPropia}
+        modo="propia"
+        token={token}
+        notify={notify}
+        onClose={() => setMostrarCambiarPropia(false)}
+      />
+      <CambiarContrasenaModal
+        open={!!usuarioAResetear}
+        modo="reset"
+        usuarioObjetivo={usuarioAResetear}
+        token={token}
+        notify={notify}
+        onClose={() => setUsuarioAResetear(null)}
+      />
       <header className="bg-primary-800 text-white">
         <div className="max-w-3xl mx-auto px-6 py-4 flex items-center justify-between">
           <div>
@@ -849,6 +923,9 @@ export default function App(){
           </div>
           <div className="flex items-center gap-3 text-sm">
             <span className="text-primary-100">{auth.nombre} · {auth.role}</span>
+            <button type="button" onClick={() => setMostrarCambiarPropia(true)} className="btn-secondary !px-3 !py-1.5 text-xs">
+              Cambiar contraseña
+            </button>
             <button type="button" onClick={handleLogout} className="btn-secondary !px-3 !py-1.5 text-xs">
               Cerrar sesión
             </button>
@@ -875,6 +952,39 @@ export default function App(){
               Creá una cuenta de acceso (login) para otro administrador, médico o paciente.
             </p>
             <UsuarioForm token={token} notify={notify} onGuardado={cargarUsuarios} />
+            <div className="overflow-x-auto rounded-lg border border-neutral-200 mt-4">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-paper-100 text-left text-neutral-500">
+                    <th className="px-4 py-2 font-medium">Nombre</th>
+                    <th className="px-4 py-2 font-medium">Email</th>
+                    <th className="px-4 py-2 font-medium">Rol</th>
+                    <th className="px-4 py-2 font-medium">Acciones</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-neutral-100">
+                  {usuarios.map(u => (
+                    <tr key={u.id} className="hover:bg-paper-100/60">
+                      <td className="px-4 py-2 text-neutral-900">{u.nombre}</td>
+                      <td className="px-4 py-2 text-neutral-900">{u.email}</td>
+                      <td className="px-4 py-2 text-neutral-900">{u.role}</td>
+                      <td className="px-4 py-2">
+                        <button type="button" onClick={() => setUsuarioAResetear(u)} className="btn-secondary !px-2 !py-1 text-xs">
+                          Resetear contraseña
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                  {usuarios.length === 0 && (
+                    <tr>
+                      <td colSpan={4} className="px-4 py-6 text-center text-neutral-400">
+                        Sin cuentas registradas.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
           </section>
         )}
 
