@@ -608,7 +608,11 @@ presentó. Estado de cada punto:
    init). `.github/workflows/maven.yml` tiene un job `frontend` nuevo
    (`npm ci` + `npm test` + `npm run build`) al lado del `build` de
    backend — no se renombró el job existente por si algún branch
-   protection rule en GitHub ya lo referencia por nombre. **Cobertura
+   protection rule en GitHub ya lo referencia por nombre. El job usa
+   **Node 22**: con Node 18 (lo que ya usaba el resto del repo) el CI
+   falló porque `vitest` (vía su dependencia `rolldown`) usa `node:util`'s
+   `styleText`, que no existe antes de Node ~21.7 — recién se vio en CI, en
+   local corría con Node 22 sin avisar del problema. **Cobertura
    deliberadamente acotada**: no se testeó cada sección de `App.jsx`
    (archivo de 1200+ líneas, ver punto 8 de esta lista) — se prioriza el
    login por ser el punto de entrada de toda la app; ampliar cobertura por
