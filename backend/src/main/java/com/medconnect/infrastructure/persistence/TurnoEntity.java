@@ -8,11 +8,12 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "turnos")
+@Table(name = "turnos", uniqueConstraints = @UniqueConstraint(name = "uk_turnos_medico_fecha", columnNames = {"medico_id", "fecha_hora"}))
 public class TurnoEntity {
 
     @Id

@@ -342,6 +342,23 @@ cuenta no vinculada, UI para vincular cuenta↔médico/paciente, ownership en
   hacen una consulta extra por fila para resolver `medicoNombre`/
   `pacienteNombre` (N+1) — aceptable al volumen de datos actual, pero es lo
   primero a mirar si un listado se pone lento.
+- ~~Doble reserva de turno por condición de carrera~~ — resuelto
+  (`feature/turno-unique-constraint`): `CrearTurnoService` ya validaba "¿el
+  médico tiene un turno a esa fecha/hora?" leyendo la lista y comparando
+  (read-then-write, sin lock), así que dos requests concurrentes para el
+  mismo médico+horario podían pasar ambas la validación. Se agregó una
+  unique constraint real en `turnos (medico_id, fecha_hora)`
+  (`TurnoEntity`, `uniqueConstraints`) como red de seguridad, y
+  `CrearTurnoService.crear()` atrapa `DataIntegrityViolationException` y la
+  traduce al mismo `TurnoInvalidoException` de siempre — el cliente ve el
+  mismo 400 de "el médico no está disponible", nunca un 500 crudo. Mismo
+  gotcha que con `email` de Médico/Paciente: `ddl-auto=update` no agrega
+  constraints a una tabla que ya existía, hubo que aplicar el `ALTER TABLE`
+  a mano en la base local. La constraint no distingue turnos `CANCELADO` —
+  mismo comportamiento que ya tenía el chequeo en memoria (un turno
+  cancelado sigue "ocupando" el horario); si en algún momento se quiere
+  liberar el horario al cancelar, es un cambio de regla de negocio aparte,
+  no algo que haya cambiado acá.
 - ~~No hay ninguna forma legítima de crear un `ADMINISTRADOR`~~ — resuelto:
   `POST /api/usuarios` (solo `ADMINISTRADOR`, ver más abajo) permite dar de
   alta cualquier rol, incluido `ADMINISTRADOR`.
@@ -544,16 +561,45 @@ curl -X POST http://localhost:8080/api/auth/registro -H "Content-Type: applicati
     /api/pacientes/buscar-por-dni`, `GET /api/medicos/especialidades`, `GET
     /api/medicos?especialidad=X` y `GET /api/{medicos,pacientes}/emails-vinculados`
     — detalle completo en "huecos conocidos" (sección Paginación).
+26. `feature/turno-unique-constraint` (PR #27) — unique constraint en
+    `turnos (medico_id, fecha_hora)` + traducción de
+    `DataIntegrityViolationException` a `TurnoInvalidoException` en
+    `CrearTurnoService`. Ver detalle en "huecos conocidos".
 
 ## Plan sugerido para la próxima sesión
 
-No hay pendientes urgentes anotados. Todos los huecos que estaban
-documentados a propósito en sesiones anteriores (alta de administradores,
-aviso de cuenta no vinculada, UI de vinculación, ownership por id,
-paginación de turnos, "1 email = 1 médico/paciente", y ahora paginación de
-Médicos/Pacientes) están cerrados — ver "Historial de PRs" arriba (PRs
-#20–#26). No queda ningún hueco conocido pendiente anotado en este momento;
-si el usuario no trae un pedido puntual al arrancar la próxima sesión,
-repasar el código en busca de mejoras concretas (por ejemplo el N+1 de
-`TurnoController.toResponse()`/`RegistroClinicoController.toResponse()`
-mencionado más arriba) es un punto de partida razonable.
+Se hizo una auditoría e2e del proyecto completo a pedido del usuario
+(2026-08-25) y se acordó resolverla en el orden de prioridad que se le
+presentó. Estado de cada punto:
+
+1. ~~Doble reserva de turno por condición de carrera~~ — resuelto, PR #27.
+2. **Pendiente** — URLs del backend hardcodeadas en el frontend
+   (`http://localhost:8080` escrito 6 veces en `App.jsx`, líneas 3-8):
+   mover a una variable de entorno de Vite (`import.meta.env.VITE_API_URL`
+   con fallback a `localhost:8080` para no romper el flujo local actual).
+3. **Pendiente** — sin rate limiting en `POST /api/auth/login`: evaluar un
+   filtro simple (por IP y/o por email) antes de escalar a algo más
+   sofisticado.
+4. **Pendiente** — cero tests automatizados de frontend y el CI
+   (`.github/workflows/maven.yml`) no corre nada de `frontend/` (ni
+   siquiera `npm run build`). Agregar al menos un job de CI que corra
+   `npm run build`; tests de componentes (Vitest + Testing Library) son un
+   paso más grande a evaluar aparte.
+5. **Pendiente** — `README.md` promete "React + TypeScript" y "facturación
+   automatizada" que no existen (frontend es `.jsx` sin `tsconfig.json`,
+   `typescript` es una devDependency sin uso). Actualizar el README para
+   que refleje el estado real, y decidir si `typescript` se saca de
+   `package.json` o si en algún momento se migra de verdad.
+6. **Pendiente** — no hay "olvidé mi contraseña" ni cambio de contraseña
+   para ningún rol, ni siquiera ADMINISTRADOR.
+7. **Pendiente** — JWT en `localStorage`, logout solo borra el token local
+   (sigue siendo válido en el servidor hasta expirar, 24hs). Es el
+   trade-off normal de JWT sin sesión server-side; evaluar si vale la pena
+   una blacklist de tokens revocados o si no se justifica para el alcance
+   del proyecto.
+8. **Pendiente** — `frontend/src/App.jsx` es un archivo único de más de
+   1200 líneas con toda la app adentro. Partirlo en componentes/archivos
+   separados cuando se retome frontend.
+
+Si el usuario no trae un pedido puntual al arrancar la próxima sesión,
+continuar con el punto 2 de esta lista (siguiente en orden de prioridad).

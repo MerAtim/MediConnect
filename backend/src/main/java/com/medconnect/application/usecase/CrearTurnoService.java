@@ -8,6 +8,7 @@ import com.medconnect.domain.model.TurnoEstado;
 import com.medconnect.domain.port.MedicoRepository;
 import com.medconnect.domain.port.PacienteRepository;
 import com.medconnect.domain.port.TurnoRepository;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -68,7 +69,12 @@ public class CrearTurnoService implements CrearTurnoUseCase {
         );
         turno.setPreparacion(request.getPreparacion());
 
-        Turno guardado = turnoRepository.guardar(turno);
+        Turno guardado;
+        try {
+            guardado = turnoRepository.guardar(turno);
+        } catch (DataIntegrityViolationException ex) {
+            throw new TurnoInvalidoException("El médico no está disponible en la fecha y hora solicitada");
+        }
         return new CreateTurnoResponse(guardado.getId());
     }
 }
