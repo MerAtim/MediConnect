@@ -300,8 +300,22 @@ cuenta no vinculada, UI para vincular cuenta↔médico/paciente, ownership en
   patrón que ya usaban los listados (`buscarPorEmail` + comparar contra el
   dueño del recurso), `ADMINISTRADOR` sigue sin restricción. Vinculación
   cuenta↔médico/paciente: ya tiene UI (selector, `feature/vincular-cuenta-perfil`,
-  ver más abajo); sigue asumiendo 1 email = 1 médico/paciente sin forzarlo
-  con una constraint de base.
+  ver más abajo) **y ahora está forzada a nivel base** (`feature/unique-email-medico-paciente`):
+  `MedicoEntity`/`PacienteEntity` tienen `@Column(unique = true)` en `email`,
+  más un chequeo a nivel app (mismo patrón que `RegistrarUsuarioService`) que
+  devuelve 400 con "ya existe un medico/paciente con ese email" en vez de un
+  error 500 crudo de constraint. Un string vacío ("sin vincular" en el
+  selector del frontend) se normaliza a `null` antes de guardar, así que
+  varios médicos/pacientes pueden seguir sin vincular a la vez (Postgres
+  permite múltiples `NULL` en una unique constraint). **Importante para
+  bases ya existentes**: `ddl-auto=update` no agrega constraints a columnas
+  que ya existían (solo tablas/columnas nuevas) — en una base nueva Hibernate
+  la crea sola al crear la tabla, pero en una base que ya tenía la tabla
+  `medicos`/`pacientes` hay que agregarla a mano una vez:
+  `ALTER TABLE medicos ADD CONSTRAINT uk_medicos_email UNIQUE (email);`
+  (ídem `pacientes`), y antes limpiar duplicados de `''` con
+  `UPDATE medicos SET email = NULL WHERE email = '';` (ídem `pacientes`) si
+  hay registros viejos con string vacío en vez de `NULL`.
 - Paginación: `GET /api/turnos` ya está paginado (ver más abajo,
   `feature/paginacion-turnos`). `GET /api/medicos` y `GET /api/pacientes`
   siguen sin paginar **a propósito** — el frontend depende de tener la lista
@@ -502,15 +516,23 @@ curl -X POST http://localhost:8080/api/auth/registro -H "Content-Type: applicati
     (`page`/`size`, `PageResponse`). Médicos/Pacientes quedaron sin paginar
     a propósito (ver "huecos conocidos"). Se descartó agregar un DELETE real
     de turno — cancelar ya cubre el caso de uso.
+24. `feature/unique-email-medico-paciente` (PR #25) — `@Column(unique = true)`
+    en `email` de `MedicoEntity`/`PacienteEntity` + validación a nivel app
+    (`CrearMedicoService`/`ActualizarMedicoService`/`CrearPacienteService`/
+    `ActualizarPacienteService`, mismo patrón que `RegistrarUsuarioService`)
+    que devuelve 400 en vez de un 500 crudo. String vacío se normaliza a
+    `null` para no romper "sin vincular". Requirió limpiar a mano `''` → `NULL`
+    y agregar la constraint por `ALTER TABLE` en la base local existente,
+    ver detalle en "huecos conocidos".
 
 ## Plan sugerido para la próxima sesión
 
-No hay pendientes urgentes anotados — el plan de la sesión anterior (6
-puntos: alta de administradores, aviso de cuenta no vinculada, UI de
+No hay pendientes urgentes anotados. Los 6 puntos de la sesión de PRs
+#20–#24 (alta de administradores, aviso de cuenta no vinculada, UI de
 vinculación, ownership por id, paginación de turnos, evaluación de DELETE de
-turno) se completó entero, ver PRs #20–#24 en "Historial de PRs" arriba y
-"huecos conocidos" para el detalle de qué quedó explícitamente afuera y por
-qué (paginar Médicos/Pacientes, DELETE real de turno).
+turno) más el hueco de "1 email = 1 médico/paciente" (PR #25) están
+cerrados. Queda documentado y pendiente solo si el volumen lo justifica:
+paginar `GET /api/medicos` y `GET /api/pacientes` (ver "huecos conocidos").
 
 Si el usuario no trae un pedido puntual al arrancar la próxima sesión, buen
 punto de partida: revisar si alguno de los huecos documentados (paginar
