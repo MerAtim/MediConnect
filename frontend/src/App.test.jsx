@@ -69,8 +69,8 @@ describe('LoginScreen', () => {
     vi.stubGlobal('fetch', vi.fn(async (url) => {
       const u = String(url)
       if (u.includes('/api/auth/login')) {
+        // El JWT viaja en una cookie httpOnly (Set-Cookie), no en el body.
         return jsonResponse({
-          token: 'token-simulado',
           id: 1,
           nombre: 'Admin Test',
           email: 'admin@medconnect.com',
@@ -91,6 +91,6 @@ describe('LoginScreen', () => {
     })
     // Seccion exclusiva de ADMINISTRADOR: confirma que el rol se propago bien.
     expect(screen.getByRole('heading', { name: 'Usuarios' })).toBeInTheDocument()
-    expect(localStorage.getItem('medconnect_auth')).toContain('token-simulado')
+    expect(localStorage.getItem('medconnect_auth')).toContain('admin@medconnect.com')
   })
 })

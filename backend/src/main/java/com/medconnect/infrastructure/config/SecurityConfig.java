@@ -1,6 +1,7 @@
 package com.medconnect.infrastructure.config;
 
 import com.medconnect.infrastructure.security.JwtAuthenticationFilter;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -10,14 +11,23 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+
+import java.util.Arrays;
+import java.util.List;
 
 @Configuration
 public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
+    private final String allowedOriginPatterns;
 
-    public SecurityConfig(JwtAuthenticationFilter jwtAuthenticationFilter) {
+    public SecurityConfig(JwtAuthenticationFilter jwtAuthenticationFilter,
+                           @Value("${app.allowed-origin-patterns}") String allowedOriginPatterns) {
         this.jwtAuthenticationFilter = jwtAuthenticationFilter;
+        this.allowedOriginPatterns = allowedOriginPatterns;
     }
 
     @Bean
@@ -26,8 +36,31 @@ public class SecurityConfig {
     }
 
     @Bean
+    public CorsConfigurationSource corsConfigurationSource() {
+        CorsConfiguration config = new CorsConfiguration();
+        config.setAllowedOriginPatterns(Arrays.asList(allowedOriginPatterns.split(",")));
+        config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
+        config.setAllowedHeaders(List.of("*"));
+        // El JWT viaja en una cookie httpOnly: el navegador necesita permiso
+        // explicito para mandarla/recibirla en requests cross-origin (front
+        // y back corren en puertos distintos). Por eso el origen no puede
+        // ser "*" -- el spec de CORS lo prohibe combinado con credenciales.
+        config.setAllowCredentials(true);
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/**", config);
+        return source;
+    }
+
+    @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
+                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+                // La cookie del JWT tiene SameSite=Lax, lo que ya bloquea que se
+                // mande en requests POST/PUT/PATCH/DELETE disparados desde otro
+                // sitio (CSRF clasico via form o fetch) -- sumado a que el CORS
+                // de arriba no acepta "*", un sitio ajeno ni siquiera puede leer
+                // la respuesta de un fetch. Por eso no hace falta el mecanismo de
+                // token CSRF de Spring encima.
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth

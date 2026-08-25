@@ -16,24 +16,60 @@ cuenta no vinculada, UI para vincular cuenta↔médico/paciente, ownership en
   `spring.jpa.hibernate.ddl-auto=update` crea/actualiza las tablas solo.
 - **Seguridad**: JWT stateless (HS512, expira a las 24hs, `jwt.secret`/`jwt.expiration-ms`
   en `application.properties`, override por env var `JWT_SECRET`/`JWT_EXPIRATION_MS`
-  igual que `DB_PASSWORD`). `/api/auth/**` (`registro`, `login`) es lo único
-  público; el resto de `/api/**` requiere `Authorization: Bearer <token>` válido,
+  igual que `DB_PASSWORD`). `/api/auth/**` (`registro`, `login`, `logout`) es lo único
+  público; el resto de `/api/**` requiere una cookie `jwt` válida,
   **y desde el PR #17 además está restringido por rol** (ver bloque dedicado
   más abajo). `Usuario` (email/contrasena hasheada con BCrypt/role) es la
   identidad de login, separada de Médico/Paciente a propósito (el campo
   `contrasena` suelto que tenía `Medico` desde el primer PR sigue ahí sin
   usar, no se tocó). `JwtAuthenticationFilter` (`infrastructure/security/`)
-  puebla el `SecurityContext`; `JwtTokenService` firma/valida. CSRF sigue
-  deshabilitado (no aplica con JWT).
+  puebla el `SecurityContext` leyendo la cookie `jwt` (ya no el header
+  `Authorization`); `JwtTokenService` firma/valida el token en sí, eso no
+  cambió. **Desde PR #33 (`feature/jwt-cookie-httponly`) el JWT viaja en una
+  cookie httpOnly, no en el body ni en `localStorage`** (antes de ese PR el
+  login devolvía `token` en el JSON y el frontend lo guardaba/mandaba a
+  mano — si ves código o docs viejas que lo describan así, están
+  desactualizadas). Con el cambio: `POST /api/auth/login` responde
+  `Set-Cookie: jwt=<token>; HttpOnly; SameSite=Lax; Path=/` en vez de
+  `token` en el body (el body solo trae `id/nombre/email/role`);
+  `POST /api/auth/logout` (nuevo) limpia esa cookie server-side
+  (`Max-Age=0`) — antes "logout" solo borraba el estado local y el token
+  seguía siendo válido hasta expirar. `app.cookie-secure`
+  (`COOKIE_SECURE`, default `false`) controla el flag `Secure` de la
+  cookie — **tiene que ser `true` en cualquier despliegue real por HTTPS**,
+  en local queda en `false` porque el dev server corre en `http://`
+  plano y una cookie `Secure` nunca se manda por http (rompería el login
+  en silencio). CORS pasó de `@CrossOrigin(origins = "*")` por-controller
+  (sacado de los 6 controllers) a una `CorsConfigurationSource` global en
+  `SecurityConfig` con `allowCredentials(true)` — obligatorio sacar el
+  wildcard porque el spec de CORS prohíbe `*` combinado con credenciales;
+  se usa `allowedOriginPatterns` (`app.allowed-origin-patterns` /
+  `ALLOWED_ORIGIN_PATTERNS`, default `http://localhost:*`) para no romper
+  cuando Vite cambia de puerto en dev (pasó varias veces esta sesión:
+  5173, 5174, 5175...). CSRF sigue deshabilitado en Spring, pero la
+  justificación cambió: antes era "no aplica con Bearer token en header",
+  ahora es la combinación `SameSite=Lax` (bloquea que la cookie se mande
+  en requests POST/PUT/PATCH/DELETE disparados desde otro sitio) + CORS
+  sin wildcard (un sitio ajeno no puede ni leer la respuesta de un fetch)
+  + endpoints que solo aceptan `application/json` (un form-POST cross-site
+  no arma un body que el controller pueda deserializar).
 - **Frontend**: React 18 + Vite 5 (`frontend/`), `fetch` plano (sin axios). Sin
   sesión válida se muestra `LoginScreen` (login + link a registro) en vez de
-  la app; el JWT se guarda en `localStorage` (`medconnect_auth`, incluye
-  token/id/nombre/email/role) y se manda en cada request vía el helper
-  `apiFetch` — una respuesta **401** (token inválido/expirado) desloguea sola
-  y vuelve al login. **Ojo**: un 403 (acción prohibida por rol) *no* debe
-  desloguear — es un error de permisos, no de sesión; ese bug existió hasta
-  el PR #17 y desconectaba a cualquier MEDICO/PACIENTE al primer intento de
-  una acción restringida.
+  la app. **El JWT en sí ya no pasa por JS en absoluto** (vive en la cookie
+  httpOnly, invisible a `document.cookie` y al bundle) — `localStorage`
+  (`medconnect_auth`) solo guarda `id/nombre/email/role` para pintar la UI
+  sin esperar un round-trip, nunca el token. Cada `fetch` (helper
+  `apiFetch` y los `fetch` sueltos de los forms) manda `credentials:
+  'include'` para que el navegador adjunte la cookie solo — **si agregás
+  un `fetch` nuevo, no te olvides de `credentials: 'include'` o el request
+  va a viajar sin autenticar**. Una respuesta **401** (cookie inválida/
+  expirada/ausente) desloguea sola y vuelve al login. El logout llama a
+  `POST /api/auth/logout` (best-effort, si falla la red igual desloguea
+  localmente) para limpiar la cookie del lado del servidor, no alcanza con
+  borrar el estado local. **Ojo**: un 403 (acción prohibida por rol) *no*
+  debe desloguear — es un error de permisos, no de sesión; ese bug existió
+  hasta el PR #17 y desconectaba a cualquier MEDICO/PACIENTE al primer
+  intento de una acción restringida.
 - **Estilos**: Tailwind CSS v3. Header/botones en teal (`primary`), texto en
   slate (`neutral`), y las **cards en tono "papel" cálido** (paleta custom
   `paper` en `tailwind.config.js`, usada en `.card` y en las franjas de
@@ -645,11 +681,16 @@ presentó. Estado de cada punto:
    en la sección "Usuarios" (antes solo tenía el form de alta, sin forma de
    ver ni gestionar las cuentas existentes) con acción "Resetear
    contraseña" por fila, ambos con el mismo `CambiarContrasenaModal`.
-7. **Pendiente** — JWT en `localStorage`, logout solo borra el token local
-   (sigue siendo válido en el servidor hasta expirar, 24hs). Es el
-   trade-off normal de JWT sin sesión server-side; evaluar si vale la pena
-   una blacklist de tokens revocados o si no se justifica para el alcance
-   del proyecto.
+7. ~~JWT en `localStorage`~~ — resuelto, PR #33 (`feature/jwt-cookie-httponly`).
+   Se migró de JWT-en-body-y-localStorage a **cookie httpOnly** — cambio de
+   arquitectura más grande que los anteriores, elegido por el usuario entre
+   tres opciones (dejarlo, blacklist de revocación, o esta). Detalle
+   completo (por qué cada pieza es necesaria) en "Stack y arquitectura" →
+   bullet "Seguridad" al principio de este documento. **Verificado
+   end-to-end con curl (cookie jar) y Playwright**: `document.cookie` no
+   expone el jwt, `localStorage` no tiene el token crudo, GET/POST/logout
+   funcionan solo con la cookie, CORS preflight confirma
+   `Access-Control-Allow-Credentials: true` con el origen real (no `*`).
 8. **Pendiente** — `frontend/src/App.jsx` es un archivo único de más de
    1200 líneas con toda la app adentro. Partirlo en componentes/archivos
    separados cuando se retome frontend.
