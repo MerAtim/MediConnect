@@ -316,15 +316,28 @@ cuenta no vinculada, UI para vincular cuenta↔médico/paciente, ownership en
   (ídem `pacientes`), y antes limpiar duplicados de `''` con
   `UPDATE medicos SET email = NULL WHERE email = '';` (ídem `pacientes`) si
   hay registros viejos con string vacío en vez de `NULL`.
-- Paginación: `GET /api/turnos` ya está paginado (ver más abajo,
-  `feature/paginacion-turnos`). `GET /api/medicos` y `GET /api/pacientes`
-  siguen sin paginar **a propósito** — el frontend depende de tener la lista
-  completa de ambos en memoria para el picker de especialidad/médico en
-  "Otorgar turno", la búsqueda de paciente por DNI, y la exclusión de
-  cuentas ya vinculadas (selector "Cuenta de acceso vinculada", PR #22).
-  Paginar esos dos requeriría antes mover esas tres cosas a server-side
-  (búsqueda de paciente por DNI vía API, endpoint de médicos por
-  especialidad) — evaluar solo si el volumen realmente lo justifica.
+- Paginación: `GET /api/turnos`, `GET /api/medicos` y `GET /api/pacientes`
+  ya están paginados (`page`/`size`, `PageResponse`, ver más abajo
+  `feature/paginacion-turnos` y `feature/paginacion-medicos-pacientes`). Para
+  poder paginar Médicos/Pacientes hubo que mover a server-side las tres cosas
+  que dependían de tener la lista completa en memoria: `GET
+  /api/pacientes/buscar-por-dni?dni=X` (búsqueda de paciente por DNI en
+  "Otorgar turno", respeta la misma restricción de "solo mis pacientes" que
+  ya tenía `MEDICO` en el listado), `GET /api/medicos/especialidades` +
+  `GET /api/medicos?especialidad=X` (picker de especialidad/médico en
+  "Otorgar turno" — el filtro por especialidad se aplica antes de paginar, y
+  el frontend pide `size=500` para traer "todos" los de esa especialidad en
+  un picker, ya que en la práctica una especialidad no tiene cientos de
+  médicos), y `GET /api/medicos/emails-vinculados` / `GET
+  /api/pacientes/emails-vinculados` (`List<{id,email}>`, solo emails no
+  nulos — usado para la exclusión de cuentas ya vinculadas en el selector
+  "Cuenta de acceso vinculada", PR #22; deliberadamente un endpoint aparte
+  del listado paginado porque necesita ver *todos* los vínculos existentes,
+  no solo la página actual, pero el payload es liviano al ser solo
+  id+email). `GET /api/pacientes/emails-vinculados` está restringido a
+  `ADMINISTRADOR` en `SecurityConfig` (a diferencia del resto de
+  `/api/pacientes/**`, que permite `MEDICO`) porque expondría emails de
+  pacientes fuera de los propios del médico.
 - `TurnoController.toResponse()` y `RegistroClinicoController.toResponse()`
   hacen una consulta extra por fila para resolver `medicoNombre`/
   `pacienteNombre` (N+1) — aceptable al volumen de datos actual, pero es lo
@@ -524,17 +537,23 @@ curl -X POST http://localhost:8080/api/auth/registro -H "Content-Type: applicati
     `null` para no romper "sin vincular". Requirió limpiar a mano `''` → `NULL`
     y agregar la constraint por `ALTER TABLE` en la base local existente,
     ver detalle en "huecos conocidos".
+25. `feature/paginacion-medicos-pacientes` (PR #26) — `GET /api/medicos` y
+    `GET /api/pacientes` paginados (`page`/`size`, `PageResponse`, mismo
+    patrón que `feature/paginacion-turnos`). Para no romper las tres cosas
+    que dependían de la lista completa en memoria se agregaron `GET
+    /api/pacientes/buscar-por-dni`, `GET /api/medicos/especialidades`, `GET
+    /api/medicos?especialidad=X` y `GET /api/{medicos,pacientes}/emails-vinculados`
+    — detalle completo en "huecos conocidos" (sección Paginación).
 
 ## Plan sugerido para la próxima sesión
 
-No hay pendientes urgentes anotados. Los 6 puntos de la sesión de PRs
-#20–#24 (alta de administradores, aviso de cuenta no vinculada, UI de
-vinculación, ownership por id, paginación de turnos, evaluación de DELETE de
-turno) más el hueco de "1 email = 1 médico/paciente" (PR #25) están
-cerrados. Queda documentado y pendiente solo si el volumen lo justifica:
-paginar `GET /api/medicos` y `GET /api/pacientes` (ver "huecos conocidos").
-
-Si el usuario no trae un pedido puntual al arrancar la próxima sesión, buen
-punto de partida: revisar si alguno de los huecos documentados (paginar
-Médicos/Pacientes cuando el volumen lo justifique, 1 email = 1 médico/
-paciente sin constraint de base) pasó a ser relevante.
+No hay pendientes urgentes anotados. Todos los huecos que estaban
+documentados a propósito en sesiones anteriores (alta de administradores,
+aviso de cuenta no vinculada, UI de vinculación, ownership por id,
+paginación de turnos, "1 email = 1 médico/paciente", y ahora paginación de
+Médicos/Pacientes) están cerrados — ver "Historial de PRs" arriba (PRs
+#20–#26). No queda ningún hueco conocido pendiente anotado en este momento;
+si el usuario no trae un pedido puntual al arrancar la próxima sesión,
+repasar el código en busca de mejoras concretas (por ejemplo el N+1 de
+`TurnoController.toResponse()`/`RegistroClinicoController.toResponse()`
+mencionado más arriba) es un punto de partida razonable.

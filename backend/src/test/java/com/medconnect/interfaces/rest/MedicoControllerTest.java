@@ -130,12 +130,46 @@ public class MedicoControllerTest {
     }
 
     @Test
-    public void buscarTodos_devuelveListado() throws Exception {
+    public void buscarTodos_devuelveListadoPaginado() throws Exception {
         when(buscarMedicoUseCase.buscarTodos()).thenReturn(List.of());
 
         mockMvc.perform(get("/api/medicos"))
                 .andExpect(status().isOk())
-                .andExpect(content().json("[]"));
+                .andExpect(content().json("{\"content\":[],\"totalElements\":0}"));
+    }
+
+    @Test
+    public void buscarTodos_filtraPorEspecialidad() throws Exception {
+        Medico cardiologa = new Medico(1L, "Ana Pérez", "Cardiología", "MP1234", null, null, null, null);
+        Medico clinico = new Medico(2L, "Luis Gómez", "Clínica Médica", "MP5678", null, null, null, null);
+        when(buscarMedicoUseCase.buscarTodos()).thenReturn(List.of(cardiologa, clinico));
+
+        mockMvc.perform(get("/api/medicos").param("especialidad", "Cardiología"))
+                .andExpect(status().isOk())
+                .andExpect(content().json("{\"content\":[{\"id\":1,\"nombre\":\"Ana Pérez\"}],\"totalElements\":1}"));
+    }
+
+    @Test
+    public void especialidades_devuelveListaDistintaYOrdenada() throws Exception {
+        Medico m1 = new Medico(1L, "Ana Pérez", "Cardiología", "MP1234", null, null, null, null);
+        Medico m2 = new Medico(2L, "Luis Gómez", "Clínica Médica", "MP5678", null, null, null, null);
+        Medico m3 = new Medico(3L, "Otra Cardióloga", "Cardiología", "MP9999", null, null, null, null);
+        when(buscarMedicoUseCase.buscarTodos()).thenReturn(List.of(m1, m2, m3));
+
+        mockMvc.perform(get("/api/medicos/especialidades"))
+                .andExpect(status().isOk())
+                .andExpect(content().json("[\"Cardiología\",\"Clínica Médica\"]"));
+    }
+
+    @Test
+    public void emailsVinculados_omiteMedicosSinEmail() throws Exception {
+        Medico conEmail = new Medico(1L, "Ana Pérez", "Cardiología", "MP1234", null, null, "ana@medconnect.com", null);
+        Medico sinEmail = new Medico(2L, "Luis Gómez", "Clínica Médica", "MP5678", null, null, null, null);
+        when(buscarMedicoUseCase.buscarTodos()).thenReturn(List.of(conEmail, sinEmail));
+
+        mockMvc.perform(get("/api/medicos/emails-vinculados"))
+                .andExpect(status().isOk())
+                .andExpect(content().json("[{\"id\":1,\"email\":\"ana@medconnect.com\"}]"));
     }
 
     @Test
