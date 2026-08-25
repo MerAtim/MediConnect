@@ -23,6 +23,11 @@ public class CrearPacienteService implements CrearPacienteUseCase {
             throw new PacienteInvalidoException("dni es obligatorio");
         }
 
+        String email = normalizarEmail(request.getEmail());
+        if (email != null && pacienteRepository.buscarPorEmail(email).isPresent()) {
+            throw new PacienteInvalidoException("ya existe un paciente con ese email");
+        }
+
         Paciente paciente = new Paciente(
                 null,
                 request.getNombre(),
@@ -32,10 +37,14 @@ public class CrearPacienteService implements CrearPacienteUseCase {
                 request.getObraSocial(),
                 request.getNumeroAfiliado(),
                 request.getPlan(),
-                request.getEmail()
+                email
         );
 
         Paciente guardado = pacienteRepository.guardar(paciente);
         return new CreatePacienteResponse(guardado.getId());
+    }
+
+    private String normalizarEmail(String email) {
+        return (email == null || email.trim().isEmpty()) ? null : email.trim();
     }
 }

@@ -28,6 +28,14 @@ public class ActualizarPacienteService implements ActualizarPacienteUseCase {
             throw new PacienteInvalidoException("dni es obligatorio");
         }
 
+        String email = normalizarEmail(request.getEmail());
+        if (email != null) {
+            Optional<Paciente> existente = pacienteRepository.buscarPorEmail(email);
+            if (existente.isPresent() && !existente.get().getId().equals(id)) {
+                throw new PacienteInvalidoException("ya existe un paciente con ese email");
+            }
+        }
+
         Paciente paciente = new Paciente(
                 id,
                 request.getNombre(),
@@ -37,9 +45,13 @@ public class ActualizarPacienteService implements ActualizarPacienteUseCase {
                 request.getObraSocial(),
                 request.getNumeroAfiliado(),
                 request.getPlan(),
-                request.getEmail()
+                email
         );
 
         return Optional.of(pacienteRepository.guardar(paciente));
+    }
+
+    private String normalizarEmail(String email) {
+        return (email == null || email.trim().isEmpty()) ? null : email.trim();
     }
 }

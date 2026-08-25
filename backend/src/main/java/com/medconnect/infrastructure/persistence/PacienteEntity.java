@@ -1,5 +1,6 @@
 package com.medconnect.infrastructure.persistence;
 
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -21,7 +22,10 @@ public class PacienteEntity {
     private String obraSocial;
     private String numeroAfiliado;
     private String plan;
+
+    @Column(unique = true)
     private String email;
+
     private Boolean activo = Boolean.TRUE;
 
     protected PacienteEntity() {}

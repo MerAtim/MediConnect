@@ -55,4 +55,33 @@ public class ActualizarPacienteServiceTest {
         assertTrue(resultado.isPresent());
         assertEquals("SMG20", resultado.get().getPlan());
     }
+
+    @Test
+    public void actualizar_lanzaExcepcion_siEmailYaUsadoPorOtroPaciente() {
+        PacienteRepository repo = Mockito.mock(PacienteRepository.class);
+        when(repo.buscarPorId(1L)).thenReturn(Optional.of(new Paciente(1L, "Juan Gómez", "30111222", null, null, null, null, null, null)));
+        when(repo.buscarPorEmail("otro@mail.com"))
+                .thenReturn(Optional.of(new Paciente(2L, "Otro", "30999888", null, null, null, null, null, "otro@mail.com")));
+
+        ActualizarPacienteService service = new ActualizarPacienteService(repo);
+
+        CreatePacienteRequest req = new CreatePacienteRequest("Juan Gómez", "30111222", null, null, null, null, null, "otro@mail.com");
+
+        assertThrows(PacienteInvalidoException.class, () -> service.actualizar(1L, req));
+    }
+
+    @Test
+    public void actualizar_permiteConservarSuPropioEmail() {
+        PacienteRepository repo = Mockito.mock(PacienteRepository.class);
+        when(repo.buscarPorId(1L)).thenReturn(Optional.of(new Paciente(1L, "Juan Gómez", "30111222", null, null, null, null, null, "juan@mail.com")));
+        when(repo.buscarPorEmail("juan@mail.com"))
+                .thenReturn(Optional.of(new Paciente(1L, "Juan Gómez", "30111222", null, null, null, null, null, "juan@mail.com")));
+        when(repo.guardar(any(Paciente.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        ActualizarPacienteService service = new ActualizarPacienteService(repo);
+
+        CreatePacienteRequest req = new CreatePacienteRequest("Juan Gómez", "30111222", null, null, "Swiss Medical", "1122", "SMG20", "juan@mail.com");
+
+        assertTrue(service.actualizar(1L, req).isPresent());
+    }
 }
