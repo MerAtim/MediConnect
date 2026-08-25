@@ -691,9 +691,39 @@ presentó. Estado de cada punto:
    expone el jwt, `localStorage` no tiene el token crudo, GET/POST/logout
    funcionan solo con la cookie, CORS preflight confirma
    `Access-Control-Allow-Credentials: true` con el origen real (no `*`).
-8. **Pendiente** — `frontend/src/App.jsx` es un archivo único de más de
-   1200 líneas con toda la app adentro. Partirlo en componentes/archivos
-   separados cuando se retome frontend.
+8. ~~`frontend/src/App.jsx` era un archivo único de 1463 líneas~~ —
+   resuelto parcialmente, PR #34 (`feature/split-app-jsx`): se extrajeron
+   los componentes ya standalone que estaban mezclados adentro a archivos
+   propios en `frontend/src/components/` (`FloatingInput`, `ConfirmModal`,
+   `ToastContainer`, `EstadoBadge`, `SkeletonRows`, `CambiarContrasenaModal`,
+   `LoginScreen`, `MedicoForm`, `PacienteForm`, `UsuarioForm`), más
+   `frontend/src/config.js` (las constantes de API/roles) y
+   `frontend/src/utils.js` (`handleInvalid`/`clearValidity`/
+   `readErrorMessage`). `App.jsx` bajó de 1463 a 1017 líneas — **sigue
+   siendo grande** porque el JSX de las secciones de la página (Médicos,
+   Pacientes, Usuarios, Otorgar turno, Turnos) se dejó adentro a propósito:
+   partirlas requeriría threadear bastante estado compartido entre
+   componentes nuevos, con más riesgo de romper algo sutil para un cambio
+   que es puramente cosmético. Si en algún momento se quiere seguir, esas
+   5 secciones son el próximo corte natural. **Bug real encontrado
+   verificando el refactor** (no solo mock de tests, un browser de
+   verdad): el build/dev normal de este proyecto corre en modo
+   zero-config (no hay `vite.config.js`), lo que usa el JSX transform
+   **clásico** de esbuild — cada archivo con JSX necesita `import React`
+   en scope, aunque no use `React.algo` explícitamente. Los 10 archivos
+   nuevos se escribieron primero sin ese import (asumiendo el runtime
+   automático, que sí usa `vitest.config.js` vía `@vitejs/plugin-react`) y
+   `npm run build`/`npm test` pasaban igual — esbuild no valida en
+   build-time que `React` esté en scope, y el entorno de test usa una
+   config de JSX distinta a la real. El error (`React is not defined`)
+   solo aparecía en el navegador real. Quedó arreglado y verificado con
+   Playwright de punta a punta (login, alta/edición de médico, picker de
+   especialidad/médico, búsqueda por DNI, alta de usuario, reset de
+   contraseña, cambio de contraseña propia, logout — sin errores de
+   consola).
 
-Si el usuario no trae un pedido puntual al arrancar la próxima sesión,
-continuar con el punto 2 de esta lista (siguiente en orden de prioridad).
+Se completaron los 8 puntos de la auditoría e2e de esta sesión
+(2026-08-25, PRs #27–#34). No queda ningún pendiente anotado; si el
+usuario no trae un pedido puntual al arrancar la próxima sesión, el corte
+de las 5 secciones de `App.jsx` mencionado en el punto 8 es un buen punto
+de partida.
