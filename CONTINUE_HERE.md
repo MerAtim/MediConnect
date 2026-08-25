@@ -583,9 +583,20 @@ presentó. Estado de cada punto:
    build`, hay que pasarla como `--build-arg` al armar la imagen. Se agregó
    `frontend/.env.example` (con excepción en `.gitignore`, que por defecto
    ignora todo `.env.*`) y una nota en el README.
-3. **Pendiente** — sin rate limiting en `POST /api/auth/login`: evaluar un
-   filtro simple (por IP y/o por email) antes de escalar a algo más
-   sofisticado.
+3. ~~Sin rate limiting en `POST /api/auth/login`~~ — resuelto, PR #29
+   (`feature/login-rate-limit`): `LoginRateLimiter` (puerto en
+   `application.usecase`, implementado por `InMemoryLoginRateLimiter` en
+   `infrastructure.security`, mismo patrón que `TokenService`/
+   `JwtTokenService`) bloquea después de 5 intentos fallidos por email en
+   una ventana de 15 minutos, devolviendo 429 (`DemasiadosIntentosException`,
+   nuevo handler en `GlobalExceptionHandler`). Un login exitoso resetea el
+   contador de ese email. **Limitación conocida**: contador en memoria por
+   instancia — se resetea si el proceso reinicia y no se comparte si el
+   backend corre replicado; alcanza para el despliegue actual (una sola
+   instancia), pero si eso cambia habría que mover el contador a algo
+   compartido (Redis). Clave por email (no por IP) a propósito, para no
+   bloquear a usuarios legítimos detrás de un NAT/proxy compartido que
+   comparten IP con un atacante.
 4. **Pendiente** — cero tests automatizados de frontend y el CI
    (`.github/workflows/maven.yml`) no corre nada de `frontend/` (ni
    siquiera `npm run build`). Agregar al menos un job de CI que corra

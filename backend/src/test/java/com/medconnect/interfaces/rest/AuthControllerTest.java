@@ -5,6 +5,7 @@ import com.medconnect.application.usecase.LoginUseCase;
 import com.medconnect.application.usecase.RegistrarUsuarioResponse;
 import com.medconnect.application.usecase.RegistrarUsuarioUseCase;
 import com.medconnect.domain.exception.CredencialesInvalidasException;
+import com.medconnect.domain.exception.DemasiadosIntentosException;
 import com.medconnect.domain.exception.UsuarioInvalidoException;
 import com.medconnect.domain.model.UsuarioRole;
 import org.junit.jupiter.api.BeforeEach;
@@ -99,5 +100,19 @@ public class AuthControllerTest {
                         .content(body))
                 .andExpect(status().isUnauthorized())
                 .andExpect(content().string("email o contraseña incorrectos"));
+    }
+
+    @Test
+    public void login_devuelve429_siDemasiadosIntentos() throws Exception {
+        when(loginUseCase.login(any()))
+                .thenThrow(new DemasiadosIntentosException("Demasiados intentos fallidos. Probá de nuevo en unos minutos."));
+
+        String body = "{\"email\":\"ana@medconnect.com\",\"contrasena\":\"mala\"}";
+
+        mockMvc.perform(post("/api/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isTooManyRequests())
+                .andExpect(content().string("Demasiados intentos fallidos. Probá de nuevo en unos minutos."));
     }
 }

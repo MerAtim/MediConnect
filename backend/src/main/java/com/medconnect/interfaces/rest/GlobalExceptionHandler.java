@@ -1,6 +1,7 @@
 package com.medconnect.interfaces.rest;
 
 import com.medconnect.domain.exception.CredencialesInvalidasException;
+import com.medconnect.domain.exception.DemasiadosIntentosException;
 import com.medconnect.domain.exception.MedicoInvalidoException;
 import com.medconnect.domain.exception.PacienteInvalidoException;
 import com.medconnect.domain.exception.RegistroClinicoInvalidoException;
@@ -42,5 +43,10 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(CredencialesInvalidasException.class)
     public ResponseEntity<String> handleCredencialesInvalidas(CredencialesInvalidasException ex) {
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(ex.getMessage());
+    }
+
+    @ExceptionHandler(DemasiadosIntentosException.class)
+    public ResponseEntity<String> handleDemasiadosIntentos(DemasiadosIntentosException ex) {
+        return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS).body(ex.getMessage());
     }
 }
