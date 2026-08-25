@@ -38,6 +38,11 @@ public class UsuarioRepositoryAdapter implements UsuarioRepository {
     }
 
     @Override
+    public Optional<Usuario> buscarPorId(Long id) {
+        return jpaRepository.findById(id).map(this::toDomain);
+    }
+
+    @Override
     public List<Usuario> buscarTodos() {
         return jpaRepository.findAll().stream().map(this::toDomain).toList();
     }

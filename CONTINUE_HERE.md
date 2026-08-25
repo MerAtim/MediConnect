@@ -629,8 +629,22 @@ presentó. Estado de cada punto:
    sacó `typescript` de `frontend/package.json` (devDependency sin uso
    real: sin `tsconfig.json`, sin ningún `.ts`/`.tsx`) — decisión tomada
    en vez de dejarla, ya que no había ningún plan concreto de migrar.
-6. **Pendiente** — no hay "olvidé mi contraseña" ni cambio de contraseña
-   para ningún rol, ni siquiera ADMINISTRADOR.
+6. ~~No hay "olvidé mi contraseña" ni cambio de contraseña~~ — resuelto,
+   PR #32 (`feature/cambiar-contrasena`). Se descartó el flujo clásico por
+   email (el proyecto no tiene SMTP configurado ni infraestructura de envío
+   de emails) a favor de dos mecanismos que no la necesitan:
+   `PATCH /api/usuarios/me/contrasena` (cualquier rol logueado cambia la
+   propia sabiendo la actual) y `PATCH /api/usuarios/{id}/contrasena`
+   (ADMINISTRADOR resetea la de cualquier usuario sin necesitar la vieja —
+   es el mecanismo de "recuperación": el usuario le pide al admin que se
+   la resetee). `ActualizarContrasenaUseCase`/`ActualizarContrasenaService`
+   (application.usecase), reutiliza `UsuarioInvalidoException` para
+   validación (contraseña actual incorrecta, nueva muy corta). Se agregó
+   `UsuarioRepository.buscarPorId` (no existía). Frontend: botón "Cambiar
+   contraseña" en el header (todos los roles) y una tabla nueva de cuentas
+   en la sección "Usuarios" (antes solo tenía el form de alta, sin forma de
+   ver ni gestionar las cuentas existentes) con acción "Resetear
+   contraseña" por fila, ambos con el mismo `CambiarContrasenaModal`.
 7. **Pendiente** — JWT en `localStorage`, logout solo borra el token local
    (sigue siendo válido en el servidor hasta expirar, 24hs). Es el
    trade-off normal de JWT sin sesión server-side; evaluar si vale la pena
