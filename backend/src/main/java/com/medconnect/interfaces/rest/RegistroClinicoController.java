@@ -11,6 +11,8 @@ import com.medconnect.domain.model.Medico;
 import com.medconnect.domain.model.Paciente;
 import com.medconnect.domain.model.RegistroClinico;
 import com.medconnect.domain.model.Turno;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -36,6 +38,7 @@ import java.util.Optional;
 @RequestMapping("/api/historias-clinicas")
 public class RegistroClinicoController {
 
+    private static final Logger log = LoggerFactory.getLogger(RegistroClinicoController.class);
     private static final DateTimeFormatter FORMATO_FECHA = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
 
     private final CrearRegistroClinicoUseCase crearRegistroClinicoUseCase;
@@ -61,6 +64,7 @@ public class RegistroClinicoController {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         Optional<Medico> medico = buscarMedicoUseCase.buscarPorEmail(auth.getName());
         if (medico.isEmpty()) {
+            log.warn("Intento de crear registro clinico denegado (cuenta sin medico vinculado): email={}", auth.getName());
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         }
         // medicoId se toma siempre de la cuenta autenticada, nunca del body: si viniera del
@@ -73,6 +77,8 @@ public class RegistroClinicoController {
                 request.getObservaciones()
         );
         CreateRegistroClinicoResponse resp = crearRegistroClinicoUseCase.crear(req);
+        log.info("Registro clinico creado: id={} medicoId={} pacienteId={} autor={}",
+                resp.getId(), medico.get().getId(), request.getPacienteId(), auth.getName());
         return ResponseEntity.status(HttpStatus.CREATED).body(resp);
     }
 
@@ -80,9 +86,11 @@ public class RegistroClinicoController {
     public ResponseEntity<List<RegistroClinicoResponse>> buscarPorPaciente(@RequestParam Long pacienteId) {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         if (!esPacienteDeEseMedico(auth, pacienteId)) {
+            log.warn("Acceso denegado a historia clinica: medico={} pacienteId={} (sin relacion)", auth.getName(), pacienteId);
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         }
         List<RegistroClinico> registros = buscarRegistroClinicoUseCase.buscarPorPaciente(pacienteId);
+        log.info("Acceso a historia clinica: medico={} pacienteId={} registros={}", auth.getName(), pacienteId, registros.size());
         return ResponseEntity.ok(toResponseList(registros));
     }
 
@@ -98,6 +106,8 @@ public class RegistroClinicoController {
 
     @GetMapping("/exportar")
     public ResponseEntity<byte[]> exportar(@RequestParam Long pacienteId) {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        log.info("Exportacion de historia clinica: admin={} pacienteId={}", auth != null ? auth.getName() : null, pacienteId);
         return buscarPacienteUseCase.buscarPorId(pacienteId)
                 .map(paciente -> {
                     List<RegistroClinico> registros = buscarRegistroClinicoUseCase.buscarPorPaciente(pacienteId);

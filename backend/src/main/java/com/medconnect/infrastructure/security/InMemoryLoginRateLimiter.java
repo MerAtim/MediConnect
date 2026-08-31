@@ -2,6 +2,8 @@ package com.medconnect.infrastructure.security;
 
 import com.medconnect.application.usecase.LoginRateLimiter;
 import com.medconnect.domain.exception.DemasiadosIntentosException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 import java.time.Duration;
@@ -16,6 +18,8 @@ import java.util.concurrent.ConcurrentHashMap;
 @Component
 public class InMemoryLoginRateLimiter implements LoginRateLimiter {
 
+    private static final Logger log = LoggerFactory.getLogger(InMemoryLoginRateLimiter.class);
+
     private static final int MAX_INTENTOS = 5;
     private static final Duration VENTANA = Duration.ofMinutes(15);
 
@@ -25,6 +29,7 @@ public class InMemoryLoginRateLimiter implements LoginRateLimiter {
     public void verificarPermitido(String email) {
         Intentos intentos = intentosPorEmail.get(normalizar(email));
         if (intentos != null && intentos.excedioLimite()) {
+            log.warn("Email bloqueado por demasiados intentos fallidos de login: email={}", normalizar(email));
             throw new DemasiadosIntentosException("Demasiados intentos fallidos. Probá de nuevo en unos minutos.");
         }
     }

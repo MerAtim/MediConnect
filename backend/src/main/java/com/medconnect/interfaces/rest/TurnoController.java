@@ -12,6 +12,8 @@ import com.medconnect.domain.model.Medico;
 import com.medconnect.domain.model.Paciente;
 import com.medconnect.domain.model.Turno;
 import com.medconnect.domain.model.TurnoEstado;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
@@ -33,6 +35,8 @@ import java.util.Optional;
 @RestController
 @RequestMapping("/api/turnos")
 public class TurnoController {
+
+    private static final Logger log = LoggerFactory.getLogger(TurnoController.class);
 
     private final CrearTurnoUseCase crearTurnoUseCase;
     private final BuscarTurnoUseCase buscarTurnoUseCase;
@@ -71,6 +75,7 @@ public class TurnoController {
         }
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         if (!puedeVerTurno(auth, turno.get())) {
+            log.warn("Acceso denegado a turno: usuario={} turnoId={}", auth != null ? auth.getName() : null, id);
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         }
         return ResponseEntity.ok(toResponseList(List.of(turno.get())).get(0));
@@ -136,6 +141,7 @@ public class TurnoController {
                     && turno.get().getPaciente() != null
                     && paciente.get().getId().equals(turno.get().getPaciente().getId());
             if (!esPropio) {
+                log.warn("Cambio de estado de turno denegado: paciente={} turnoId={}", auth.getName(), id);
                 return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
             }
         } else if (tieneRol(auth, "MEDICO")) {
@@ -145,12 +151,17 @@ public class TurnoController {
                     && turno.get().getMedico() != null
                     && medico.get().getId().equals(turno.get().getMedico().getId());
             if (!esPropio) {
+                log.warn("Cambio de estado de turno denegado: medico={} turnoId={}", auth.getName(), id);
                 return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
             }
         }
 
         return actualizarEstadoTurnoUseCase.actualizarEstado(id, nuevoEstado)
-                .map(turno -> ResponseEntity.ok(toResponseList(List.of(turno)).get(0)))
+                .map(turno -> {
+                    log.info("Turno actualizado: turnoId={} nuevoEstado={} autor={}",
+                            id, nuevoEstado, auth != null ? auth.getName() : null);
+                    return ResponseEntity.ok(toResponseList(List.of(turno)).get(0));
+                })
                 .orElseGet(() -> ResponseEntity.notFound().build());
     }
 
