@@ -20,8 +20,8 @@ public class RegistrarUsuarioService implements RegistrarUsuarioUseCase {
 
     @Override
     public RegistrarUsuarioResponse registrar(RegistrarUsuarioRequest request) {
-        if (request.getRole() == UsuarioRole.ADMINISTRADOR) {
-            throw new UsuarioInvalidoException("no se puede autoregistrar como ADMINISTRADOR");
+        if (request.getRole() != UsuarioRole.PACIENTE) {
+            throw new UsuarioInvalidoException("el autoregistro solo esta disponible para pacientes");
         }
         return guardar(request);
     }

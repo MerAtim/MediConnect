@@ -16,5 +16,4 @@ export const ESTADO_BADGE = {
   CANCELADO: 'badge-cancelado',
 }
 
-export const ROLES = ['MEDICO', 'PACIENTE']
 export const ROLES_ADMIN = ['ADMINISTRADOR', 'MEDICO', 'PACIENTE']

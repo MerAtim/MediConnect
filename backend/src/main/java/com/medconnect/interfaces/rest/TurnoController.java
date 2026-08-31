@@ -137,6 +137,15 @@ public class TurnoController {
             if (!esPropio) {
                 return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
             }
+        } else if (tieneRol(auth, "MEDICO")) {
+            Optional<Medico> medico = buscarMedicoUseCase.buscarPorEmail(auth.getName());
+            Optional<Turno> turno = buscarTurnoUseCase.buscarPorId(id);
+            boolean esPropio = medico.isPresent() && turno.isPresent()
+                    && turno.get().getMedico() != null
+                    && medico.get().getId().equals(turno.get().getMedico().getId());
+            if (!esPropio) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+            }
         }
 
         return actualizarEstadoTurnoUseCase.actualizarEstado(id, nuevoEstado)

@@ -1,14 +1,16 @@
 import React, { useState } from 'react'
-import { AUTH_API, ROLES } from '../config.js'
+import { AUTH_API } from '../config.js'
 import { readErrorMessage } from '../utils.js'
 import FloatingInput from './FloatingInput.jsx'
 
+// El autoregistro publico solo crea cuentas PACIENTE. Cuentas MEDICO las crea
+// un Administrador desde la sección Usuarios (evita que cualquiera se
+// autoasigne un rol con acceso a historias clínicas de otros pacientes).
 export default function LoginScreen({onLoginExitoso, notify}){
   const [modo, setModo] = useState('login')
   const [email, setEmail] = useState('')
   const [contrasena, setContrasena] = useState('')
   const [nombre, setNombre] = useState('')
-  const [role, setRole] = useState('PACIENTE')
   const [loading, setLoading] = useState(false)
 
   async function iniciarSesion(emailParam, contrasenaParam){
@@ -42,7 +44,7 @@ export default function LoginScreen({onLoginExitoso, notify}){
         method: 'POST',
         credentials: 'include',
         headers: {'Content-Type':'application/json'},
-        body: JSON.stringify({nombre, email, contrasena, role})
+        body: JSON.stringify({nombre, email, contrasena, role: 'PACIENTE'})
       })
       if(!resp.ok) throw new Error(await readErrorMessage(resp))
       notify('Cuenta creada.', 'success')
@@ -73,9 +75,6 @@ export default function LoginScreen({onLoginExitoso, notify}){
             <FloatingInput label="Nombre" value={nombre} onChange={e=>setNombre(e.target.value)} required />
             <FloatingInput label="Email" type="email" value={email} onChange={e=>setEmail(e.target.value)} required />
             <FloatingInput label="Contraseña (mín. 6 caracteres)" type="password" value={contrasena} onChange={e=>setContrasena(e.target.value)} required />
-            <select className="input-field" value={role} onChange={e=>setRole(e.target.value)}>
-              {ROLES.map(r => <option key={r} value={r}>{r}</option>)}
-            </select>
             <button type="submit" disabled={loading} className="btn-primary w-full">
               {loading ? 'Creando cuenta…' : 'Crear cuenta'}
             </button>

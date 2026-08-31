@@ -100,6 +100,21 @@ public class RegistrarUsuarioServiceTest {
     }
 
     @Test
+    public void registrar_lanzaExcepcion_siRoleEsMedico() {
+        // El autoregistro publico solo puede crear cuentas PACIENTE: una cuenta MEDICO
+        // sin vinculacion ni aprobacion de un admin podria leer/escribir historias
+        // clinicas de cualquier paciente con solo registrarse.
+        UsuarioRepository repo = Mockito.mock(UsuarioRepository.class);
+        PasswordEncoder encoder = Mockito.mock(PasswordEncoder.class);
+        RegistrarUsuarioService service = new RegistrarUsuarioService(repo, encoder);
+
+        RegistrarUsuarioRequest req = new RegistrarUsuarioRequest("Ana", "ana@medconnect.com", "secreto123", UsuarioRole.MEDICO);
+
+        assertThrows(UsuarioInvalidoException.class, () -> service.registrar(req));
+        Mockito.verify(repo, Mockito.never()).guardar(any(Usuario.class));
+    }
+
+    @Test
     public void registrarComoAdmin_permiteRoleAdministrador() {
         UsuarioRepository repo = Mockito.mock(UsuarioRepository.class);
         PasswordEncoder encoder = Mockito.mock(PasswordEncoder.class);

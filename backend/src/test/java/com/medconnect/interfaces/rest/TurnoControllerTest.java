@@ -330,6 +330,43 @@ public class TurnoControllerTest {
     }
 
     @Test
+    public void actualizarEstado_medicoPuedeCambiarEstadoDeSuPropioTurno() throws Exception {
+        loguearComo("MEDICO", "medico@medconnect.com");
+        Medico medico = new Medico(2L, null, null, null, null, null, null, null);
+        Turno turno = new Turno(1L, LocalDateTime.of(2026, 8, 12, 10, 0), "Cardiología",
+                medico, new Paciente(3L, null, null, null, null, null, null, null, null), TurnoEstado.PENDIENTE);
+        when(buscarMedicoUseCase.buscarPorEmail("medico@medconnect.com")).thenReturn(Optional.of(medico));
+        when(buscarTurnoUseCase.buscarPorId(1L)).thenReturn(Optional.of(turno));
+        when(actualizarEstadoTurnoUseCase.actualizarEstado(eq(1L), eq(TurnoEstado.CONFIRMADO)))
+                .thenReturn(Optional.of(turno));
+
+        mockMvc.perform(patch("/api/turnos/1/estado")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"estado\":\"CONFIRMADO\"}"))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    public void actualizarEstado_medicoNoPuedeCambiarEstadoDeTurnoAjeno() throws Exception {
+        // Antes de este fix, cualquier MEDICO podia confirmar/cancelar el turno de
+        // OTRO medico con solo conocer el id.
+        loguearComo("MEDICO", "medico@medconnect.com");
+        Medico medicoLogueado = new Medico(2L, null, null, null, null, null, null, null);
+        Medico medicoDelTurno = new Medico(99L, null, null, null, null, null, null, null);
+        Turno turno = new Turno(1L, LocalDateTime.of(2026, 8, 12, 10, 0), "Cardiología",
+                medicoDelTurno, new Paciente(3L, null, null, null, null, null, null, null, null), TurnoEstado.PENDIENTE);
+        when(buscarMedicoUseCase.buscarPorEmail("medico@medconnect.com")).thenReturn(Optional.of(medicoLogueado));
+        when(buscarTurnoUseCase.buscarPorId(1L)).thenReturn(Optional.of(turno));
+
+        mockMvc.perform(patch("/api/turnos/1/estado")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"estado\":\"CONFIRMADO\"}"))
+                .andExpect(status().isForbidden());
+
+        Mockito.verify(actualizarEstadoTurnoUseCase, Mockito.never()).actualizarEstado(any(), any());
+    }
+
+    @Test
     public void actualizarEstado_pacienteNoPuedeCancelarTurnoAjeno() throws Exception {
         loguearComo("PACIENTE", "paciente@medconnect.com");
         Paciente pacienteLogueado = new Paciente(3L, null, null, null, null, null, null, null, null);
