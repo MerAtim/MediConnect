@@ -210,6 +210,34 @@ public class TurnoControllerTest {
     }
 
     @Test
+    public void buscar_batcheaLasConsultasDeMedicoYPaciente_enUnaSolaLlamada() throws Exception {
+        // Antes, toResponse() llamaba buscarPorId una vez por turno (N+1). Este
+        // test prueba que ahora es una sola llamada batch para todo el listado,
+        // sin importar cuantos turnos compartan medico/paciente.
+        Medico medicoA = new Medico(2L, "Dr A", "Cardiología", null, null, null, null, null);
+        Medico medicoB = new Medico(5L, "Dr B", "Dermatología", null, null, null, null, null);
+        Paciente paciente = new Paciente(3L, "Juan Gómez", null, null, null, null, null, null, null);
+        List<Turno> turnos = List.of(
+                new Turno(1L, LocalDateTime.of(2026, 8, 12, 10, 0), "Cardiología", medicoA, paciente, TurnoEstado.PENDIENTE),
+                new Turno(2L, LocalDateTime.of(2026, 8, 12, 11, 0), "Dermatología", medicoB, paciente, TurnoEstado.PENDIENTE)
+        );
+        when(buscarTurnoUseCase.buscarTodos()).thenReturn(turnos);
+        when(buscarMedicoUseCase.buscarPorIds(List.of(2L, 5L))).thenReturn(java.util.Map.of(2L, medicoA, 5L, medicoB));
+        when(buscarPacienteUseCase.buscarPorIds(List.of(3L))).thenReturn(java.util.Map.of(3L, paciente));
+
+        mockMvc.perform(get("/api/turnos"))
+                .andExpect(status().isOk())
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$.content[0].medicoNombre").value("Dr A"))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$.content[1].medicoNombre").value("Dr B"))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$.content[0].pacienteNombre").value("Juan Gómez"));
+
+        Mockito.verify(buscarMedicoUseCase, Mockito.times(1)).buscarPorIds(any());
+        Mockito.verify(buscarPacienteUseCase, Mockito.times(1)).buscarPorIds(any());
+        Mockito.verify(buscarMedicoUseCase, Mockito.never()).buscarPorId(any());
+        Mockito.verify(buscarPacienteUseCase, Mockito.never()).buscarPorId(any());
+    }
+
+    @Test
     public void actualizarEstado_devuelve200_yBody_siExiste() throws Exception {
         Turno turno = new Turno(1L, LocalDateTime.of(2026, 8, 12, 10, 0), "Cardiología",
                 new Medico(2L, null, null, null, null, null, null, null),

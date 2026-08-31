@@ -12,6 +12,9 @@ public interface PacienteJpaRepository extends JpaRepository<PacienteEntity, Lon
     @Query("SELECT p FROM PacienteEntity p WHERE p.id = :id AND (p.activo = true OR p.activo IS NULL)")
     Optional<PacienteEntity> findActivoById(@Param("id") Long id);
 
+    @Query("SELECT p FROM PacienteEntity p WHERE p.id IN :ids AND (p.activo = true OR p.activo IS NULL)")
+    List<PacienteEntity> findActivosByIdIn(@Param("ids") List<Long> ids);
+
     @Query("SELECT p FROM PacienteEntity p WHERE p.activo = true OR p.activo IS NULL")
     List<PacienteEntity> findAllActivos();
 

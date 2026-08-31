@@ -5,7 +5,10 @@ import com.medconnect.domain.port.MedicoRepository;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @Service
 public class BuscarMedicoService implements BuscarMedicoUseCase {
@@ -19,6 +22,15 @@ public class BuscarMedicoService implements BuscarMedicoUseCase {
     @Override
     public Optional<Medico> buscarPorId(Long id) {
         return medicoRepository.buscarPorId(id);
+    }
+
+    @Override
+    public Map<Long, Medico> buscarPorIds(List<Long> ids) {
+        if (ids.isEmpty()) {
+            return Map.of();
+        }
+        return medicoRepository.buscarPorIds(ids).stream()
+                .collect(Collectors.toMap(Medico::getId, Function.identity()));
     }
 
     @Override

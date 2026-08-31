@@ -26,6 +26,8 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 
 @RestController
@@ -71,7 +73,7 @@ public class TurnoController {
         if (!puedeVerTurno(auth, turno.get())) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         }
-        return ResponseEntity.ok(toResponse(turno.get()));
+        return ResponseEntity.ok(toResponseList(List.of(turno.get())).get(0));
     }
 
     private boolean puedeVerTurno(Authentication auth, Turno turno) {
@@ -111,8 +113,7 @@ public class TurnoController {
         } else {
             turnos = buscarTurnoUseCase.buscarTodos();
         }
-        List<TurnoResponse> todos = turnos.stream().map(this::toResponse).toList();
-        return ResponseEntity.ok(PageResponse.of(todos, page, size));
+        return ResponseEntity.ok(PageResponse.of(toResponseList(turnos), page, size));
     }
 
     @PatchMapping("/{id}/estado")
@@ -149,7 +150,7 @@ public class TurnoController {
         }
 
         return actualizarEstadoTurnoUseCase.actualizarEstado(id, nuevoEstado)
-                .map(turno -> ResponseEntity.ok(toResponse(turno)))
+                .map(turno -> ResponseEntity.ok(toResponseList(List.of(turno)).get(0)))
                 .orElseGet(() -> ResponseEntity.notFound().build());
     }
 
@@ -158,11 +159,25 @@ public class TurnoController {
                 .anyMatch(a -> a.getAuthority().equals("ROLE_" + rol));
     }
 
-    private TurnoResponse toResponse(Turno turno) {
+    // Batchea las consultas de medico/paciente en 2 queries totales en vez de
+    // 2 por turno (evita el N+1 al listar).
+    private List<TurnoResponse> toResponseList(List<Turno> turnos) {
+        List<Long> medicoIds = turnos.stream()
+                .map(t -> t.getMedico() != null ? t.getMedico().getId() : null)
+                .filter(Objects::nonNull).distinct().toList();
+        List<Long> pacienteIds = turnos.stream()
+                .map(t -> t.getPaciente() != null ? t.getPaciente().getId() : null)
+                .filter(Objects::nonNull).distinct().toList();
+        Map<Long, Medico> medicos = buscarMedicoUseCase.buscarPorIds(medicoIds);
+        Map<Long, Paciente> pacientes = buscarPacienteUseCase.buscarPorIds(pacienteIds);
+        return turnos.stream().map(t -> toResponse(t, medicos, pacientes)).toList();
+    }
+
+    private TurnoResponse toResponse(Turno turno, Map<Long, Medico> medicos, Map<Long, Paciente> pacientes) {
         Long medicoId = turno.getMedico() != null ? turno.getMedico().getId() : null;
         Long pacienteId = turno.getPaciente() != null ? turno.getPaciente().getId() : null;
-        Medico medico = medicoId != null ? buscarMedicoUseCase.buscarPorId(medicoId).orElse(null) : null;
-        Paciente paciente = pacienteId != null ? buscarPacienteUseCase.buscarPorId(pacienteId).orElse(null) : null;
+        Medico medico = medicoId != null ? medicos.get(medicoId) : null;
+        Paciente paciente = pacienteId != null ? pacientes.get(pacienteId) : null;
         return new TurnoResponse(
                 turno.getId(),
                 turno.getFechaHora(),

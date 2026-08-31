@@ -42,6 +42,14 @@ public class PacienteRepositoryAdapter implements PacienteRepository {
     }
 
     @Override
+    public List<Paciente> buscarPorIds(List<Long> ids) {
+        if (ids.isEmpty()) {
+            return List.of();
+        }
+        return jpaRepository.findActivosByIdIn(ids).stream().map(this::toDomain).toList();
+    }
+
+    @Override
     public Optional<Paciente> buscarPorEmail(String email) {
         return jpaRepository.findActivoByEmail(email).map(this::toDomain);
     }
