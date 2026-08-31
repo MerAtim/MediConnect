@@ -183,6 +183,11 @@ public class CrearTurnoIntegrationTest {
         }
 
         @Override
+        public List<Medico> buscarPorIds(List<Long> ids) {
+            return store.stream().filter(m -> ids.contains(m.getId())).toList();
+        }
+
+        @Override
         public java.util.Optional<Medico> buscarPorEmail(String email) {
             return store.stream().filter(m -> email.equals(m.getEmail())).findFirst();
         }
@@ -212,6 +217,11 @@ public class CrearTurnoIntegrationTest {
         @Override
         public java.util.Optional<Paciente> buscarPorId(Long id) {
             return store.stream().filter(p -> p.getId().equals(id)).findFirst();
+        }
+
+        @Override
+        public List<Paciente> buscarPorIds(List<Long> ids) {
+            return store.stream().filter(p -> ids.contains(p.getId())).toList();
         }
 
         @Override

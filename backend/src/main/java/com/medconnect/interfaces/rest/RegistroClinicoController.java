@@ -28,6 +28,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.nio.charset.StandardCharsets;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 
@@ -82,7 +83,7 @@ public class RegistroClinicoController {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         }
         List<RegistroClinico> registros = buscarRegistroClinicoUseCase.buscarPorPaciente(pacienteId);
-        return ResponseEntity.ok(registros.stream().map(this::toResponse).toList());
+        return ResponseEntity.ok(toResponseList(registros));
     }
 
     private boolean esPacienteDeEseMedico(Authentication auth, Long pacienteId) {
@@ -113,6 +114,8 @@ public class RegistroClinicoController {
     }
 
     private String formatearDocumento(Paciente paciente, List<RegistroClinico> registros) {
+        Map<Long, Medico> medicos = buscarMedicoUseCase.buscarPorIds(medicoIdsDe(registros));
+
         StringBuilder sb = new StringBuilder();
         sb.append("Historia clínica\n");
         sb.append("Paciente: ").append(paciente.getNombre()).append(" (DNI ").append(paciente.getDni()).append(")\n");
@@ -121,10 +124,9 @@ public class RegistroClinicoController {
             sb.append("Sin registros clínicos.\n");
         }
         for (RegistroClinico r : registros) {
-            String nombreMedico = buscarMedicoUseCase.buscarPorId(r.getMedico().getId())
-                    .map(Medico::getNombre).orElse("médico #" + r.getMedico().getId());
-            String especialidad = buscarMedicoUseCase.buscarPorId(r.getMedico().getId())
-                    .map(Medico::getEspecialidad).orElse("");
+            Medico medico = medicos.get(r.getMedico().getId());
+            String nombreMedico = medico != null ? medico.getNombre() : "médico #" + r.getMedico().getId();
+            String especialidad = medico != null && medico.getEspecialidad() != null ? medico.getEspecialidad() : "";
             sb.append(r.getFecha().format(FORMATO_FECHA)).append(" — ").append(nombreMedico);
             if (!especialidad.isBlank()) sb.append(" (").append(especialidad).append(")");
             sb.append("\n");
@@ -138,9 +140,22 @@ public class RegistroClinicoController {
         return sb.toString();
     }
 
-    private RegistroClinicoResponse toResponse(RegistroClinico r) {
+    // Batchea la consulta de medicos en 1 query total en vez de 2 por registro
+    // (evita el N+1 al listar y al exportar).
+    private List<RegistroClinicoResponse> toResponseList(List<RegistroClinico> registros) {
+        Map<Long, Medico> medicos = buscarMedicoUseCase.buscarPorIds(medicoIdsDe(registros));
+        return registros.stream().map(r -> toResponse(r, medicos)).toList();
+    }
+
+    private List<Long> medicoIdsDe(List<RegistroClinico> registros) {
+        return registros.stream()
+                .map(r -> r.getMedico() != null ? r.getMedico().getId() : null)
+                .filter(Objects::nonNull).distinct().toList();
+    }
+
+    private RegistroClinicoResponse toResponse(RegistroClinico r, Map<Long, Medico> medicos) {
         Long medicoId = r.getMedico() != null ? r.getMedico().getId() : null;
-        Medico medico = medicoId != null ? buscarMedicoUseCase.buscarPorId(medicoId).orElse(null) : null;
+        Medico medico = medicoId != null ? medicos.get(medicoId) : null;
         return new RegistroClinicoResponse(
                 r.getId(),
                 r.getFecha(),

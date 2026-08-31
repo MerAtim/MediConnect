@@ -26,6 +26,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 
@@ -136,15 +137,15 @@ public class PacienteController {
     }
 
     private List<Paciente> pacientesDeEseMedico(Medico medico) {
-        return buscarTurnoUseCase.buscarPorMedico(medico.getId()).stream()
+        // Batchea la consulta en 1 query total en vez de 1 por paciente distinto.
+        List<Long> pacienteIds = buscarTurnoUseCase.buscarPorMedico(medico.getId()).stream()
                 .map(Turno::getPaciente)
                 .filter(Objects::nonNull)
                 .map(Paciente::getId)
                 .distinct()
-                .map(buscarPacienteUseCase::buscarPorId)
-                .filter(Optional::isPresent)
-                .map(Optional::get)
                 .toList();
+        Map<Long, Paciente> pacientes = buscarPacienteUseCase.buscarPorIds(pacienteIds);
+        return pacienteIds.stream().map(pacientes::get).filter(Objects::nonNull).toList();
     }
 
     private boolean tieneRolMedico(Authentication auth) {

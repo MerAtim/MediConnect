@@ -185,7 +185,7 @@ public class PacienteControllerTest {
                 1L, null, "Cardiología", medico, paciente, null);
         when(buscarMedicoUseCase.buscarPorEmail("medico@medconnect.com")).thenReturn(Optional.of(medico));
         when(buscarTurnoUseCase.buscarPorMedico(2L)).thenReturn(List.of(turno));
-        when(buscarPacienteUseCase.buscarPorId(3L)).thenReturn(Optional.of(paciente));
+        when(buscarPacienteUseCase.buscarPorIds(List.of(3L))).thenReturn(java.util.Map.of(3L, paciente));
 
         mockMvc.perform(get("/api/pacientes"))
                 .andExpect(status().isOk())
