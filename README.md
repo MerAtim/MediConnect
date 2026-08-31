@@ -58,6 +58,11 @@ env vars que los overridean.
 1. Ir a `backend/`
 2. Ejecutar `DB_PASSWORD=<tu-password> ./mvnw spring-boot:run` (Windows:
    `./mvnw.cmd spring-boot:run`, o `$env:DB_PASSWORD='...'` en PowerShell)
+3. Documentación interactiva de la API (Swagger UI) en
+   `http://localhost:8080/swagger-ui.html` — para probar un endpoint
+   protegido con "Try it out" hay que estar logueado en la app desde el
+   mismo navegador (el JWT viaja en una cookie httpOnly, no hay forma de
+   pegarlo a mano en Swagger).
 
 ### Frontend
 1. Ir a `frontend/`

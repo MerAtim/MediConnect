@@ -925,7 +925,27 @@ por punto, mismo flujo de siempre. Estado:
    - El resto de la suite (171 tests sin contar `CrearTurnoIntegrationTest`)
      se corrió y verificó localmente sin problema — el hueco es
      específico de esta única clase, que depende de Docker.
-9. Mejoras de diseño de menor urgencia (Value Objects, Factory pattern,
-   índices de DB en `medico_id`/`paciente_id`, versionado de API, OpenAPI,
-   accesibilidad de los forms inline de `App.jsx`) — pendiente, sin
-   priorizar todavía dentro del grupo.
+9. Mejoras de diseño de menor urgencia — de las 6 sugeridas, el usuario
+   priorizó solo **OpenAPI/Swagger**; las demás (Value Objects, Factory
+   pattern, índices de DB en `medico_id`/`paciente_id`, versionado de API,
+   accesibilidad de los forms inline de `App.jsx`) quedan sin hacer, no
+   se pidieron.
+   - ~~OpenAPI/Swagger~~ — resuelto, PR #43 (`feature/openapi-swagger`):
+     `springdoc-openapi-starter-webmvc-ui` (versión `2.5.0`, no manejada
+     por el BOM de Spring Boot, hay que bumpearla a mano si se actualiza
+     Spring Boot más adelante). `/v3/api-docs` y `/swagger-ui/**` agregados
+     a `SecurityConfig` como `permitAll` — son metadata de rutas/DTOs, no
+     datos de pacientes, y el valor de "probar un endpoint sin armar curl a
+     mano" se pierde si primero hay que autenticarse para ver la doc.
+     `OpenApiConfig` (nuevo) solo pone título/descripción — deliberadamente
+     **no** se configuró un `SecurityScheme` de Bearer/cookie falso: el JWT
+     va en una cookie httpOnly, así que ni JS ni Swagger UI pueden leerla o
+     setearla desde el botón "Authorize" (esa limitación es del browser, no
+     de springdoc). Para probar un endpoint protegido desde
+     `/swagger-ui.html` hay que estar logueado en la app en el mismo
+     navegador/origen primero — el "Try it out" manda la cookie sola, como
+     cualquier otro fetch del sitio. Documentado en el README. Verificado
+     con curl (`/v3/api-docs` público, 200, lista los 20 endpoints de los 6
+     controllers) y con Playwright (`/swagger-ui/index.html` renderiza
+     título/descripción/servers/endpoints agrupados por controller, cero
+     errores de consola).
