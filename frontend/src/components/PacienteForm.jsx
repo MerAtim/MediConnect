@@ -1,4 +1,5 @@
 import React, { useState } from 'react'
+import { apiFetch } from '../apiClient.js'
 import { PACIENTES_API } from '../config.js'
 import { readErrorMessage } from '../utils.js'
 import FloatingInput from './FloatingInput.jsx'
@@ -20,9 +21,8 @@ export default function PacienteForm({paciente, onGuardado, onCancelarEdicion, n
     setLoading(true)
     try{
       const url = isEditing ? `${PACIENTES_API}/${paciente.id}` : PACIENTES_API
-      const resp = await fetch(url, {
+      const resp = await apiFetch(url, {
         method: isEditing ? 'PUT' : 'POST',
-        credentials: 'include',
         headers: {'Content-Type':'application/json'},
         body: JSON.stringify({nombre, dni, telefono, direccion, obraSocial, numeroAfiliado, plan, email})
       })

@@ -1,4 +1,5 @@
 import React, { useState } from 'react'
+import { apiFetch } from '../apiClient.js'
 import { USUARIOS_API } from '../config.js'
 import { readErrorMessage } from '../utils.js'
 import FloatingInput from './FloatingInput.jsx'
@@ -20,9 +21,8 @@ export default function CambiarContrasenaModal({open, modo, usuarioObjetivo, not
     try{
       const url = modo === 'propia' ? `${USUARIOS_API}/me/contrasena` : `${USUARIOS_API}/${usuarioObjetivo.id}/contrasena`
       const body = modo === 'propia' ? {contrasenaActual, contrasenaNueva} : {contrasenaNueva}
-      const resp = await fetch(url, {
+      const resp = await apiFetch(url, {
         method: 'PATCH',
-        credentials: 'include',
         headers: {'Content-Type':'application/json'},
         body: JSON.stringify(body)
       })

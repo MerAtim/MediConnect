@@ -1,4 +1,5 @@
 import React, { useState } from 'react'
+import { apiFetch } from '../apiClient.js'
 import { MEDICOS_API } from '../config.js'
 import { readErrorMessage } from '../utils.js'
 import FloatingInput from './FloatingInput.jsx'
@@ -18,9 +19,8 @@ export default function MedicoForm({medico, onGuardado, onCancelarEdicion, notif
     setLoading(true)
     try{
       const url = isEditing ? `${MEDICOS_API}/${medico.id}` : MEDICOS_API
-      const resp = await fetch(url, {
+      const resp = await apiFetch(url, {
         method: isEditing ? 'PUT' : 'POST',
-        credentials: 'include',
         headers: {'Content-Type':'application/json'},
         body: JSON.stringify({nombre, especialidad, matricula, telefono, direccion, email})
       })

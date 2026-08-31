@@ -828,11 +828,38 @@ por punto, mismo flujo de siempre. Estado:
    también a mano contra Postgres real (alta duplicada, alta sin nombre,
    actualización conservando el propio email — los tres con el mismo
    resultado de siempre).
-7. Frontend: `apiFetch` compartido (los forms tienen su propio `fetch` sin
-   el manejo de sesión expirada que sí tiene el resto), manejo de errores
-   consistente en los loaders del mount `useEffect` (varios no tienen
-   `catch`, quedan como unhandled rejection), fix de la condición de
-   carrera en paginación (sin `AbortController`) — pendiente.
+7. ~~Frontend: `apiFetch` compartido, manejo de errores consistente,
+   condición de carrera en paginación~~ — resuelto, PR #41
+   (`feature/frontend-apifetch-y-race-condition`):
+   - Nuevo `frontend/src/apiClient.js`: `apiFetch` (antes vivía solo
+     adentro de `App`, así que `MedicoForm`/`PacienteForm`/`UsuarioForm`/
+     `CambiarContrasenaModal` tenían su propio `fetch` sin el manejo de
+     "401 → sesión expirada") + `setSessionExpiredHandler`, un singleton
+     de módulo que `App` pisa con su `handleLogout` real en cada render
+     (se reasigna siempre, así nunca queda un closure viejo). `LoginScreen`
+     deliberadamente sigue con `fetch` directo: un 401 ahí es "contraseña
+     incorrecta", no "sesión vencida" — no tiene sentido pasarlo por
+     `apiFetch`.
+   - Los loaders del mount `useEffect` que no tenían `catch`
+     (`chequearVinculacion`, `cargarUsuarios`, `cargarMedicosVinculados`,
+     `cargarPacientesVinculados`, `cargarEspecialidades`,
+     `handleEspecialidadChange`, y `cargarMedicos`/`cargarPacientes` que
+     tenían `try/finally` sin `catch`) ahora todos notifican el error en
+     vez de quedar como unhandled rejection silencioso.
+   - `cargarMedicos`/`cargarPacientes`/`cargarTurnos`: cada uno tiene su
+     propio `useRef` de `AbortController` — al arrancar un pedido nuevo se
+     cancela el anterior, y el `finally` de la request cancelada no toca
+     el loading si ya hay una más nueva en curso (evita el flicker de
+     "se apagó el loading pero la request nueva sigue viva"). Antes, un
+     click rápido en "Siguiente"/"Anterior" podía dejar en pantalla la
+     respuesta que **llegó** última en vez de la que se **pidió** última.
+   - Verificado con Playwright real (no solo mocks de test): login,
+     edición de un médico a través del `MedicoForm` ya usando `apiFetch`
+     (toast de éxito), y 5 clicks rápidos alternando Siguiente/Anterior en
+     la paginación de Médicos (24 médicos de prueba, 2 páginas) — la
+     página mostrada al asentar coincide exactamente con el último click,
+     sin corrupción por respuestas fuera de orden, cero errores de
+     consola. Datos y sesión de prueba limpiados al terminar.
 8. Tests: cobertura cero de las reglas de `SecurityConfig` (los
    controller tests usan `standaloneSetup`, no `@WebMvcTest`, así que la
    cadena real de filtros de Spring Security nunca se ejecuta bajo test) y
