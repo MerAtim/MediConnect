@@ -808,8 +808,26 @@ por punto, mismo flujo de siempre. Estado:
    con `role=MEDICO` rechazado, y un intento de IDOR (médico sin turno con
    el paciente pidiendo su historia clínica) — los tres aparecen en el log
    con el detalle esperado.
-6. Deduplicación backend (`normalizarEmail` x4, chequeo de email-único x5,
-   validación de matrícula/especialidad) — pendiente.
+6. ~~Deduplicación backend (`normalizarEmail` x4, chequeo de email-único
+   x5, validación de matrícula/especialidad)~~ — resuelto, PR #40
+   (`feature/dedup-validaciones-medico-paciente`): nuevo
+   `ValidacionEmail` (package-private en `application.usecase`, no es API
+   pública) con `normalizar(String)` y un `asegurarDisponible(...)`
+   genérico (recibe `buscarPorEmail` del repo correspondiente como method
+   reference, el id propio para permitir "conservar mi propio email" al
+   actualizar, y la excepción a lanzar) — usado por los 5 sitios que antes
+   lo reimplementaban con variaciones: Crear/Actualizar Medico, Crear/
+   Actualizar Paciente y `RegistrarUsuarioService`. La validación de
+   campos obligatorios (nombre/especialidad/matrícula en Medico, nombre/
+   dni en Paciente) se movió a un método `validar()` en
+   `CreateMedicoRequest`/`CreatePacienteRequest` — mismo DTO que ya
+   comparten Crear y Actualizar, así que no hizo falta ninguna clase
+   nueva para esa parte. Refactor puro: los 157 tests existentes pasan
+   sin modificar ni uno (mismos mensajes de error, mismo comportamiento),
+   más 7 tests nuevos para `ValidacionEmail` en aislamiento. Verificado
+   también a mano contra Postgres real (alta duplicada, alta sin nombre,
+   actualización conservando el propio email — los tres con el mismo
+   resultado de siempre).
 7. Frontend: `apiFetch` compartido (los forms tienen su propio `fetch` sin
    el manejo de sesión expirada que sí tiene el resto), manejo de errores
    consistente en los loaders del mount `useEffect` (varios no tienen

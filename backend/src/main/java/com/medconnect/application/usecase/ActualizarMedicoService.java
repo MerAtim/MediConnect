@@ -21,23 +21,11 @@ public class ActualizarMedicoService implements ActualizarMedicoUseCase {
         if (medicoRepository.buscarPorId(id).isEmpty()) {
             return Optional.empty();
         }
-        if (request.getNombre() == null || request.getNombre().trim().isEmpty()) {
-            throw new MedicoInvalidoException("nombre es obligatorio");
-        }
-        if (request.getEspecialidad() == null || request.getEspecialidad().trim().isEmpty()) {
-            throw new MedicoInvalidoException("especialidad es obligatoria");
-        }
-        if (request.getMatricula() == null || request.getMatricula().trim().isEmpty()) {
-            throw new MedicoInvalidoException("matricula es obligatoria");
-        }
+        request.validar();
 
-        String email = normalizarEmail(request.getEmail());
-        if (email != null) {
-            Optional<Medico> existente = medicoRepository.buscarPorEmail(email);
-            if (existente.isPresent() && !existente.get().getId().equals(id)) {
-                throw new MedicoInvalidoException("ya existe un medico con ese email");
-            }
-        }
+        String email = ValidacionEmail.normalizar(request.getEmail());
+        ValidacionEmail.asegurarDisponible(email, medicoRepository::buscarPorEmail, Medico::getId, id,
+                () -> new MedicoInvalidoException("ya existe un medico con ese email"));
 
         Medico medico = new Medico(
                 id,
@@ -51,9 +39,5 @@ public class ActualizarMedicoService implements ActualizarMedicoUseCase {
         );
 
         return Optional.of(medicoRepository.guardar(medico));
-    }
-
-    private String normalizarEmail(String email) {
-        return (email == null || email.trim().isEmpty()) ? null : email.trim();
     }
 }

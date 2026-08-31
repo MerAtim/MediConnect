@@ -44,9 +44,8 @@ public class RegistrarUsuarioService implements RegistrarUsuarioUseCase {
         if (request.getRole() == null) {
             throw new UsuarioInvalidoException("role es obligatorio");
         }
-        if (usuarioRepository.buscarPorEmail(request.getEmail()).isPresent()) {
-            throw new UsuarioInvalidoException("ya existe un usuario con ese email");
-        }
+        ValidacionEmail.asegurarDisponible(request.getEmail(), usuarioRepository::buscarPorEmail, Usuario::getId, null,
+                () -> new UsuarioInvalidoException("ya existe un usuario con ese email"));
 
         Usuario usuario = new Usuario(
                 null,
