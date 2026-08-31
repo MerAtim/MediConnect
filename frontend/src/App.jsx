@@ -1,5 +1,6 @@
-import React, {useEffect, useState} from 'react'
+import React, {useEffect, useRef, useState} from 'react'
 import {AUTH_API, AUTH_STORAGE_KEY, HISTORIAS_API, MEDICOS_API, PACIENTES_API, TURNOS_API, USUARIOS_API} from './config.js'
+import {apiFetch, setSessionExpiredHandler} from './apiClient.js'
 import {clearValidity, handleInvalid, readErrorMessage} from './utils.js'
 import CambiarContrasenaModal from './components/CambiarContrasenaModal.jsx'
 import ConfirmModal from './components/ConfirmModal.jsx'
@@ -69,14 +70,11 @@ export default function App(){
     }
   }
 
-  async function apiFetch(url, options = {}){
-    const resp = await fetch(url, {...options, credentials: 'include'})
-    if(resp.status === 401){
-      handleLogout()
-      throw new Error('Sesión expirada, iniciá sesión de nuevo')
-    }
-    return resp
-  }
+  // apiFetch vive en apiClient.js para que los forms/modals también lo usen
+  // (antes tenían su propio fetch sin manejo de sesión expirada). Se
+  // re-registra en cada render para que el 401 siempre dispare el
+  // handleLogout más reciente, no uno de un render viejo.
+  setSessionExpiredHandler(handleLogout)
 
   const [medicos, setMedicos] = useState([])
   const [pacientes, setPacientes] = useState([])
@@ -126,30 +124,50 @@ export default function App(){
   const [usuarioAResetear, setUsuarioAResetear] = useState(null)
 
   async function chequearVinculacion(){
-    const url = auth.role === 'MEDICO' ? `${MEDICOS_API}/me` : `${PACIENTES_API}/me`
-    const resp = await apiFetch(url)
-    setVinculado(resp.ok)
+    try{
+      const url = auth.role === 'MEDICO' ? `${MEDICOS_API}/me` : `${PACIENTES_API}/me`
+      const resp = await apiFetch(url)
+      setVinculado(resp.ok)
+    }catch(err){
+      notify(err.message)
+    }
   }
 
   async function cargarUsuarios(){
-    const resp = await apiFetch(USUARIOS_API)
-    if(resp.ok) setUsuarios(await resp.json())
+    try{
+      const resp = await apiFetch(USUARIOS_API)
+      if(resp.ok) setUsuarios(await resp.json())
+    }catch(err){
+      notify(err.message)
+    }
   }
 
+  // Los tres abort ref de acá abajo (medicos/pacientes/turnos) existen para
+  // que clicks rápidos de paginación no dejen la pantalla mostrando la
+  // respuesta que llegó última en vez de la que se pidió última: al
+  // arrancar un pedido nuevo se cancela el anterior, y el `finally` de la
+  // request cancelada no toca el loading si ya hay una más nueva en curso.
+  const medicosAbortRef = useRef(null)
+
   async function cargarMedicos(paginaParam = paginaMedicos){
+    medicosAbortRef.current?.abort()
+    const controller = new AbortController()
+    medicosAbortRef.current = controller
     setMedicosLoading(true)
     try{
       const params = new URLSearchParams()
       params.set('page', paginaParam)
-      const resp = await apiFetch(`${MEDICOS_API}?${params}`)
+      const resp = await apiFetch(`${MEDICOS_API}?${params}`, {signal: controller.signal})
       if(resp.ok){
         const data = await resp.json()
         setMedicos(data.content)
         setPaginaMedicos(data.page)
         setTotalPaginasMedicos(data.totalPages)
       }
+    }catch(err){
+      if(err.name !== 'AbortError') notify(err.message)
     }finally{
-      setMedicosLoading(false)
+      if(medicosAbortRef.current === controller) setMedicosLoading(false)
     }
   }
 
@@ -157,20 +175,27 @@ export default function App(){
     cargarMedicos(pagina)
   }
 
+  const pacientesAbortRef = useRef(null)
+
   async function cargarPacientes(paginaParam = paginaPacientes){
+    pacientesAbortRef.current?.abort()
+    const controller = new AbortController()
+    pacientesAbortRef.current = controller
     setPacientesLoading(true)
     try{
       const params = new URLSearchParams()
       params.set('page', paginaParam)
-      const resp = await apiFetch(`${PACIENTES_API}?${params}`)
+      const resp = await apiFetch(`${PACIENTES_API}?${params}`, {signal: controller.signal})
       if(resp.ok){
         const data = await resp.json()
         setPacientes(data.content)
         setPaginaPacientes(data.page)
         setTotalPaginasPacientes(data.totalPages)
       }
+    }catch(err){
+      if(err.name !== 'AbortError') notify(err.message)
     }finally{
-      setPacientesLoading(false)
+      if(pacientesAbortRef.current === controller) setPacientesLoading(false)
     }
   }
 
@@ -179,29 +204,45 @@ export default function App(){
   }
 
   async function cargarMedicosVinculados(){
-    const resp = await apiFetch(`${MEDICOS_API}/emails-vinculados`)
-    if(resp.ok) setMedicosVinculados(await resp.json())
+    try{
+      const resp = await apiFetch(`${MEDICOS_API}/emails-vinculados`)
+      if(resp.ok) setMedicosVinculados(await resp.json())
+    }catch(err){
+      notify(err.message)
+    }
   }
 
   async function cargarPacientesVinculados(){
-    const resp = await apiFetch(`${PACIENTES_API}/emails-vinculados`)
-    if(resp.ok) setPacientesVinculados(await resp.json())
+    try{
+      const resp = await apiFetch(`${PACIENTES_API}/emails-vinculados`)
+      if(resp.ok) setPacientesVinculados(await resp.json())
+    }catch(err){
+      notify(err.message)
+    }
   }
 
   async function cargarEspecialidades(){
-    const resp = await apiFetch(`${MEDICOS_API}/especialidades`)
-    if(resp.ok) setEspecialidades(await resp.json())
+    try{
+      const resp = await apiFetch(`${MEDICOS_API}/especialidades`)
+      if(resp.ok) setEspecialidades(await resp.json())
+    }catch(err){
+      notify(err.message)
+    }
   }
 
   async function handleEspecialidadChange(valor){
     setEspecialidad(valor)
     setMedicoId('')
     if(!valor){ setMedicosPorEspecialidad([]); return }
-    const params = new URLSearchParams({especialidad: valor, size: '500'})
-    const resp = await apiFetch(`${MEDICOS_API}?${params}`)
-    if(resp.ok){
-      const data = await resp.json()
-      setMedicosPorEspecialidad(data.content)
+    try{
+      const params = new URLSearchParams({especialidad: valor, size: '500'})
+      const resp = await apiFetch(`${MEDICOS_API}?${params}`)
+      if(resp.ok){
+        const data = await resp.json()
+        setMedicosPorEspecialidad(data.content)
+      }
+    }catch(err){
+      notify(err.message)
     }
   }
 
@@ -233,23 +274,28 @@ export default function App(){
     }
   }
 
+  const turnosAbortRef = useRef(null)
+
   async function cargarTurnos(medicoIdParam = filtroMedicoId, pacienteIdParam = filtroPacienteId, paginaParam = paginaTurnos){
+    turnosAbortRef.current?.abort()
+    const controller = new AbortController()
+    turnosAbortRef.current = controller
     setListLoading(true)
     try{
       const params = new URLSearchParams()
       if(medicoIdParam) params.set('medicoId', medicoIdParam)
       if(pacienteIdParam) params.set('pacienteId', pacienteIdParam)
       params.set('page', paginaParam)
-      const resp = await apiFetch(`${TURNOS_API}?${params}`)
+      const resp = await apiFetch(`${TURNOS_API}?${params}`, {signal: controller.signal})
       if(!resp.ok) throw new Error(`HTTP ${resp.status}`)
       const data = await resp.json()
       setTurnos(data.content)
       setPaginaTurnos(data.page)
       setTotalPaginasTurnos(data.totalPages)
     }catch(err){
-      notify(err.message)
+      if(err.name !== 'AbortError') notify(err.message)
     }finally{
-      setListLoading(false)
+      if(turnosAbortRef.current === controller) setListLoading(false)
     }
   }
 

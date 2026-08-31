@@ -1,4 +1,5 @@
 import React, { useState } from 'react'
+import { apiFetch } from '../apiClient.js'
 import { ROLES_ADMIN, USUARIOS_API } from '../config.js'
 import { readErrorMessage } from '../utils.js'
 import FloatingInput from './FloatingInput.jsx'
@@ -14,9 +15,8 @@ export default function UsuarioForm({notify, onGuardado}){
     e.preventDefault()
     setLoading(true)
     try{
-      const resp = await fetch(USUARIOS_API, {
+      const resp = await apiFetch(USUARIOS_API, {
         method: 'POST',
-        credentials: 'include',
         headers: {'Content-Type':'application/json'},
         body: JSON.stringify({nombre, email, contrasena, role})
       })
