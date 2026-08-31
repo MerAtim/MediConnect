@@ -1,5 +1,7 @@
 package com.medconnect.application.usecase;
 
+import com.medconnect.domain.exception.MedicoInvalidoException;
+
 public class CreateMedicoRequest {
     private String nombre;
     private String especialidad;
@@ -39,5 +41,19 @@ public class CreateMedicoRequest {
 
     public String getEmail() {
         return email;
+    }
+
+    // Compartido por CrearMedicoService y ActualizarMedicoService (antes
+    // era el mismo bloque de 3 checks copiado en ambos).
+    void validar() {
+        if (nombre == null || nombre.trim().isEmpty()) {
+            throw new MedicoInvalidoException("nombre es obligatorio");
+        }
+        if (especialidad == null || especialidad.trim().isEmpty()) {
+            throw new MedicoInvalidoException("especialidad es obligatoria");
+        }
+        if (matricula == null || matricula.trim().isEmpty()) {
+            throw new MedicoInvalidoException("matricula es obligatoria");
+        }
     }
 }

@@ -16,20 +16,11 @@ public class CrearMedicoService implements CrearMedicoUseCase {
 
     @Override
     public CreateMedicoResponse crear(CreateMedicoRequest request) {
-        if (request.getNombre() == null || request.getNombre().trim().isEmpty()) {
-            throw new MedicoInvalidoException("nombre es obligatorio");
-        }
-        if (request.getEspecialidad() == null || request.getEspecialidad().trim().isEmpty()) {
-            throw new MedicoInvalidoException("especialidad es obligatoria");
-        }
-        if (request.getMatricula() == null || request.getMatricula().trim().isEmpty()) {
-            throw new MedicoInvalidoException("matricula es obligatoria");
-        }
+        request.validar();
 
-        String email = normalizarEmail(request.getEmail());
-        if (email != null && medicoRepository.buscarPorEmail(email).isPresent()) {
-            throw new MedicoInvalidoException("ya existe un medico con ese email");
-        }
+        String email = ValidacionEmail.normalizar(request.getEmail());
+        ValidacionEmail.asegurarDisponible(email, medicoRepository::buscarPorEmail, Medico::getId, null,
+                () -> new MedicoInvalidoException("ya existe un medico con ese email"));
 
         Medico medico = new Medico(
                 null,
@@ -44,9 +35,5 @@ public class CrearMedicoService implements CrearMedicoUseCase {
 
         Medico guardado = medicoRepository.guardar(medico);
         return new CreateMedicoResponse(guardado.getId());
-    }
-
-    private String normalizarEmail(String email) {
-        return (email == null || email.trim().isEmpty()) ? null : email.trim();
     }
 }

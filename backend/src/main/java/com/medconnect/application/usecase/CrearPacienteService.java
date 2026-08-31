@@ -16,17 +16,11 @@ public class CrearPacienteService implements CrearPacienteUseCase {
 
     @Override
     public CreatePacienteResponse crear(CreatePacienteRequest request) {
-        if (request.getNombre() == null || request.getNombre().trim().isEmpty()) {
-            throw new PacienteInvalidoException("nombre es obligatorio");
-        }
-        if (request.getDni() == null || request.getDni().trim().isEmpty()) {
-            throw new PacienteInvalidoException("dni es obligatorio");
-        }
+        request.validar();
 
-        String email = normalizarEmail(request.getEmail());
-        if (email != null && pacienteRepository.buscarPorEmail(email).isPresent()) {
-            throw new PacienteInvalidoException("ya existe un paciente con ese email");
-        }
+        String email = ValidacionEmail.normalizar(request.getEmail());
+        ValidacionEmail.asegurarDisponible(email, pacienteRepository::buscarPorEmail, Paciente::getId, null,
+                () -> new PacienteInvalidoException("ya existe un paciente con ese email"));
 
         Paciente paciente = new Paciente(
                 null,
@@ -42,9 +36,5 @@ public class CrearPacienteService implements CrearPacienteUseCase {
 
         Paciente guardado = pacienteRepository.guardar(paciente);
         return new CreatePacienteResponse(guardado.getId());
-    }
-
-    private String normalizarEmail(String email) {
-        return (email == null || email.trim().isEmpty()) ? null : email.trim();
     }
 }

@@ -1,5 +1,7 @@
 package com.medconnect.application.usecase;
 
+import com.medconnect.domain.exception.PacienteInvalidoException;
+
 public class CreatePacienteRequest {
     private String nombre;
     private String dni;
@@ -51,5 +53,16 @@ public class CreatePacienteRequest {
 
     public String getEmail() {
         return email;
+    }
+
+    // Compartido por CrearPacienteService y ActualizarPacienteService (antes
+    // era el mismo bloque de 2 checks copiado en ambos).
+    void validar() {
+        if (nombre == null || nombre.trim().isEmpty()) {
+            throw new PacienteInvalidoException("nombre es obligatorio");
+        }
+        if (dni == null || dni.trim().isEmpty()) {
+            throw new PacienteInvalidoException("dni es obligatorio");
+        }
     }
 }
