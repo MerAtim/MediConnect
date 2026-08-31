@@ -1,5 +1,7 @@
 package com.medconnect.domain.model;
 
+import com.medconnect.domain.exception.TurnoInvalidoException;
+
 import java.time.LocalDateTime;
 
 public class Turno {
@@ -65,8 +67,15 @@ public class Turno {
         return estado;
     }
 
-    public void setEstado(TurnoEstado estado) {
-        this.estado = estado;
+    // Unico punto de mutacion del estado: garantiza la invariante "un turno
+    // cancelado no se puede modificar" sin depender de que cada caller la
+    // recuerde reimplementar (antes era un chequeo suelto en el use case,
+    // saltable por cualquier otro codigo con una referencia a este Turno).
+    public void cambiarEstado(TurnoEstado nuevoEstado) {
+        if (this.estado == TurnoEstado.CANCELADO) {
+            throw new TurnoInvalidoException("No se puede modificar un turno cancelado");
+        }
+        this.estado = nuevoEstado;
     }
 
     public String getPreparacion() {
