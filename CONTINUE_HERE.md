@@ -787,8 +787,27 @@ por punto, mismo flujo de siempre. Estado:
    registro funcionan, base borrada después). A partir de acá, cualquier
    cambio de esquema futuro es un `V2__algo.sql` nuevo, nunca tocar
    `V1__baseline.sql` ni volver a `ddl-auto=update`.
-5. Logging/auditoría (Slf4j, trazabilidad de acceso a historias clínicas)
-   — pendiente.
+5. ~~Logging/auditoría (Slf4j, trazabilidad de acceso a historias
+   clínicas)~~ — resuelto, PR #39 (`feature/logging-auditoria`): Slf4j ya
+   venía incluido transitivamente (todo starter de Spring Boot trae
+   `spring-boot-starter-logging`/Logback), no hizo falta agregar
+   dependencia. Se logueó: cada excepción de negocio manejada por
+   `GlobalExceptionHandler` (WARN, antes eran completamente silenciosas);
+   login exitoso/fallido en `LoginService` y el bloqueo por rate-limit en
+   `InMemoryLoginRateLimiter`; cambio de contraseña propia y reset por
+   admin en `UsuarioController` (con la identidad de quién lo hizo);
+   y — el punto central del hallazgo — acceso a historias clínicas en
+   `RegistroClinicoController` (lectura, creación y exportación, todas con
+   quién/sobre qué paciente/resultado) más los 403 de pertenencia
+   denegada en `TurnoController` y `PacienteController`. Deliberadamente
+   *no* se agregó MDC/correlation-id ni logging estructurado JSON — es un
+   salto de complejidad (filtro por request, config de Logback) que no se
+   justifica todavía para un proyecto de una sola instancia sin agregador
+   de logs; texto plano con Slf4j alcanza para lo que pide este punto.
+   Verificado a mano contra Postgres real: login fallido/exitoso, registro
+   con `role=MEDICO` rechazado, y un intento de IDOR (médico sin turno con
+   el paciente pidiendo su historia clínica) — los tres aparecen en el log
+   con el detalle esperado.
 6. Deduplicación backend (`normalizarEmail` x4, chequeo de email-único x5,
    validación de matrícula/especialidad) — pendiente.
 7. Frontend: `apiFetch` compartido (los forms tienen su propio `fetch` sin

@@ -10,6 +10,8 @@ import com.medconnect.application.usecase.ResetearContrasenaRequest;
 import com.medconnect.domain.exception.UsuarioInvalidoException;
 import com.medconnect.domain.model.Usuario;
 import com.medconnect.domain.model.UsuarioRole;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
@@ -27,6 +29,8 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/usuarios")
 public class UsuarioController {
+
+    private static final Logger log = LoggerFactory.getLogger(UsuarioController.class);
 
     private final RegistrarUsuarioUseCase registrarUsuarioUseCase;
     private final BuscarUsuarioUseCase buscarUsuarioUseCase;
@@ -75,6 +79,7 @@ public class UsuarioController {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         CambiarContrasenaRequest req = new CambiarContrasenaRequest(body.getContrasenaActual(), body.getContrasenaNueva());
         actualizarContrasenaUseCase.cambiarPropia(auth.getName(), req);
+        log.info("Cambio de contrasena propia: email={}", auth.getName());
         return ResponseEntity.noContent().build();
     }
 
@@ -82,6 +87,9 @@ public class UsuarioController {
     public ResponseEntity<Void> resetearContrasena(@PathVariable Long id, @RequestBody ResetearContrasenaBody body) {
         ResetearContrasenaRequest req = new ResetearContrasenaRequest(body.getContrasenaNueva());
         boolean actualizado = actualizarContrasenaUseCase.resetearComoAdmin(id, req);
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        log.info("Reset de contrasena por admin: admin={} usuarioIdObjetivo={} resultado={}",
+                auth != null ? auth.getName() : null, id, actualizado ? "OK" : "usuario no encontrado");
         return actualizado ? ResponseEntity.noContent().build() : ResponseEntity.notFound().build();
     }
 }
