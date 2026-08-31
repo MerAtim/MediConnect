@@ -3,16 +3,23 @@ package com.medconnect.interfaces.rest;
 import com.medconnect.application.usecase.BuscarMedicoUseCase;
 import com.medconnect.application.usecase.BuscarPacienteUseCase;
 import com.medconnect.application.usecase.BuscarRegistroClinicoUseCase;
+import com.medconnect.application.usecase.BuscarTurnoUseCase;
 import com.medconnect.application.usecase.CreateRegistroClinicoResponse;
 import com.medconnect.application.usecase.CrearRegistroClinicoUseCase;
 import com.medconnect.domain.exception.RegistroClinicoInvalidoException;
 import com.medconnect.domain.model.Medico;
 import com.medconnect.domain.model.Paciente;
 import com.medconnect.domain.model.RegistroClinico;
+import com.medconnect.domain.model.Turno;
+import com.medconnect.domain.model.TurnoEstado;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import org.springframework.http.MediaType;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
@@ -34,6 +41,7 @@ public class RegistroClinicoControllerTest {
     private BuscarRegistroClinicoUseCase buscarRegistroClinicoUseCase;
     private BuscarPacienteUseCase buscarPacienteUseCase;
     private BuscarMedicoUseCase buscarMedicoUseCase;
+    private BuscarTurnoUseCase buscarTurnoUseCase;
 
     @BeforeEach
     public void setup() {
@@ -41,18 +49,34 @@ public class RegistroClinicoControllerTest {
         buscarRegistroClinicoUseCase = Mockito.mock(BuscarRegistroClinicoUseCase.class);
         buscarPacienteUseCase = Mockito.mock(BuscarPacienteUseCase.class);
         buscarMedicoUseCase = Mockito.mock(BuscarMedicoUseCase.class);
+        buscarTurnoUseCase = Mockito.mock(BuscarTurnoUseCase.class);
         RegistroClinicoController controller = new RegistroClinicoController(
-                crearRegistroClinicoUseCase, buscarRegistroClinicoUseCase, buscarPacienteUseCase, buscarMedicoUseCase);
+                crearRegistroClinicoUseCase, buscarRegistroClinicoUseCase, buscarPacienteUseCase,
+                buscarMedicoUseCase, buscarTurnoUseCase);
         mockMvc = MockMvcBuilders.standaloneSetup(controller)
                 .setControllerAdvice(new GlobalExceptionHandler())
                 .build();
     }
 
+    @AfterEach
+    public void tearDown() {
+        SecurityContextHolder.clearContext();
+    }
+
+    private void loguearComo(String rol, String email) {
+        SecurityContextHolder.getContext().setAuthentication(
+                new UsernamePasswordAuthenticationToken(
+                        email, null, List.of(new SimpleGrantedAuthority("ROLE_" + rol))));
+    }
+
     @Test
     public void crear_devuelve201_yBody_siValido() throws Exception {
+        loguearComo("MEDICO", "medico@medconnect.com");
+        when(buscarMedicoUseCase.buscarPorEmail("medico@medconnect.com"))
+                .thenReturn(Optional.of(new Medico(2L, null, null, null, null, null, null, null)));
         when(crearRegistroClinicoUseCase.crear(any())).thenReturn(new CreateRegistroClinicoResponse(42L));
 
-        String body = "{\"medicoId\":2,\"pacienteId\":3,\"diagnostico\":\"Fractura\",\"tratamiento\":\"Reposo\"}";
+        String body = "{\"pacienteId\":3,\"diagnostico\":\"Fractura\",\"tratamiento\":\"Reposo\"}";
 
         mockMvc.perform(post("/api/historias-clinicas")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -62,11 +86,49 @@ public class RegistroClinicoControllerTest {
     }
 
     @Test
+    public void crear_devuelve403_siCuentaNoEstaVinculadaAUnMedico() throws Exception {
+        loguearComo("MEDICO", "sin-vincular@medconnect.com");
+        when(buscarMedicoUseCase.buscarPorEmail("sin-vincular@medconnect.com")).thenReturn(Optional.empty());
+
+        String body = "{\"pacienteId\":3,\"diagnostico\":\"Fractura\",\"tratamiento\":\"Reposo\"}";
+
+        mockMvc.perform(post("/api/historias-clinicas")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isForbidden());
+
+        Mockito.verify(crearRegistroClinicoUseCase, Mockito.never()).crear(any());
+    }
+
+    @Test
+    public void crear_ignoraMedicoIdDelBody_yUsaElDeLaCuentaAutenticada() throws Exception {
+        // Un medico no puede hacerse pasar por otro: el medicoId siempre sale del token,
+        // nunca del JSON que manda el cliente.
+        loguearComo("MEDICO", "medico@medconnect.com");
+        when(buscarMedicoUseCase.buscarPorEmail("medico@medconnect.com"))
+                .thenReturn(Optional.of(new Medico(2L, null, null, null, null, null, null, null)));
+        when(crearRegistroClinicoUseCase.crear(any())).thenReturn(new CreateRegistroClinicoResponse(42L));
+
+        String body = "{\"medicoId\":999,\"pacienteId\":3,\"diagnostico\":\"Fractura\",\"tratamiento\":\"Reposo\"}";
+
+        mockMvc.perform(post("/api/historias-clinicas")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isCreated());
+
+        Mockito.verify(crearRegistroClinicoUseCase).crear(
+                Mockito.argThat(req -> req.getMedicoId().equals(2L)));
+    }
+
+    @Test
     public void crear_devuelve400_siUseCaseRechaza() throws Exception {
+        loguearComo("MEDICO", "medico@medconnect.com");
+        when(buscarMedicoUseCase.buscarPorEmail("medico@medconnect.com"))
+                .thenReturn(Optional.of(new Medico(2L, null, null, null, null, null, null, null)));
         when(crearRegistroClinicoUseCase.crear(any()))
                 .thenThrow(new RegistroClinicoInvalidoException("El médico no tiene ningún turno con ese paciente"));
 
-        String body = "{\"medicoId\":2,\"pacienteId\":3,\"diagnostico\":\"Fractura\",\"tratamiento\":\"Reposo\"}";
+        String body = "{\"pacienteId\":3,\"diagnostico\":\"Fractura\",\"tratamiento\":\"Reposo\"}";
 
         mockMvc.perform(post("/api/historias-clinicas")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -76,10 +138,18 @@ public class RegistroClinicoControllerTest {
     }
 
     @Test
-    public void buscarPorPaciente_devuelveLista() throws Exception {
+    public void buscarPorPaciente_devuelveLista_siElMedicoTieneUnTurnoConEsePaciente() throws Exception {
+        loguearComo("MEDICO", "medico@medconnect.com");
+        Medico medicoLogueado = new Medico(2L, null, null, null, null, null, null, null);
+        Paciente paciente = new Paciente(3L, null, null, null, null, null, null, null, null);
+        Turno turno = new Turno(10L, LocalDateTime.of(2026, 8, 12, 10, 0), "Cardiología",
+                medicoLogueado, paciente, TurnoEstado.CONFIRMADO);
+        when(buscarMedicoUseCase.buscarPorEmail("medico@medconnect.com")).thenReturn(Optional.of(medicoLogueado));
+        when(buscarTurnoUseCase.buscarPorMedico(2L)).thenReturn(List.of(turno));
+
         RegistroClinico registro = new RegistroClinico(1L, LocalDateTime.of(2026, 8, 12, 10, 0),
                 new Medico(2L, null, null, null, null, null, null, null),
-                new Paciente(3L, null, null, null, null, null, null, null, null),
+                paciente,
                 "Fractura", "Reposo", null);
         when(buscarRegistroClinicoUseCase.buscarPorPaciente(3L)).thenReturn(List.of(registro));
 
@@ -87,6 +157,30 @@ public class RegistroClinicoControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(content().json(
                         "[{\"id\":1,\"medicoId\":2,\"pacienteId\":3,\"diagnostico\":\"Fractura\",\"tratamiento\":\"Reposo\"}]"));
+    }
+
+    @Test
+    public void buscarPorPaciente_devuelve403_siElMedicoNoTieneRelacionConElPaciente() throws Exception {
+        // Este es el caso que antes permitia a cualquier MEDICO leer la historia
+        // clinica de cualquier paciente sin ninguna relacion (IDOR sobre PHI).
+        loguearComo("MEDICO", "medico@medconnect.com");
+        Medico medicoLogueado = new Medico(2L, null, null, null, null, null, null, null);
+        when(buscarMedicoUseCase.buscarPorEmail("medico@medconnect.com")).thenReturn(Optional.of(medicoLogueado));
+        when(buscarTurnoUseCase.buscarPorMedico(2L)).thenReturn(List.of());
+
+        mockMvc.perform(get("/api/historias-clinicas").param("pacienteId", "3"))
+                .andExpect(status().isForbidden());
+
+        Mockito.verify(buscarRegistroClinicoUseCase, Mockito.never()).buscarPorPaciente(any());
+    }
+
+    @Test
+    public void buscarPorPaciente_devuelve403_siCuentaNoEstaVinculadaAUnMedico() throws Exception {
+        loguearComo("MEDICO", "sin-vincular@medconnect.com");
+        when(buscarMedicoUseCase.buscarPorEmail("sin-vincular@medconnect.com")).thenReturn(Optional.empty());
+
+        mockMvc.perform(get("/api/historias-clinicas").param("pacienteId", "3"))
+                .andExpect(status().isForbidden());
     }
 
     @Test

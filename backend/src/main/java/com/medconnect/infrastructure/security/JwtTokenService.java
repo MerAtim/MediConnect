@@ -15,10 +15,23 @@ import java.util.Date;
 @Component
 public class JwtTokenService implements TokenService {
 
+    private static final String SECRETO_INSEGURO_POR_DEFECTO =
+            "medconnect-dev-secret-please-override-in-production-min-32-bytes";
+
     private final SecretKey key;
     private final long expirationMs;
 
-    public JwtTokenService(@Value("${jwt.secret}") String secret, @Value("${jwt.expiration-ms}") long expirationMs) {
+    public JwtTokenService(@Value("${jwt.secret}") String secret,
+                            @Value("${jwt.expiration-ms}") long expirationMs,
+                            @Value("${app.cookie-secure}") boolean cookieSecure) {
+        // cookie-secure=true indica un despliegue real (HTTPS); en ese caso no se puede
+        // arrancar con el secreto de desarrollo hardcodeado en application.properties, o
+        // cualquiera con acceso al repo podria forjar tokens validos de cualquier rol.
+        if (cookieSecure && SECRETO_INSEGURO_POR_DEFECTO.equals(secret)) {
+            throw new IllegalStateException(
+                    "JWT_SECRET no fue configurado: no se puede arrancar con el secreto de desarrollo "
+                            + "por defecto cuando COOKIE_SECURE=true (despliegue real).");
+        }
         this.key = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
         this.expirationMs = expirationMs;
     }

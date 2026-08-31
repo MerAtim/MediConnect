@@ -3,17 +3,21 @@ package com.medconnect.interfaces.rest;
 import com.medconnect.application.usecase.BuscarMedicoUseCase;
 import com.medconnect.application.usecase.BuscarPacienteUseCase;
 import com.medconnect.application.usecase.BuscarRegistroClinicoUseCase;
+import com.medconnect.application.usecase.BuscarTurnoUseCase;
 import com.medconnect.application.usecase.CreateRegistroClinicoRequest;
 import com.medconnect.application.usecase.CreateRegistroClinicoResponse;
 import com.medconnect.application.usecase.CrearRegistroClinicoUseCase;
 import com.medconnect.domain.model.Medico;
 import com.medconnect.domain.model.Paciente;
 import com.medconnect.domain.model.RegistroClinico;
+import com.medconnect.domain.model.Turno;
 import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -24,6 +28,8 @@ import org.springframework.web.bind.annotation.RestController;
 import java.nio.charset.StandardCharsets;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Objects;
+import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/historias-clinicas")
@@ -35,21 +41,31 @@ public class RegistroClinicoController {
     private final BuscarRegistroClinicoUseCase buscarRegistroClinicoUseCase;
     private final BuscarPacienteUseCase buscarPacienteUseCase;
     private final BuscarMedicoUseCase buscarMedicoUseCase;
+    private final BuscarTurnoUseCase buscarTurnoUseCase;
 
     public RegistroClinicoController(CrearRegistroClinicoUseCase crearRegistroClinicoUseCase,
                                       BuscarRegistroClinicoUseCase buscarRegistroClinicoUseCase,
                                       BuscarPacienteUseCase buscarPacienteUseCase,
-                                      BuscarMedicoUseCase buscarMedicoUseCase) {
+                                      BuscarMedicoUseCase buscarMedicoUseCase,
+                                      BuscarTurnoUseCase buscarTurnoUseCase) {
         this.crearRegistroClinicoUseCase = crearRegistroClinicoUseCase;
         this.buscarRegistroClinicoUseCase = buscarRegistroClinicoUseCase;
         this.buscarPacienteUseCase = buscarPacienteUseCase;
         this.buscarMedicoUseCase = buscarMedicoUseCase;
+        this.buscarTurnoUseCase = buscarTurnoUseCase;
     }
 
     @PostMapping
     public ResponseEntity<CreateRegistroClinicoResponse> crear(@RequestBody RegistroClinicoRequest request) {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        Optional<Medico> medico = buscarMedicoUseCase.buscarPorEmail(auth.getName());
+        if (medico.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+        // medicoId se toma siempre de la cuenta autenticada, nunca del body: si viniera del
+        // cliente cualquier medico podria escribir un registro atribuido a otro medico.
         CreateRegistroClinicoRequest req = new CreateRegistroClinicoRequest(
-                request.getMedicoId(),
+                medico.get().getId(),
                 request.getPacienteId(),
                 request.getDiagnostico(),
                 request.getTratamiento(),
@@ -61,8 +77,22 @@ public class RegistroClinicoController {
 
     @GetMapping
     public ResponseEntity<List<RegistroClinicoResponse>> buscarPorPaciente(@RequestParam Long pacienteId) {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (!esPacienteDeEseMedico(auth, pacienteId)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
         List<RegistroClinico> registros = buscarRegistroClinicoUseCase.buscarPorPaciente(pacienteId);
         return ResponseEntity.ok(registros.stream().map(this::toResponse).toList());
+    }
+
+    private boolean esPacienteDeEseMedico(Authentication auth, Long pacienteId) {
+        return buscarMedicoUseCase.buscarPorEmail(auth.getName())
+                .map(medico -> buscarTurnoUseCase.buscarPorMedico(medico.getId()).stream()
+                        .map(Turno::getPaciente)
+                        .filter(Objects::nonNull)
+                        .map(Paciente::getId)
+                        .anyMatch(pacienteId::equals))
+                .orElse(false);
     }
 
     @GetMapping("/exportar")
