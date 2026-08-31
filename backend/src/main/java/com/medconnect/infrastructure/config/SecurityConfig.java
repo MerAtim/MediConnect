@@ -65,6 +65,11 @@ public class SecurityConfig {
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/auth/**").permitAll()
+                        // Documentacion de la API: es informacion de las rutas/DTOs, no de
+                        // datos de pacientes, y el valor de Swagger UI (probar un endpoint
+                        // sin armar curl a mano) se pierde si primero hay que autenticarse
+                        // para verla.
+                        .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/usuarios/**").hasRole("ADMINISTRADOR")
                         .requestMatchers(HttpMethod.PATCH, "/api/usuarios/me/contrasena").authenticated()
                         .requestMatchers(HttpMethod.PATCH, "/api/usuarios/*/contrasena").hasRole("ADMINISTRADOR")
