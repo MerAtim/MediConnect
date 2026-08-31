@@ -860,12 +860,71 @@ por punto, mismo flujo de siempre. Estado:
      página mostrada al asentar coincide exactamente con el último click,
      sin corrupción por respuestas fuera de orden, cero errores de
      consola. Datos y sesión de prueba limpiados al terminar.
-8. Tests: cobertura cero de las reglas de `SecurityConfig` (los
-   controller tests usan `standaloneSetup`, no `@WebMvcTest`, así que la
-   cadena real de filtros de Spring Security nunca se ejecuta bajo test) y
-   `CrearTurnoIntegrationTest` no es una integration test real (excluye el
-   `DataSource`, usa fakes en memoria, filtros de seguridad
-   deshabilitados) — pendiente.
+8. ~~Tests: cobertura cero de `SecurityConfig`, integration test que no
+   integra nada~~ — resuelto, PR #42 (`feature/tests-securityconfig-y-testcontainers`):
+   - **`SecurityConfigTest`** (nuevo): a diferencia de los `*ControllerTest`
+     (que usan `standaloneSetup` y nunca cargan `SecurityConfig` ni
+     `JwtAuthenticationFilter`), este carga la cadena real de filtros
+     (`@AutoConfigureMockMvc` sin `addFilters=false`) y autentica con
+     cookies JWT reales generadas por el `TokenService` real. 8 tests
+     cubren las reglas más sensibles (`GET /api/medicos` solo
+     ADMINISTRADOR, `GET /api/pacientes` ADMINISTRADOR+MEDICO no
+     PACIENTE, `POST /api/usuarios` solo ADMINISTRADOR, `POST /api/turnos`
+     solo ADMINISTRADOR, `PATCH /api/turnos/{id}/estado` cualquier rol
+     autenticado, `GET /api/historias-clinicas` solo MEDICO,
+     `GET .../exportar` solo ADMINISTRADOR, `/api/auth/**` público). Si
+     alguien afloja o endurece una regla de rol por error, esto se rompe
+     — antes no había ningún test que lo hiciera. Reusa el mismo patrón de
+     repos fake en memoria que `CrearTurnoIntegrationTest` tenía (perfil
+     `test`, `DataSource` excluido), con un detalle nuevo: `patchEstadoTurno`
+     y `getHistoriasClinicas` siembran un Medico/Paciente/Turno real para
+     que el caso "rol permitido" pruebe pertenencia + rol juntos, no solo
+     que la regla de rol no bloquee. Al escribir esto se encontró y arregló
+     un bug real en el fake `InMemoryTurnoRepository.guardar()`: reasignaba
+     un id nuevo en cada guardado, incluso al re-guardar un turno ya
+     existente (como hace `ActualizarEstadoTurnoService`), corrompiendo el
+     lookup por id despues del primer update.
+   - **`CrearTurnoIntegrationTest`** (reescrita de punta a punta): ahora usa
+     **Testcontainers** (`postgres:16-alpine` real en un contenedor Docker)
+     en vez de excluir el `DataSource` y fakear todo. Sin ningún profile
+     especial activado, así que Spring conecta los adapters JPA reales
+     (`@Profile("!test")`), corre la migración `V1` de Flyway de punta a
+     punta contra ese Postgres, y deja la cadena de seguridad real intacta
+     (autentica con una cookie JWT real de ADMINISTRADOR). El test prueba:
+     sin cookie → 403; con cookie → 201 y el turno realmente persistido
+     (`GET /api/turnos` lo trae con los datos correctos); mismo médico +
+     misma fecha otra vez → 400 "El médico no está disponible..." — la
+     unique constraint `uk_turnos_medico_fecha` (creada por
+     `V1__baseline.sql`) rechazándolo a nivel de Postgres real, no un mock.
+     Es el único lugar del repo donde se ejecuta el mapeo JPA real contra
+     una base real bajo test.
+   - `pom.xml`: `spring-boot-testcontainers` + `org.testcontainers:junit-jupiter`
+     + `org.testcontainers:postgresql` (versiones manejadas por el BOM de
+     `spring-boot-starter-parent`, que ya importa `testcontainers-bom`) más
+     un override explícito a `testcontainers.version=1.20.4` (ver hueco
+     conocido abajo).
+   - **Hueco conocido — Testcontainers no corre en este Windows local**: el
+     Docker Desktop de esta máquina (4.82, muy reciente) devuelve una
+     respuesta stub (400, todos los campos vacíos, label
+     `docker_cli`) para cualquier request crudo al named pipe, sin importar
+     cuál de los dos pipes (`docker_engine` / `dockerDesktopLinuxEngine`) se
+     use ni con `testcontainers.version` bumpeado a 1.20.4 — parece una
+     incompatibilidad entre esta versión de Docker Desktop y el cliente
+     docker-java que usa Testcontainers, no algo arreglable desde el código
+     del proyecto. `docker version`/`docker images` andan perfecto desde la
+     CLI real, así que Docker en sí funciona — es puntualmente
+     Testcontainers el que no puede hablarle. **No afecta CI**: GitHub
+     Actions (`ubuntu-latest`) tiene Docker real sin la capa de proxy de
+     Docker Desktop, que es exactamente donde Testcontainers está mejor
+     soportado — verificado corriendo el test ahí en vez de en local (ver
+     resultado del PR). Si en el futuro hace falta correr esta test en un
+     Windows local, revisar si Docker Desktop tiene "Enable default Docker
+     socket" o similar en Settings → Advanced, o probar
+     `DOCKER_HOST=tcp://localhost:2375` con "Expose daemon on tcp sin TLS"
+     habilitado.
+   - El resto de la suite (171 tests sin contar `CrearTurnoIntegrationTest`)
+     se corrió y verificó localmente sin problema — el hueco es
+     específico de esta única clase, que depende de Docker.
 9. Mejoras de diseño de menor urgencia (Value Objects, Factory pattern,
    índices de DB en `medico_id`/`paciente_id`, versionado de API, OpenAPI,
    accesibilidad de los forms inline de `App.jsx`) — pendiente, sin
