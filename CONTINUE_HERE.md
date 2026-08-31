@@ -374,10 +374,14 @@ cuenta no vinculada, UI para vincular cuenta↔médico/paciente, ownership en
   `ADMINISTRADOR` en `SecurityConfig` (a diferencia del resto de
   `/api/pacientes/**`, que permite `MEDICO`) porque expondría emails de
   pacientes fuera de los propios del médico.
-- `TurnoController.toResponse()` y `RegistroClinicoController.toResponse()`
-  hacen una consulta extra por fila para resolver `medicoNombre`/
-  `pacienteNombre` (N+1) — aceptable al volumen de datos actual, pero es lo
-  primero a mirar si un listado se pone lento.
+- ~~`TurnoController.toResponse()` y `RegistroClinicoController.toResponse()`
+  hacen una consulta extra por fila (N+1)~~ — resuelto
+  (`feature/fix-n-mas-1-listados`, PR #37): `MedicoRepository`/
+  `PacienteRepository.buscarPorIds(List<Long>)` (query JPQL `IN :ids`) +
+  `BuscarMedicoUseCase`/`BuscarPacienteUseCase.buscarPorIds` devolviendo un
+  `Map<Long,T>`. Los listados de turnos, historias clínicas (incluida la
+  exportación) y "pacientes de un médico" resuelven todo en 1-2 queries
+  totales en vez de 1-2 por fila.
 - ~~Doble reserva de turno por condición de carrera~~ — resuelto
   (`feature/turno-unique-constraint`): `CrearTurnoService` ya validaba "¿el
   médico tiene un turno a esa fecha/hora?" leyendo la lista y comparando
@@ -468,7 +472,8 @@ curl http://localhost:8080/api/turnos -H "Authorization: Bearer $TOKEN_ADMIN"
 curl http://localhost:8080/api/medicos -H "Authorization: Bearer $TOKEN_ADMIN"
 curl http://localhost:8080/api/pacientes -H "Authorization: Bearer $TOKEN_ADMIN"
 
-# registro público: solo MEDICO o PACIENTE
+# registro público: solo PACIENTE (desde PR #35 — antes tambien aceptaba
+# MEDICO, era una escalada de privilegios; ver Historial de PRs)
 curl -X POST http://localhost:8080/api/auth/registro -H "Content-Type: application/json" \
   -d '{"nombre":"Juan Gomez","email":"juan@medconnect.com","contrasena":"secreto123","role":"PACIENTE"}'
 ```
@@ -727,3 +732,77 @@ Se completaron los 8 puntos de la auditoría e2e de esta sesión
 usuario no trae un pedido puntual al arrancar la próxima sesión, el corte
 de las 5 secciones de `App.jsx` mencionado en el punto 8 es un buen punto
 de partida.
+
+## Segunda auditoría E2E (2026-08-30, nivel Staff+/Principal)
+
+El usuario trajo un prompt de auditoría mucho más exigente que la
+anterior (`Comando_evaluación.md`: Clean Architecture, SOLID, DDD,
+seguridad OWASP, performance, testing, etc., con hallazgos priorizados
+CRITICAL/HIGH/MEDIUM/LOW). Se hizo con 4 subagentes en paralelo (uno por
+área: dominio/aplicación, infraestructura/seguridad, tests, frontend) y
+se verificaron a mano los hallazgos de seguridad más graves antes de
+reportarlos. El usuario pidió resolverlos en el orden priorizado, un PR
+por punto, mismo flujo de siempre. Estado:
+
+1. ~~5 vulnerabilidades CRITICAL de control de acceso~~ — resuelto, PR #35
+   (`feature/fix-critical-security-holes`): autoregistro público escalaba a
+   rol MEDICO (ahora solo PACIENTE); `GET /api/historias-clinicas` no
+   verificaba que el médico tuviera relación con el paciente (IDOR sobre
+   PHI — cualquier MEDICO leía la historia de cualquiera); `POST
+   /api/historias-clinicas` tomaba `medicoId` del body en vez de la cuenta
+   autenticada (suplantación de autor); `PATCH /api/turnos/{id}/estado` no
+   validaba pertenencia para MEDICO (sí para PACIENTE); `JwtTokenService`
+   ahora falla el arranque si `COOKIE_SECURE=true` y el secreto sigue
+   siendo el default hardcodeado. Los primeros tres formaban una cadena de
+   ataque completa (registro anónimo → rol MEDICO → lectura/escritura de
+   historias clínicas de cualquier paciente). Verificado con curl contra
+   Postgres real armando dos médicos y un paciente vinculado solo a uno.
+2. ~~Dominio anémico: `Turno.setEstado()` público sin protección~~ —
+   resuelto, PR #36 (`feature/turno-invariante-dominio`): reemplazado por
+   `Turno.cambiarEstado()`, único punto de mutación, aplica la invariante
+   "no se puede modificar un turno cancelado" adentro del objeto en vez de
+   en el use case. Primer test de dominio del proyecto (`TurnoTest`) — antes
+   ninguna entidad tenía test propio porque ninguna tenía comportamiento.
+3. ~~N+1 en listados de turnos/historias clínicas/pacientes-de-un-médico~~
+   — resuelto, PR #37 (`feature/fix-n-mas-1-listados`), ver detalle en
+   "huecos conocidos" más arriba.
+4. ~~`ddl-auto=update` sin migraciones versionadas~~ — resuelto, este PR
+   (`feature/migrar-flyway`): Flyway con `V1__baseline.sql` (esquema
+   completo, replica exactamente lo que Hibernate ya había generado —
+   tipos, unique constraints, check constraints de los enums) +
+   `spring.jpa.hibernate.ddl-auto=validate` (Hibernate ya no toca el
+   esquema, solo valida que coincida) + `spring.flyway.baseline-version=1`
+   con `baseline-on-migrate=true`. Truco clave para no romper la base de
+   dev local ya existente: `baseline-version` tiene que ser el mismo
+   número que la migración que "captura" el estado actual (acá, `V1`) —
+   así, en una base que ya tiene las tablas pero no la de historial de
+   Flyway, Flyway la marca como si `V1` ya estuviera aplicada sin
+   volver a ejecutar el `CREATE TABLE` (que fallaría, las tablas ya
+   existen). En una base nueva y vacía (Docker/CI/deploy limpio) esto no
+   aplica: Flyway corre `V1` de punta a punta y crea todo desde cero.
+   Verificado ambos caminos a mano: contra la base de dev real (baseline
+   sin tocar datos existentes, `Started MedConnectApplication` limpio, sin
+   `SchemaManagementException`) y contra una base Postgres vacía creada
+   para la prueba (`CREATE DATABASE`, migración corre completa, login/
+   registro funcionan, base borrada después). A partir de acá, cualquier
+   cambio de esquema futuro es un `V2__algo.sql` nuevo, nunca tocar
+   `V1__baseline.sql` ni volver a `ddl-auto=update`.
+5. Logging/auditoría (Slf4j, trazabilidad de acceso a historias clínicas)
+   — pendiente.
+6. Deduplicación backend (`normalizarEmail` x4, chequeo de email-único x5,
+   validación de matrícula/especialidad) — pendiente.
+7. Frontend: `apiFetch` compartido (los forms tienen su propio `fetch` sin
+   el manejo de sesión expirada que sí tiene el resto), manejo de errores
+   consistente en los loaders del mount `useEffect` (varios no tienen
+   `catch`, quedan como unhandled rejection), fix de la condición de
+   carrera en paginación (sin `AbortController`) — pendiente.
+8. Tests: cobertura cero de las reglas de `SecurityConfig` (los
+   controller tests usan `standaloneSetup`, no `@WebMvcTest`, así que la
+   cadena real de filtros de Spring Security nunca se ejecuta bajo test) y
+   `CrearTurnoIntegrationTest` no es una integration test real (excluye el
+   `DataSource`, usa fakes en memoria, filtros de seguridad
+   deshabilitados) — pendiente.
+9. Mejoras de diseño de menor urgencia (Value Objects, Factory pattern,
+   índices de DB en `medico_id`/`paciente_id`, versionado de API, OpenAPI,
+   accesibilidad de los forms inline de `App.jsx`) — pendiente, sin
+   priorizar todavía dentro del grupo.
