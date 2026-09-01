@@ -1,0 +1,68 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: medconnect
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?Definí DB_PASSWORD en tu .env (ver .env.example)}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d medconnect"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - medconnect
+
+  backend:
+    build:
+      context: ./backend
+    environment:
+      DB_URL: jdbc:postgresql://postgres:5432/medconnect
+      DB_USER: postgres
+      DB_PASSWORD: ${DB_PASSWORD:?Definí DB_PASSWORD en tu .env (ver .env.example)}
+      # Sin default acá a propósito: application.properties sí tiene uno
+      # (para que arrancar en local sin Docker no rompa), pero ese default
+      # es un secreto conocido/committeado a git -- este compose está
+      # pensado como el paso previo más cercano a un despliegue real, así
+      # que lo obligamos a definirse explícitamente en vez de dejar pasar
+      # el fallback de desarrollo sin que nadie se dé cuenta.
+      JWT_SECRET: ${JWT_SECRET:?Definí JWT_SECRET en tu .env (ver .env.example) -- no reutilices el default de application.properties}
+      JWT_EXPIRATION_MS: ${JWT_EXPIRATION_MS:-86400000}
+      COOKIE_SECURE: ${COOKIE_SECURE:-false}
+      ALLOWED_ORIGIN_PATTERNS: ${ALLOWED_ORIGIN_PATTERNS:-http://localhost:*}
+    ports:
+      - "${BACKEND_PORT:-8080}:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    # Sin test explícito acá: reusa el HEALTHCHECK ya definido en
+    # backend/Dockerfile (mismo endpoint /actuator/health), así no hay dos
+    # definiciones de "qué significa que el backend esté sano" que puedan
+    # desincronizarse.
+    networks:
+      - medconnect
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        # VITE_API_URL se incrusta en el bundle en build-time, y el bundle
+        # lo ejecuta el navegador del host, no otro contenedor -- por eso
+        # apunta a localhost:BACKEND_PORT (el puerto publicado en el host),
+        # no al nombre de servicio "backend" de la red interna de compose.
+        VITE_API_URL: ${VITE_API_URL:-http://localhost:8080}
+    ports:
+      - "${FRONTEND_PORT:-80}:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - medconnect
+
+volumes:
+  postgres_data:
+
+networks:
+  medconnect:
