@@ -29,6 +29,9 @@ services:
       # que lo obligamos a definirse explícitamente en vez de dejar pasar
       # el fallback de desarrollo sin que nadie se dé cuenta.
       JWT_SECRET: ${JWT_SECRET:?Definí JWT_SECRET en tu .env (ver .env.example) -- no reutilices el default de application.properties}
+      # Mismo criterio que JWT_SECRET: sin default acá, aunque
+      # application.properties sí tenga uno de desarrollo.
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY:?Definí ENCRYPTION_KEY en tu .env (ver .env.example) -- no reutilices el default de application.properties}
       JWT_EXPIRATION_MS: ${JWT_EXPIRATION_MS:-86400000}
       COOKIE_SECURE: ${COOKIE_SECURE:-false}
       ALLOWED_ORIGIN_PATTERNS: ${ALLOWED_ORIGIN_PATTERNS:-http://localhost:*}

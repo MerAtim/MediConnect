@@ -1,5 +1,7 @@
 package com.medconnect.infrastructure.persistence;
 
+import jakarta.persistence.Column;
+import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -19,8 +21,21 @@ public class RegistroClinicoEntity {
     private LocalDateTime fecha;
     private Long medicoId;
     private Long pacienteId;
+
+    // Cifradas at-rest (AES-256-GCM, ver AesGcmFieldEncryptor): es contenido
+    // médico real, la única tabla del proyecto que guarda algo así. columnDefinition=TEXT
+    // porque el texto cifrado+IV+tag en base64 pesa ~1.4x el original y ya
+    // no entra en un VARCHAR(255) salvo para textos muy cortos.
+    @Convert(converter = EncryptedStringConverter.class)
+    @Column(columnDefinition = "TEXT")
     private String diagnostico;
+
+    @Convert(converter = EncryptedStringConverter.class)
+    @Column(columnDefinition = "TEXT")
     private String tratamiento;
+
+    @Convert(converter = EncryptedStringConverter.class)
+    @Column(columnDefinition = "TEXT")
     private String observaciones;
 
     protected RegistroClinicoEntity() {}
