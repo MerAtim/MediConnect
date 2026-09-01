@@ -50,7 +50,23 @@ Ejemplos en español:
 - `refactor: separar casos de uso de dominio`
 
 ## Instalación y ejecución
-### Backend
+### Con Docker Compose (recomendado — levanta todo con un comando)
+1. Copiar `.env.example` a `.env` y completar `DB_PASSWORD` y `JWT_SECRET`
+   (generar este último con `openssl rand -base64 48`, por ejemplo — no
+   reutilizar ningún valor de ejemplo).
+2. `docker compose up --build`
+3. Backend en `http://localhost:8080` (o el puerto que hayas puesto en
+   `BACKEND_PORT`), frontend en `http://localhost:80`. Postgres corre
+   dentro de la red de compose, con su propio volumen (`postgres_data`) —
+   no hace falta tener Postgres instalado en el host.
+
+Cada servicio expone healthcheck propio (`docker compose ps` muestra
+`healthy`/`unhealthy`); el backend no arranca hasta que Postgres esté
+realmente aceptando conexiones, y el frontend no arranca hasta que el
+backend responda `UP` en `/actuator/health`.
+
+### Sin Docker (desarrollo día a día)
+#### Backend
 Necesita PostgreSQL corriendo (por defecto en `localhost:5432`, DB `medconnect`,
 user `postgres`) — ver `spring.datasource.*` en
 `backend/src/main/resources/application.properties` para los defaults y las
@@ -64,7 +80,7 @@ env vars que los overridean.
    mismo navegador (el JWT viaja en una cookie httpOnly, no hay forma de
    pegarlo a mano en Swagger).
 
-### Frontend
+#### Frontend
 1. Ir a `frontend/`
 2. Ejecutar `npm install`
 3. (Opcional) copiar `.env.example` a `.env` y ajustar `VITE_API_URL` si el

@@ -975,11 +975,44 @@ con las tres, mismo flujo de siempre (un PR por punto).
    Verificado con curl contra el backend real: `/actuator/health` → 200
    `{"status":"UP"}` sin campos extra, `/actuator/env` sin cookie → 403,
    sin regresión en Swagger ni en los endpoints protegidos existentes.
-2. Deploy/infra real — pendiente en esta sesión: `docker-compose.yml`
-   completo (Postgres + backend + frontend con un solo comando),
-   Dockerfile del backend a build multi-stage desde código fuente (hoy
-   depende de correr `mvn package` a mano antes de `docker build`),
-   `.env.example` para los secretos de compose.
+2. ~~Deploy/infra real~~ — resuelto, PR #45 (`feature/docker-compose-deploy`):
+   - **`backend/Dockerfile`**: pasó de requerir un jar pre-compilado a mano
+     a build multi-stage real (`eclipse-temurin:17-jdk-alpine` para
+     compilar, `eclipse-temurin:17-jre-alpine` para correr — antes el
+     runtime era un JRE 25 sin relación con `java.version=17` del pom).
+     `mvnw`/`.mvn`/`pom.xml` se copian antes que `src/` para que Docker
+     cachee la descarga de dependencias en su propia capa. Corre como
+     usuario no-root (`medconnect`), y trae un `HEALTHCHECK` que pega
+     contra `/actuator/health` (el endpoint del PR anterior) con
+     `start-period=40s` para darle tiempo a Flyway/Hibernate a terminar de
+     arrancar antes de que cuente el primer check.
+   - **`frontend/Dockerfile`**: mismo `HEALTHCHECK` agregado (antes no
+     tenía ninguno).
+   - **`docker-compose.yml`** (nuevo, raíz del repo): levanta Postgres +
+     backend + frontend con un solo comando. `backend` depende de
+     `postgres` con `condition: service_healthy` (no un `depends_on`
+     ciego que arranca el backend antes de que Postgres esté aceptando
+     conexiones), `frontend` depende de `backend` sano de la misma forma.
+     `DB_PASSWORD` y `JWT_SECRET` son obligatorios sin default (compose
+     falla al arrancar si no están seteados) — a diferencia del
+     `JWT_SECRET` de `application.properties`, que sí tiene un fallback de
+     desarrollo hardcodeado (necesario para que levantar sin Docker no se
+     rompa), acá se obliga a definir uno real a propósito porque compose
+     es el paso más cercano a un despliegue de verdad que tiene el repo.
+   - **`.env.example`** (nuevo, raíz): documenta las variables de compose.
+   - **`backend/.dockerignore`**: actualizado para el build desde fuente
+     (antes estaba armado para copiar un jar pre-compilado puntual).
+   - Verificado de punta a punta con `docker compose up --build` real
+     (puertos alternativos en esta verificación porque 8080 está ocupado
+     por el propio Docker Desktop/WSL en esta máquina): los tres
+     contenedores llegan a `healthy`, Flyway corre `V1` contra una base
+     nueva del volumen de compose (no la de dev local), `/actuator/health`
+     responde `UP`, `/actuator/env` sigue en 403 con todo el stack
+     corriendo en Docker, el frontend sirve el build de Vite, un login con
+     credenciales inválidas a través del stack completo devuelve 401, y
+     `whoami` dentro del contenedor del backend confirma que corre como
+     `medconnect`, no como root. Stack y volumen de prueba destruidos
+     (`docker compose down -v`) al terminar.
 3. Sensibilidad de datos — pendiente en esta sesión: cifrado at-rest
    (AES-GCM vía JPA `AttributeConverter`) de `diagnostico`/`tratamiento`/
    `observaciones` en `registros_clinicos`, la única tabla que hoy guarda

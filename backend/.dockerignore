@@ -1,6 +1,5 @@
-target/*
-!target/medconnect-backend-0.0.1-SNAPSHOT.jar
-.mvn/
+target/
+.mvn/wrapper/maven-wrapper.jar.sha256
 .git/
 node_modules/
 README.md
