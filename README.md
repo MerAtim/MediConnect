@@ -51,9 +51,10 @@ Ejemplos en español:
 
 ## Instalación y ejecución
 ### Con Docker Compose (recomendado — levanta todo con un comando)
-1. Copiar `.env.example` a `.env` y completar `DB_PASSWORD` y `JWT_SECRET`
-   (generar este último con `openssl rand -base64 48`, por ejemplo — no
-   reutilizar ningún valor de ejemplo).
+1. Copiar `.env.example` a `.env` y completar `DB_PASSWORD`, `JWT_SECRET` y
+   `ENCRYPTION_KEY` (generar los dos últimos con `openssl rand -base64 48`
+   y `openssl rand -base64 32` respectivamente — no reutilizar ningún
+   valor de ejemplo).
 2. `docker compose up --build`
 3. Backend en `http://localhost:8080` (o el puerto que hayas puesto en
    `BACKEND_PORT`), frontend en `http://localhost:80`. Postgres corre

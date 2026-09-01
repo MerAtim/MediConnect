@@ -1013,7 +1013,53 @@ con las tres, mismo flujo de siempre (un PR por punto).
      `whoami` dentro del contenedor del backend confirma que corre como
      `medconnect`, no como root. Stack y volumen de prueba destruidos
      (`docker compose down -v`) al terminar.
-3. Sensibilidad de datos — pendiente en esta sesión: cifrado at-rest
-   (AES-GCM vía JPA `AttributeConverter`) de `diagnostico`/`tratamiento`/
-   `observaciones` en `registros_clinicos`, la única tabla que hoy guarda
-   contenido médico real en texto plano. Clave desde variable de entorno.
+3. ~~Sensibilidad de datos~~ — resuelto, PR #46 (`feature/cifrado-historia-clinica`):
+   - **`AesGcmFieldEncryptor`** (nuevo, `infrastructure/security/`): AES-256-GCM,
+     mismo patrón que `JwtTokenService` — `@Component` con constructor que
+     recibe `app.encryption-key` y `app.cookie-secure`, falla el arranque
+     si `COOKIE_SECURE=true` y la clave sigue siendo el default de
+     desarrollo hardcodeado, o si la clave no decodifica a 32 bytes
+     (AES-256) en Base64. Cada `encriptar()` genera un IV aleatorio de 12
+     bytes (nunca se reusa una clave+IV, lo que rompería la garantía de
+     GCM) y lo antepone al texto cifrado antes de Base64 — no hace falta
+     guardarlo aparte. El tag de autenticación de GCM (128 bits) detecta
+     cualquier alteración del valor guardado: desencriptar un dato
+     corrompido tira excepción en vez de devolver basura silenciosamente.
+   - **`EncryptedStringConverter`** (nuevo, `infrastructure/persistence/`):
+     `AttributeConverter<String,String>` de JPA que delega en
+     `AesGcmFieldEncryptor`. `autoApply=false` a propósito — se aplica
+     campo por campo con `@Convert` en vez de a cualquier `String` de
+     cualquier entidad (cifrar el email de `Usuario`, por ejemplo, rompería
+     `buscarPorEmail`, que filtra por igualdad en la base).
+   - **`RegistroClinicoEntity`**: `@Convert(converter = EncryptedStringConverter.class)`
+     en `diagnostico`/`tratamiento`/`observaciones` (la única tabla del
+     proyecto con contenido médico real) + `columnDefinition=TEXT` — el
+     texto cifrado en Base64 pesa ~1.4x el original y ya no entra en el
+     `VARCHAR(255)` original salvo para textos muy cortos.
+   - **`V2__cifrar_registros_clinicos.sql`** (nueva migración Flyway):
+     ensancha esas tres columnas a `TEXT` y trunca la tabla — los 4
+     registros que había eran datos de prueba de una sesión anterior
+     (`"prueba"`, `"a"`, etc., visibles en texto plano al inspeccionar la
+     base antes de este PR — exactamente el problema que este PR
+     resuelve), guardados antes de que existiera cifrado y sin forma de
+     desencriptarse bajo el esquema nuevo. Documentado en el SQL que un
+     despliegue con datos reales reemplazaría el `TRUNCATE` por un script
+     que lee cada fila en texto plano y la reescribe cifrada.
+   - `application.properties`: `app.encryption-key=${ENCRYPTION_KEY:...}`,
+     mismo criterio que `jwt.secret` (default solo para local sin Docker).
+   - `docker-compose.yml`/`.env.example`: `ENCRYPTION_KEY` ahora obligatorio
+     sin default, mismo criterio que `JWT_SECRET`.
+   - Tests nuevos: `AesGcmFieldEncryptorTest` (11 casos — round-trip, null,
+     IV distinto en cada llamada para el mismo texto, dato corrupto/
+     truncado/no-Base64 tira excepción, clave inválida o de largo
+     incorrecto tira excepción en el constructor, `cookieSecure=true` con
+     la clave de defecto tira excepción) y `EncryptedStringConverterTest`
+     (3 casos). Suite completa: 186/186 tests OK.
+   - Verificado con curl contra Postgres real (cuentas y turno de prueba
+     descartables, limpiados al terminar): se creó una historia clínica
+     vía `POST /api/historias-clinicas`, se confirmó con `psql` que la
+     columna `diagnostico` en la base es un blob Base64 ilegible (no el
+     texto original), y que tanto `GET /api/historias-clinicas` como
+     `GET /api/historias-clinicas/exportar` devuelven el texto plano
+     correcto — el cifrado es transparente para el resto de la
+     aplicación.
