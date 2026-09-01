@@ -114,6 +114,16 @@ public class SecurityConfigTest {
     }
 
     @Test
+    public void actuatorHealth_esPublico_peroElRestoDeActuatorNo() throws Exception {
+        mockMvc.perform(get("/actuator/health"))
+                .andExpect(status().isOk());
+        mockMvc.perform(get("/actuator/env"))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(get("/actuator/env").cookie(jwtCookie(UsuarioRole.ADMINISTRADOR)))
+                .andExpect(noRechazadoPorAutorizacion());
+    }
+
+    @Test
     public void login_esPublico() throws Exception {
         mockMvc.perform(post("/api/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)

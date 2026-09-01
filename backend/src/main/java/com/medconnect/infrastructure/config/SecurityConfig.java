@@ -70,6 +70,14 @@ public class SecurityConfig {
                         // sin armar curl a mano) se pierde si primero hay que autenticarse
                         // para verla.
                         .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
+                        // Liveness/readiness para un orquestador (Docker, k8s): no puede
+                        // exigir auth porque quien lo pega no tiene forma de loguearse.
+                        // Los demas endpoints de actuator no estan expuestos via
+                        // management.endpoints.web.exposure.include, pero esta regla
+                        // los deja igual bloqueados detras de rol por si esa lista se
+                        // amplia en el futuro sin tocar este archivo.
+                        .requestMatchers("/actuator/health", "/actuator/health/**").permitAll()
+                        .requestMatchers("/actuator/**").hasRole("ADMINISTRADOR")
                         .requestMatchers(HttpMethod.POST, "/api/usuarios/**").hasRole("ADMINISTRADOR")
                         .requestMatchers(HttpMethod.PATCH, "/api/usuarios/me/contrasena").authenticated()
                         .requestMatchers(HttpMethod.PATCH, "/api/usuarios/*/contrasena").hasRole("ADMINISTRADOR")

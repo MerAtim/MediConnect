@@ -949,3 +949,38 @@ por punto, mismo flujo de siempre. Estado:
      controllers) y con Playwright (`/swagger-ui/index.html` renderiza
      título/descripción/servers/endpoints agrupados por controller, cero
      errores de consola).
+
+## Tercera ronda (2026-09-01): madurez operativa
+
+Después de cerrar la segunda auditoría, el usuario preguntó si el
+proyecto podía considerarse terminado. Respuesta: no en sentido
+absoluto, pero además las dos auditorías anteriores (arquitectura/
+seguridad/testing) dejaron afuera tres categorías que nadie había
+evaluado todavía: deploy/infra real, sensibilidad de los datos de
+salud, y observabilidad operativa básica. El usuario pidió avanzar
+con las tres, mismo flujo de siempre (un PR por punto).
+
+1. ~~Operación: sin health checks~~ — resuelto, PR #44
+   (`feature/actuator-health-checks`): `spring-boot-starter-actuator` +
+   `management.endpoints.web.exposure.include=health` (único endpoint
+   expuesto) + `management.endpoint.health.show-details=never` (solo
+   `{"status":"UP"}`, sin filtrar detalle de los health indicators, p.ej.
+   la URL de la base, a quien pegue el endpoint sin autenticarse).
+   `SecurityConfig`: `/actuator/health` y `/actuator/health/**` son
+   `permitAll` (un orquestador que hace liveness/readiness no tiene forma
+   de loguearse); el resto de `/actuator/**` exige rol ADMINISTRADOR —
+   defensa en profundidad para si en el futuro se amplía la lista de
+   endpoints expuestos sin acordarse de tocar `SecurityConfig`. Test nuevo
+   en `SecurityConfigTest` (`actuatorHealth_esPublico_peroElRestoDeActuatorNo`).
+   Verificado con curl contra el backend real: `/actuator/health` → 200
+   `{"status":"UP"}` sin campos extra, `/actuator/env` sin cookie → 403,
+   sin regresión en Swagger ni en los endpoints protegidos existentes.
+2. Deploy/infra real — pendiente en esta sesión: `docker-compose.yml`
+   completo (Postgres + backend + frontend con un solo comando),
+   Dockerfile del backend a build multi-stage desde código fuente (hoy
+   depende de correr `mvn package` a mano antes de `docker build`),
+   `.env.example` para los secretos de compose.
+3. Sensibilidad de datos — pendiente en esta sesión: cifrado at-rest
+   (AES-GCM vía JPA `AttributeConverter`) de `diagnostico`/`tratamiento`/
+   `observaciones` en `registros_clinicos`, la única tabla que hoy guarda
+   contenido médico real en texto plano. Clave desde variable de entorno.
