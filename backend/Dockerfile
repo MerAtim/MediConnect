@@ -1,6 +1,6 @@
 # Build multi-stage: no depende de un Maven instalado en el host ni de un
 # jar pre-compilado a mano -- `docker build .` alcanza y solita.
-FROM eclipse-temurin:17-jdk-alpine AS build
+FROM eclipse-temurin:25-jdk-alpine AS build
 WORKDIR /app
 
 # El wrapper y el pom se copian antes que el codigo para que Docker cachee
@@ -18,9 +18,8 @@ COPY src src
 RUN ./mvnw -B -DskipTests package
 
 # Imagen runtime: solo el JRE (no el JDK completo) y alpine, coherente con
-# java.version=17 del pom -- la imagen anterior corria un JRE 25 sin
-# ninguna razon para estar dos major versions por delante del target real.
-FROM eclipse-temurin:17-jre-alpine AS runtime
+# java.version=25 del pom.
+FROM eclipse-temurin:25-jre-alpine AS runtime
 WORKDIR /app
 
 # No correr como root dentro del contenedor: si algun dia se encuentra una

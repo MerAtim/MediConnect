@@ -10,7 +10,7 @@ cuenta no vinculada, UI para vincular cuenta↔médico/paciente, ownership en
 
 ## Stack y arquitectura
 
-- **Backend**: Spring Boot 3.2 / Java 17, Maven (`backend/`).
+- **Backend**: Spring Boot 3.2 / Java 25, Maven (`backend/`).
 - **Persistencia**: JPA + **PostgreSQL real** (no H2, no Docker). Requiere Postgres
   instalado nativamente en Windows, DB `medconnect`, user `postgres`.
   `spring.jpa.hibernate.ddl-auto=update` crea/actualiza las tablas solo.

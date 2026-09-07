@@ -20,7 +20,7 @@
 No es un proyecto terminado: es una app que se sigue construyendo de forma incremental (ver `CONTINUE_HERE.md` para el detalle de qué se implementó en cada etapa y qué queda pendiente).
 
 ## Stack
-- **Backend**: Java 17 + Spring Boot 3.2, arquitectura hexagonal (dominio / casos de uso / infraestructura / adaptadores REST), PostgreSQL vía JPA.
+- **Backend**: Java 25 + Spring Boot 3.2, arquitectura hexagonal (dominio / casos de uso / infraestructura / adaptadores REST), PostgreSQL vía JPA.
 - **Frontend**: React 18 + Vite, JavaScript (no TypeScript), Tailwind CSS.
 - **Tests**: JUnit + Mockito en el backend, Vitest + React Testing Library en el frontend. CI en GitHub Actions corre ambos en cada push/PR a `main`/`develop`.
 
