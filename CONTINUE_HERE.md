@@ -2,15 +2,13 @@
 
 Este archivo se mantiene actualizado al final de cada sesión de trabajo para que,
 aunque pasen días sin conectarte, se pueda seguir sin releer el proyecto entero.
-Última actualización: **2026-08-24**, tras mergear PRs #20–#24: los 6 puntos
-del plan sugerido de la sesión anterior — alta de administradores, aviso de
-cuenta no vinculada, UI para vincular cuenta↔médico/paciente, ownership en
-`GET /api/turnos/{id}` y `GET /api/pacientes/{id}`, y paginación de
-`GET /api/turnos` (Médicos/Pacientes se dejaron sin paginar a propósito).
+Última actualización: **2026-09-07**, tras mergear PR #47
+(`appmod/java-upgrade-20260904063442`, ver "Cuarta ronda" más abajo): Java 17 →
+25 y Spring Boot 3.2.0 → 3.5.6 en todo el proyecto (pom, Dockerfile, CI, docs).
 
 ## Stack y arquitectura
 
-- **Backend**: Spring Boot 3.2 / Java 25, Maven (`backend/`).
+- **Backend**: Spring Boot 3.5.6 / Java 25, Maven (`backend/`).
 - **Persistencia**: JPA + **PostgreSQL real** (no H2, no Docker). Requiere Postgres
   instalado nativamente en Windows, DB `medconnect`, user `postgres`.
   `spring.jpa.hibernate.ddl-auto=update` crea/actualiza las tablas solo.
@@ -1063,3 +1061,64 @@ con las tres, mismo flujo de siempre (un PR por punto).
      `GET /api/historias-clinicas/exportar` devuelven el texto plano
      correcto — el cifrado es transparente para el resto de la
      aplicación.
+
+## Cuarta ronda (2026-09-04/07): upgrade de Java y Spring Boot
+
+Una herramienta de app-modernization automática (no un pedido explícito del
+usuario en sesión — aparecieron 3 commits ya hechos en una rama
+`appmod/java-upgrade-20260904063442` al arrancar la sesión del 2026-09-07,
+estilo "Step 3/4/5", probablemente algo tipo GitHub App Modernization o
+Dependabot corriendo aparte) subió el runtime de Java 17 a 25 y detectó un
+CVE en el driver de Postgres. Se validó todo de cero (no se confió en los
+mensajes de los commits) antes de abrir PR.
+
+- ~~Java 17 → 25, Spring Boot 3.2.0 → 3.5.6~~ — resuelto, PR #47
+  (rama `appmod/java-upgrade-20260904063442`):
+  - `backend/pom.xml`: `java.version=25`, `spring-boot-starter-parent` a
+    `3.5.6` (bump necesario para compatibilidad de bytecode con Java 25),
+    `jacoco-maven-plugin` `0.8.10` → `0.8.15` (mismo motivo), `postgresql`
+    JDBC `42.7.11` → `42.7.12` (fix CVE-2026-54291, preserva
+    channel-binding bajo policy `require`).
+  - `backend/Dockerfile`, `.github/workflows/maven.yml`, `README.md`:
+    actualizados a Java 25 para que coincidan con el pom (antes el
+    Dockerfile ya corría en JRE 25 sin relación con el `java.version=17`
+    del pom, inconsistencia arrastrada desde el PR #45).
+  - **Esta máquina solo tenía JDK 23 instalado** (Java 25 es muy reciente),
+    así que `./mvnw.cmd compile` fallaba local con `error: release version
+    25 not supported` — no alcanzaba con confiar en el mensaje del commit
+    ("Compile: SUCCESS"). Se instaló JDK 25 real (Microsoft Build of
+    OpenJDK, vía `winget install Microsoft.OpenJDK.25`) antes de validar
+    nada. **Si esta máquina no tiene ese JDK la próxima vez que haga falta
+    compilar en local, reinstalar con ese mismo comando.**
+  - **Bug real encontrado en CI (no local)**: el primer push de la PR
+    rompió el job `build` de GitHub Actions con
+    `FlywayException: Unsupported Database: PostgreSQL 16.15`. Causa:
+    Spring Boot 3.5.6 trae Flyway 11, que desde la v10 separó el soporte
+    de PostgreSQL en un módulo aparte (`flyway-database-postgresql`) —
+    antes venía incluido en `flyway-core`. Localmente el
+    `CrearTurnoIntegrationTest` (el único que usa Postgres real vía
+    Testcontainers) nunca llegó a pisar este bug porque Testcontainers no
+    puede hablarle a Docker Desktop en esta máquina (mismo hueco conocido
+    ya documentado en la PR #42, arriba — problema de Windows, no de este
+    upgrade); el bug solo se manifestó en CI (Linux, Docker real). Fix:
+    agregar `org.flywaydb:flyway-database-postgresql` a `backend/pom.xml`
+    (versión gestionada por la BOM de `spring-boot-starter-parent`, no
+    hace falta fijarla a mano). **Si en el futuro se sube Flyway de major
+    version de nuevo, revisar si aparece otro módulo de base de datos
+    separado antes de asumir que el upgrade es solo cambiar un número.**
+  - Verificado: `./mvnw.cmd compile` con JDK 25 real → SUCCESS;
+    `./mvnw.cmd test` → 187 tests, 186 OK (el único error es el hueco de
+    Testcontainers-en-Windows ya conocido, no una regresión); CI de
+    GitHub Actions (job `build`, Ubuntu, Docker real) → verde después del
+    fix de Flyway.
+  - Limpieza post-merge: rama `appmod/java-upgrade-20260904063442`
+    borrada (local + remota) y `feature/dominio-usuarios-turnos` (huérfana
+    de la PR #1, ya mergeada hace mucho, encontrada al auditar ramas
+    viejas) también borrada.
+
+## Plan sugerido para la próxima sesión
+
+Sin pedido puntual del usuario para arrancar, el corte de las 5 secciones
+grandes de `App.jsx` (Médicos, Pacientes, Usuarios, Otorgar turno, Turnos)
+en componentes propios — que quedó a medias en la PR #34 (ver punto 8 de la
+primera auditoría, más arriba) — es el próximo punto natural.
