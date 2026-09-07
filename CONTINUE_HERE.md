@@ -2,9 +2,12 @@
 
 Este archivo se mantiene actualizado al final de cada sesión de trabajo para que,
 aunque pasen días sin conectarte, se pueda seguir sin releer el proyecto entero.
-Última actualización: **2026-09-07**, tras mergear PR #47
-(`appmod/java-upgrade-20260904063442`, ver "Cuarta ronda" más abajo): Java 17 →
-25 y Spring Boot 3.2.0 → 3.5.6 en todo el proyecto (pom, Dockerfile, CI, docs).
+Última actualización: **2026-09-07**, tras mergear PR #48
+(`feature/split-app-jsx-secciones`, ver "Quinta ronda" más abajo): terminado
+el corte de las 5 secciones grandes de `App.jsx` en componentes propios que
+había quedado a medias en la PR #34. Justo antes, PR #47 (ver "Cuarta
+ronda"): Java 17 → 25 y Spring Boot 3.2.0 → 3.5.6 en todo el proyecto (pom,
+Dockerfile, CI, docs).
 
 ## Stack y arquitectura
 
@@ -1116,9 +1119,38 @@ mensajes de los commits) antes de abrir PR.
     de la PR #1, ya mergeada hace mucho, encontrada al auditar ramas
     viejas) también borrada.
 
+## Quinta ronda (2026-09-07): terminar el corte de App.jsx
+
+~~Partir las 5 secciones grandes de `App.jsx` en componentes~~ — resuelto,
+PR #48 (`feature/split-app-jsx-secciones`): completa lo que había quedado a
+medias en la PR #34 (ver punto 8 de la primera auditoría, más arriba).
+Usuarios, Médicos, Pacientes, Otorgar turno y Turnos (la más grande, incluye
+la fila expandible de historia clínica) son ahora componentes propios en
+`frontend/src/components/`; `App.jsx` bajó de 1063 a 661 líneas y quedó como
+contenedor puro (estado + handlers, todo pasado por props, mismo patrón que
+`MedicoForm`/`PacienteForm`/`UsuarioForm`). Refactor puro, sin cambios de
+comportamiento ni estilos. Mismo gotcha que la PR #34 (documentado ahí
+arriba): al proyecto correr en modo zero-config de Vite (JSX transform
+clásico), cada componente nuevo con JSX necesitó `import React` explícito
+aunque no use `React.algo` — 4 de los 5 archivos nuevos lo tenían faltante
+al principio, se agregó antes de probar en navegador (el quinto, `TurnosSection`,
+ya lo traía por usar `React.Fragment`). Verificado con Playwright real
+(Postgres nativo, backend en `:8090` para no pisar otros proyectos Docker en
+`:8080`): las 5 secciones renderizan para `ADMINISTRADOR` sin errores de
+consola, filtros de turnos, y un flujo completo con médico/paciente/turno de
+prueba (creados y borrados en la misma corrida) que ejercita lo más
+riesgoso del refactor — expandir "Ver historia", agregar un registro
+clínico, cancelación en dos pasos del paciente.
+
 ## Plan sugerido para la próxima sesión
 
-Sin pedido puntual del usuario para arrancar, el corte de las 5 secciones
-grandes de `App.jsx` (Médicos, Pacientes, Usuarios, Otorgar turno, Turnos)
-en componentes propios — que quedó a medias en la PR #34 (ver punto 8 de la
-primera auditoría, más arriba) — es el próximo punto natural.
+Sin pedido puntual del usuario para arrancar: de las 5 secciones de
+`App.jsx`, el JSX de cada una ya está en su propio archivo, pero sigue
+siendo una sola función grande por sección con bastante estado propio
+threadeado por props desde `App`. Si en algún momento el archivo vuelve a
+sentirse grande, el próximo corte natural sería extraer hooks de datos
+(`useTurnos`, `useMedicos`, etc.) en vez de seguir bajando por componentes.
+Si no, retomar alguno de los puntos ya pospuestos explícitamente en la
+segunda auditoría (punto 9, más arriba): Value Objects, Factory pattern,
+índices de DB en `medico_id`/`paciente_id`, versionado de API, accesibilidad
+de los forms inline.
