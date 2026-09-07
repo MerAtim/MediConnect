@@ -1,16 +1,16 @@
 import React, {useEffect, useRef, useState} from 'react'
 import {AUTH_API, AUTH_STORAGE_KEY, HISTORIAS_API, MEDICOS_API, PACIENTES_API, TURNOS_API, USUARIOS_API} from './config.js'
 import {apiFetch, setSessionExpiredHandler} from './apiClient.js'
-import {clearValidity, handleInvalid, readErrorMessage} from './utils.js'
+import {readErrorMessage} from './utils.js'
 import CambiarContrasenaModal from './components/CambiarContrasenaModal.jsx'
 import ConfirmModal from './components/ConfirmModal.jsx'
-import EstadoBadge from './components/EstadoBadge.jsx'
 import LoginScreen from './components/LoginScreen.jsx'
-import MedicoForm from './components/MedicoForm.jsx'
-import PacienteForm from './components/PacienteForm.jsx'
-import SkeletonRows from './components/SkeletonRows.jsx'
 import ToastContainer from './components/ToastContainer.jsx'
-import UsuarioForm from './components/UsuarioForm.jsx'
+import UsuariosSection from './components/UsuariosSection.jsx'
+import MedicosSection from './components/MedicosSection.jsx'
+import PacientesSection from './components/PacientesSection.jsx'
+import OtorgarTurnoSection from './components/OtorgarTurnoSection.jsx'
+import TurnosSection from './components/TurnosSection.jsx'
 
 export default function App(){
   // Efecto ripple estilo Material: un solo listener global cubre todos los
@@ -557,506 +557,104 @@ export default function App(){
         )}
 
         {esAdmin && (
-          <section className="card">
-            <h2 className="heading mb-4">Usuarios</h2>
-            <p className="text-sm text-neutral-500 mb-4">
-              Creá una cuenta de acceso (login) para otro administrador, médico o paciente.
-            </p>
-            <UsuarioForm notify={notify} onGuardado={cargarUsuarios} />
-            <div className="overflow-x-auto rounded-lg border border-neutral-200 mt-4">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="bg-paper-100 text-left text-neutral-500">
-                    <th className="px-4 py-2 font-medium">Nombre</th>
-                    <th className="px-4 py-2 font-medium">Email</th>
-                    <th className="px-4 py-2 font-medium">Rol</th>
-                    <th className="px-4 py-2 font-medium">Acciones</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-neutral-100">
-                  {usuarios.map(u => (
-                    <tr key={u.id} className="hover:bg-paper-100/60">
-                      <td className="px-4 py-2 text-neutral-900">{u.nombre}</td>
-                      <td className="px-4 py-2 text-neutral-900">{u.email}</td>
-                      <td className="px-4 py-2 text-neutral-900">{u.role}</td>
-                      <td className="px-4 py-2">
-                        <button type="button" onClick={() => setUsuarioAResetear(u)} className="btn-secondary !px-2 !py-1 text-xs">
-                          Resetear contraseña
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                  {usuarios.length === 0 && (
-                    <tr>
-                      <td colSpan={4} className="px-4 py-6 text-center text-neutral-400">
-                        Sin cuentas registradas.
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </section>
+          <UsuariosSection
+            usuarios={usuarios}
+            notify={notify}
+            onGuardado={cargarUsuarios}
+            onResetearClick={setUsuarioAResetear}
+          />
         )}
 
         {esAdmin && (
-          <section className="card">
-            <h2 className="heading mb-4">Médicos</h2>
-            <MedicoForm
-              key={editingMedico?.id ?? 'new'}
-              medico={editingMedico}
-              notify={notify}
-              onGuardado={async () => { setEditingMedico(null); await cargarMedicos(); await cargarMedicosVinculados() }}
-              onCancelarEdicion={() => setEditingMedico(null)}
-              cuentasDisponibles={cuentasMedicoDisponibles}
-            />
-            <div className="overflow-x-auto rounded-lg border border-neutral-200">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="bg-paper-100 text-left text-neutral-500">
-                    <th className="px-4 py-2 font-medium">ID</th>
-                    <th className="px-4 py-2 font-medium">Nombre</th>
-                    <th className="px-4 py-2 font-medium">Especialidad</th>
-                    <th className="px-4 py-2 font-medium">Matrícula</th>
-                    <th className="px-4 py-2 font-medium">Dirección</th>
-                    <th className="px-4 py-2 font-medium">Acciones</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-neutral-100">
-                  {medicosLoading && medicos.length === 0 ? (
-                    <SkeletonRows columns={6} />
-                  ) : (
-                    <>
-                      {medicos.map(m => (
-                        <tr key={m.id} className="hover:bg-paper-100/60">
-                          <td className="px-4 py-2 text-neutral-500">{m.id}</td>
-                          <td className="px-4 py-2 text-neutral-900">{m.nombre}</td>
-                          <td className="px-4 py-2 text-neutral-900">{m.especialidad}</td>
-                          <td className="px-4 py-2 text-neutral-900">{m.matricula}</td>
-                          <td className="px-4 py-2 text-neutral-900">{m.direccion}</td>
-                          <td className="px-4 py-2">
-                            <div className="flex gap-2">
-                              <button type="button" onClick={() => setEditingMedico(m)} className="btn-secondary !px-2 !py-1 text-xs">
-                                Editar
-                              </button>
-                              <button type="button" onClick={() => eliminarMedico(m)} className="btn-secondary !px-2 !py-1 text-xs text-danger-600">
-                                Eliminar
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                      {medicos.length === 0 && (
-                        <tr>
-                          <td colSpan={6} className="px-4 py-6 text-center text-neutral-400">
-                            Sin médicos registrados.
-                          </td>
-                        </tr>
-                      )}
-                    </>
-                  )}
-                </tbody>
-              </table>
-            </div>
-            {totalPaginasMedicos > 1 && (
-              <div className="flex items-center justify-between mt-4">
-                <button
-                  type="button"
-                  disabled={medicosLoading || paginaMedicos === 0}
-                  onClick={() => irAPaginaMedicos(paginaMedicos - 1)}
-                  className="btn-secondary !px-3 !py-1.5 text-xs"
-                >
-                  ← Anterior
-                </button>
-                <span className="text-sm text-neutral-500">
-                  Página {paginaMedicos + 1} de {totalPaginasMedicos}
-                </span>
-                <button
-                  type="button"
-                  disabled={medicosLoading || paginaMedicos + 1 >= totalPaginasMedicos}
-                  onClick={() => irAPaginaMedicos(paginaMedicos + 1)}
-                  className="btn-secondary !px-3 !py-1.5 text-xs"
-                >
-                  Siguiente →
-                </button>
-              </div>
-            )}
-          </section>
+          <MedicosSection
+            medicos={medicos}
+            medicosLoading={medicosLoading}
+            editingMedico={editingMedico}
+            onEditar={setEditingMedico}
+            onCancelarEdicion={() => setEditingMedico(null)}
+            onGuardado={async () => { setEditingMedico(null); await cargarMedicos(); await cargarMedicosVinculados() }}
+            onEliminar={eliminarMedico}
+            notify={notify}
+            cuentasDisponibles={cuentasMedicoDisponibles}
+            paginaMedicos={paginaMedicos}
+            totalPaginasMedicos={totalPaginasMedicos}
+            onIrAPagina={irAPaginaMedicos}
+          />
         )}
 
         {(esAdmin || esMedico) && (
-        <section className="card">
-          <h2 className="heading mb-4">{esAdmin ? 'Pacientes' : 'Mis pacientes'}</h2>
-          {esAdmin && (
-            <PacienteForm
-              key={editingPaciente?.id ?? 'new'}
-              paciente={editingPaciente}
-              notify={notify}
-              onGuardado={async () => { setEditingPaciente(null); await cargarPacientes(); await cargarPacientesVinculados() }}
-              onCancelarEdicion={() => setEditingPaciente(null)}
-              cuentasDisponibles={cuentasPacienteDisponibles}
-            />
-          )}
-          <div className="overflow-x-auto rounded-lg border border-neutral-200">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="bg-paper-100 text-left text-neutral-500">
-                  <th className="px-4 py-2 font-medium">ID</th>
-                  <th className="px-4 py-2 font-medium">Nombre</th>
-                  <th className="px-4 py-2 font-medium">DNI</th>
-                  <th className="px-4 py-2 font-medium">Dirección</th>
-                  <th className="px-4 py-2 font-medium">Obra social</th>
-                  <th className="px-4 py-2 font-medium">N° afiliado</th>
-                  <th className="px-4 py-2 font-medium">Plan</th>
-                  <th className="px-4 py-2 font-medium">Acciones</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-neutral-100">
-                {pacientesLoading && pacientes.length === 0 ? (
-                  <SkeletonRows columns={8} />
-                ) : (
-                  <>
-                    {pacientes.map(p => (
-                      <tr key={p.id} className="hover:bg-paper-100/60">
-                        <td className="px-4 py-2 text-neutral-500">{p.id}</td>
-                        <td className="px-4 py-2 text-neutral-900">{p.nombre}</td>
-                        <td className="px-4 py-2 text-neutral-900">{p.dni}</td>
-                        <td className="px-4 py-2 text-neutral-900">{p.direccion}</td>
-                        <td className="px-4 py-2 text-neutral-900">{p.obraSocial}</td>
-                        <td className="px-4 py-2 text-neutral-900">{p.numeroAfiliado}</td>
-                        <td className="px-4 py-2 text-neutral-900">{p.plan}</td>
-                        <td className="px-4 py-2">
-                          {esAdmin ? (
-                            <div className="flex gap-2">
-                              <button type="button" onClick={() => setEditingPaciente(p)} className="btn-secondary !px-2 !py-1 text-xs">
-                                Editar
-                              </button>
-                              <button type="button" onClick={() => eliminarPaciente(p)} className="btn-secondary !px-2 !py-1 text-xs text-danger-600">
-                                Eliminar
-                              </button>
-                              <button type="button" onClick={() => descargarHistoria(p.id)} className="btn-secondary !px-2 !py-1 text-xs">
-                                Descargar historia
-                              </button>
-                            </div>
-                          ) : (
-                            <span className="text-neutral-400">—</span>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                    {pacientes.length === 0 && (
-                      <tr>
-                        <td colSpan={8} className="px-4 py-6 text-center text-neutral-400">
-                          Sin pacientes registrados.
-                        </td>
-                      </tr>
-                    )}
-                  </>
-                )}
-              </tbody>
-            </table>
-          </div>
-          {totalPaginasPacientes > 1 && (
-            <div className="flex items-center justify-between mt-4">
-              <button
-                type="button"
-                disabled={pacientesLoading || paginaPacientes === 0}
-                onClick={() => irAPaginaPacientes(paginaPacientes - 1)}
-                className="btn-secondary !px-3 !py-1.5 text-xs"
-              >
-                ← Anterior
-              </button>
-              <span className="text-sm text-neutral-500">
-                Página {paginaPacientes + 1} de {totalPaginasPacientes}
-              </span>
-              <button
-                type="button"
-                disabled={pacientesLoading || paginaPacientes + 1 >= totalPaginasPacientes}
-                onClick={() => irAPaginaPacientes(paginaPacientes + 1)}
-                className="btn-secondary !px-3 !py-1.5 text-xs"
-              >
-                Siguiente →
-              </button>
-            </div>
-          )}
-        </section>
+          <PacientesSection
+            esAdmin={esAdmin}
+            pacientes={pacientes}
+            pacientesLoading={pacientesLoading}
+            editingPaciente={editingPaciente}
+            onEditar={setEditingPaciente}
+            onCancelarEdicion={() => setEditingPaciente(null)}
+            onGuardado={async () => { setEditingPaciente(null); await cargarPacientes(); await cargarPacientesVinculados() }}
+            onEliminar={eliminarPaciente}
+            onDescargarHistoria={descargarHistoria}
+            notify={notify}
+            cuentasDisponibles={cuentasPacienteDisponibles}
+            paginaPacientes={paginaPacientes}
+            totalPaginasPacientes={totalPaginasPacientes}
+            onIrAPagina={irAPaginaPacientes}
+          />
         )}
 
         {esAdmin && (
-          <section className="card">
-            <h2 className="heading mb-4">Otorgar turno</h2>
-            <form onSubmit={buscarPacientePorDni} className="flex flex-wrap items-end gap-3 mb-4">
-              <div>
-                <label className="label">DNI del paciente</label>
-                <input className="input-field w-40" value={dniBusqueda} onChange={e=>{setDniBusqueda(e.target.value); setPacienteEncontrado(null)}} />
-              </div>
-              <button type="submit" className="btn-primary">Buscar paciente</button>
-            </form>
-
-            {pacienteEncontrado && (
-              <div className="mb-4 rounded-lg border border-neutral-200 bg-paper-100 px-4 py-3 text-sm">
-                <p className="font-medium text-neutral-800">{pacienteEncontrado.nombre} — DNI {pacienteEncontrado.dni}</p>
-                {pacienteEncontrado.obraSocial && (
-                  <p className="text-neutral-500">{pacienteEncontrado.obraSocial}{pacienteEncontrado.plan ? ` · ${pacienteEncontrado.plan}` : ''}</p>
-                )}
-              </div>
-            )}
-
-            {pacienteEncontrado && (
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <div>
-                  <label className="label">Fecha y hora</label>
-                  <input className="input-field" value={fechaHora} onChange={e=>setFechaHora(e.target.value)} />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="label">Especialidad</label>
-                    <select className="input-field" value={especialidad} onChange={e=>{clearValidity(e); handleEspecialidadChange(e.target.value)}} onInvalid={handleInvalid} required>
-                      <option value="" disabled>Seleccionar especialidad</option>
-                      {especialidades.map(esp => (
-                        <option key={esp} value={esp}>{esp}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="label">Médico</label>
-                    <select className="input-field" value={medicoId} onChange={e=>{clearValidity(e); setMedicoId(e.target.value)}} onInvalid={handleInvalid} required disabled={!especialidad}>
-                      <option value="" disabled>Seleccionar médico</option>
-                      {medicosPorEspecialidad.map(m => (
-                        <option key={m.id} value={m.id}>{m.nombre}</option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-                <div>
-                  <label className="label">Preparación (opcional)</label>
-                  <input
-                    className="input-field"
-                    placeholder="Ej: asistir 15 minutos antes y pasar por recepción para dar presente"
-                    value={preparacion}
-                    onChange={e=>setPreparacion(e.target.value)}
-                  />
-                </div>
-                <button type="submit" disabled={loading} className="btn-primary">
-                  {loading ? 'Enviando…' : 'Otorgar turno'}
-                </button>
-              </form>
-            )}
-          </section>
+          <OtorgarTurnoSection
+            dniBusqueda={dniBusqueda}
+            onDniBusquedaChange={valor => { setDniBusqueda(valor); setPacienteEncontrado(null) }}
+            onBuscarPorDni={buscarPacientePorDni}
+            pacienteEncontrado={pacienteEncontrado}
+            fechaHora={fechaHora}
+            onFechaHoraChange={setFechaHora}
+            especialidad={especialidad}
+            onEspecialidadChange={handleEspecialidadChange}
+            especialidades={especialidades}
+            medicoId={medicoId}
+            onMedicoIdChange={setMedicoId}
+            medicosPorEspecialidad={medicosPorEspecialidad}
+            preparacion={preparacion}
+            onPreparacionChange={setPreparacion}
+            loading={loading}
+            onSubmit={handleSubmit}
+          />
         )}
 
-        <section className="card">
-          <h2 className="heading mb-4">{esPaciente ? 'Mis turnos' : 'Turnos'}</h2>
-
-          {esMedico && (
-            <div className="mb-4 rounded-lg bg-primary-800 text-white px-4 py-3">
-              <p className="text-xs uppercase tracking-wide text-primary-100">Turnos para hoy</p>
-              <p className="text-2xl font-semibold tabular-nums">{hoy}</p>
-            </div>
-          )}
-
-          {esAdmin && (
-            <form onSubmit={handleFiltrar} className="flex flex-wrap items-end gap-3 mb-4">
-              <div>
-                <label className="label">Médico ID</label>
-                <input type="number" className="input-field w-32" value={filtroMedicoId} onChange={e=>setFiltroMedicoId(e.target.value)} />
-              </div>
-              <div>
-                <label className="label">Paciente ID</label>
-                <input type="number" className="input-field w-32" value={filtroPacienteId} onChange={e=>setFiltroPacienteId(e.target.value)} />
-              </div>
-              <button type="submit" disabled={listLoading} className="btn-primary">
-                {listLoading ? 'Buscando…' : 'Buscar'}
-              </button>
-              <button
-                type="button"
-                disabled={listLoading}
-                onClick={() => { setFiltroMedicoId(''); setFiltroPacienteId(''); cargarTurnos('', '', 0) }}
-                className="btn-secondary"
-              >
-                Ver todos
-              </button>
-            </form>
-          )}
-
-          <div className="overflow-x-auto rounded-lg border border-neutral-200">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="bg-paper-100 text-left text-neutral-500">
-                  <th className="px-4 py-2 font-medium">ID</th>
-                  <th className="px-4 py-2 font-medium">Fecha y hora</th>
-                  <th className="px-4 py-2 font-medium">Especialidad</th>
-                  <th className="px-4 py-2 font-medium">Médico</th>
-                  <th className="px-4 py-2 font-medium">Paciente</th>
-                  <th className="px-4 py-2 font-medium">Preparación</th>
-                  <th className="px-4 py-2 font-medium">Estado</th>
-                  <th className="px-4 py-2 font-medium">Acciones</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-neutral-100">
-                {listLoading && turnos.length === 0 && <SkeletonRows columns={8} />}
-                {turnos.map(t => (
-                  <React.Fragment key={t.id}>
-                    <tr className="hover:bg-paper-100/60">
-                      <td className="px-4 py-2 text-neutral-500">{t.id}</td>
-                      <td className="px-4 py-2 text-neutral-900">{t.fechaHora}</td>
-                      <td className="px-4 py-2 text-neutral-900">{t.especialidad}</td>
-                      <td className="px-4 py-2 text-neutral-900">
-                        {t.medicoNombre ?? `#${t.medicoId}`}{t.medicoEspecialidad ? ` (${t.medicoEspecialidad})` : ''}
-                      </td>
-                      <td className="px-4 py-2 text-neutral-900">{t.pacienteNombre ?? `#${t.pacienteId}`}</td>
-                      <td className="px-4 py-2 text-neutral-500">{t.preparacion || '—'}</td>
-                      <td className="px-4 py-2"><EstadoBadge estado={t.estado} /></td>
-                      <td className="px-4 py-2">
-                        {puedeGestionarTurnos ? (
-                          <div className="flex flex-wrap gap-2">
-                            {t.estado === 'PENDIENTE' && (
-                              <button
-                                type="button"
-                                disabled={estadoUpdatingId === t.id}
-                                onClick={() => cambiarEstado(t.id, 'CONFIRMADO')}
-                                className="btn-primary !px-2 !py-1 text-xs"
-                              >
-                                Confirmar
-                              </button>
-                            )}
-                            {t.estado !== 'CANCELADO' && (
-                              <button
-                                type="button"
-                                disabled={estadoUpdatingId === t.id}
-                                onClick={() => cambiarEstado(t.id, 'CANCELADO')}
-                                className="btn-secondary !px-2 !py-1 text-xs"
-                              >
-                                Cancelar
-                              </button>
-                            )}
-                            {t.estado === 'CANCELADO' && !esMedico && (
-                              <span className="text-neutral-400">—</span>
-                            )}
-                            {esMedico && (
-                              <button
-                                type="button"
-                                onClick={() => toggleHistoria(t)}
-                                className="btn-secondary !px-2 !py-1 text-xs"
-                              >
-                                {historiaAbiertaId === t.id ? 'Ocultar historia' : 'Ver historia'}
-                              </button>
-                            )}
-                          </div>
-                        ) : esPaciente ? (
-                          t.estado !== 'CANCELADO' ? (
-                            <button
-                              type="button"
-                              disabled={estadoUpdatingId === t.id}
-                              onClick={() => iniciarCancelacionComoPaciente(t)}
-                              className="btn-secondary !px-2 !py-1 text-xs text-danger-600"
-                            >
-                              Cancelar
-                            </button>
-                          ) : (
-                            <span className="text-neutral-400">—</span>
-                          )
-                        ) : (
-                          <span className="text-neutral-400">—</span>
-                        )}
-                      </td>
-                    </tr>
-                    {esMedico && historiaAbiertaId === t.id && (
-                      <tr className="bg-paper-100/40">
-                        <td colSpan={8} className="px-4 py-4">
-                          <div className="space-y-3">
-                            <h3 className="font-medium text-neutral-700">
-                              Historia clínica de {t.pacienteNombre ?? `#${t.pacienteId}`}
-                            </h3>
-                            {historiaLoading ? (
-                              <p className="text-sm text-neutral-400">Cargando…</p>
-                            ) : (historiaPorPaciente[t.pacienteId]?.length ?? 0) === 0 ? (
-                              <p className="text-sm text-neutral-400">Sin registros previos.</p>
-                            ) : (
-                              <ul className="space-y-2">
-                                {historiaPorPaciente[t.pacienteId].map(r => (
-                                  <li key={r.id} className="rounded-lg border border-neutral-200 bg-paper-50 px-3 py-2 text-sm">
-                                    <div className="text-neutral-500">
-                                      {r.fecha} — {r.medicoNombre ?? `#${r.medicoId}`}{r.medicoEspecialidad ? ` (${r.medicoEspecialidad})` : ''}
-                                    </div>
-                                    <div><span className="font-medium">Diagnóstico:</span> {r.diagnostico}</div>
-                                    <div><span className="font-medium">Tratamiento:</span> {r.tratamiento}</div>
-                                    {r.observaciones && (
-                                      <div><span className="font-medium">Observaciones:</span> {r.observaciones}</div>
-                                    )}
-                                  </li>
-                                ))}
-                              </ul>
-                            )}
-                            <div className="space-y-2 pt-2 border-t border-neutral-200">
-                              <p className="text-sm font-medium text-neutral-700">Agregar registro de esta consulta</p>
-                              <input
-                                className="input-field"
-                                placeholder="Diagnóstico"
-                                value={diagnostico}
-                                onChange={e => setDiagnostico(e.target.value)}
-                              />
-                              <input
-                                className="input-field"
-                                placeholder="Tratamiento"
-                                value={tratamientoRegistro}
-                                onChange={e => setTratamientoRegistro(e.target.value)}
-                              />
-                              <input
-                                className="input-field"
-                                placeholder="Observaciones (opcional)"
-                                value={observacionesRegistro}
-                                onChange={e => setObservacionesRegistro(e.target.value)}
-                              />
-                              <button
-                                type="button"
-                                disabled={guardandoRegistro || !diagnostico || !tratamientoRegistro}
-                                onClick={() => agregarRegistro(t)}
-                                className="btn-primary !px-3 !py-1.5 text-xs"
-                              >
-                                {guardandoRegistro ? 'Guardando…' : 'Guardar registro'}
-                              </button>
-                            </div>
-                          </div>
-                        </td>
-                      </tr>
-                    )}
-                  </React.Fragment>
-                ))}
-                {turnos.length === 0 && !listLoading && (
-                  <tr>
-                    <td colSpan={8} className="px-4 py-6 text-center text-neutral-400">
-                      Sin turnos para mostrar.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-          {totalPaginasTurnos > 1 && (
-            <div className="flex items-center justify-between mt-4">
-              <button
-                type="button"
-                disabled={listLoading || paginaTurnos === 0}
-                onClick={() => irAPaginaTurnos(paginaTurnos - 1)}
-                className="btn-secondary !px-3 !py-1.5 text-xs"
-              >
-                ← Anterior
-              </button>
-              <span className="text-sm text-neutral-500">
-                Página {paginaTurnos + 1} de {totalPaginasTurnos}
-              </span>
-              <button
-                type="button"
-                disabled={listLoading || paginaTurnos + 1 >= totalPaginasTurnos}
-                onClick={() => irAPaginaTurnos(paginaTurnos + 1)}
-                className="btn-secondary !px-3 !py-1.5 text-xs"
-              >
-                Siguiente →
-              </button>
-            </div>
-          )}
-        </section>
+        <TurnosSection
+          esAdmin={esAdmin}
+          esMedico={esMedico}
+          esPaciente={esPaciente}
+          puedeGestionarTurnos={puedeGestionarTurnos}
+          hoy={hoy}
+          turnos={turnos}
+          listLoading={listLoading}
+          filtroMedicoId={filtroMedicoId}
+          onFiltroMedicoIdChange={setFiltroMedicoId}
+          filtroPacienteId={filtroPacienteId}
+          onFiltroPacienteIdChange={setFiltroPacienteId}
+          onFiltrar={handleFiltrar}
+          onVerTodos={() => { setFiltroMedicoId(''); setFiltroPacienteId(''); cargarTurnos('', '', 0) }}
+          paginaTurnos={paginaTurnos}
+          totalPaginasTurnos={totalPaginasTurnos}
+          onIrAPagina={irAPaginaTurnos}
+          estadoUpdatingId={estadoUpdatingId}
+          onCambiarEstado={cambiarEstado}
+          onIniciarCancelacionPaciente={iniciarCancelacionComoPaciente}
+          historiaAbiertaId={historiaAbiertaId}
+          onToggleHistoria={toggleHistoria}
+          historiaPorPaciente={historiaPorPaciente}
+          historiaLoading={historiaLoading}
+          diagnostico={diagnostico}
+          onDiagnosticoChange={setDiagnostico}
+          tratamientoRegistro={tratamientoRegistro}
+          onTratamientoChange={setTratamientoRegistro}
+          observacionesRegistro={observacionesRegistro}
+          onObservacionesChange={setObservacionesRegistro}
+          guardandoRegistro={guardandoRegistro}
+          onAgregarRegistro={agregarRegistro}
+        />
       </main>
     </div>
   )
