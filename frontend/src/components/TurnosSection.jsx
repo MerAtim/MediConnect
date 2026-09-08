@@ -105,6 +105,8 @@ export default function TurnosSection({
                             type="button"
                             onClick={() => onToggleHistoria(t)}
                             className="btn-secondary !px-2 !py-1 text-xs"
+                            aria-expanded={historiaAbiertaId === t.id}
+                            aria-controls={`historia-turno-${t.id}`}
                           >
                             {historiaAbiertaId === t.id ? 'Ocultar historia' : 'Ver historia'}
                           </button>
@@ -129,7 +131,7 @@ export default function TurnosSection({
                   </td>
                 </tr>
                 {esMedico && historiaAbiertaId === t.id && (
-                  <tr className="bg-paper-100/40">
+                  <tr id={`historia-turno-${t.id}`} className="bg-paper-100/40">
                     <td colSpan={8} className="px-4 py-4">
                       <div className="space-y-3">
                         <h3 className="font-medium text-neutral-700">

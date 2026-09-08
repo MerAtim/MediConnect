@@ -94,3 +94,34 @@ describe('LoginScreen', () => {
     expect(localStorage.getItem('medconnect_auth')).toContain('admin@medconnect.com')
   })
 })
+
+describe('Banner de cuenta no vinculada', () => {
+  // MEDIUM de la re-auditoria e2e (2026-09-08): el banner que avisa que la
+  // cuenta logueada todavia no esta vinculada a ningun perfil de
+  // medico/paciente no tenia aria-live -- un lector de pantalla no lo
+  // anunciaba, porque aparece recien despues de un fetch async
+  // (chequearVinculacion), no en el render inicial de la pagina.
+  test('tiene aria-live cuando el medico logueado no tiene perfil vinculado', async () => {
+    const user = userEvent.setup()
+    vi.stubGlobal('fetch', vi.fn(async (url) => {
+      const u = String(url)
+      if (u.includes('/api/v1/auth/login')) {
+        return jsonResponse({ id: 5, nombre: 'Dr Sin Vincular', email: 'medico@medconnect.com', role: 'MEDICO' })
+      }
+      if (u.includes('/api/v1/medicos/me')) {
+        return jsonResponse('no encontrado', false, 404)
+      }
+      return mockFetchPorDefecto(u)
+    }))
+
+    render(<App />)
+
+    await user.type(screen.getByLabelText('Email'), 'medico@medconnect.com')
+    await user.type(screen.getByLabelText('Contraseña'), 'secreto123')
+    await user.click(screen.getByRole('button', { name: 'Ingresar' }))
+
+    const banner = await screen.findByRole('status')
+    expect(banner).toHaveTextContent('cuenta todavía no está vinculada')
+    expect(banner).toHaveAttribute('aria-live', 'polite')
+  })
+})
