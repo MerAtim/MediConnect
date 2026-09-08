@@ -19,6 +19,14 @@ public class LoginService implements LoginUseCase {
     private final PasswordEncoder passwordEncoder;
     private final TokenService tokenService;
     private final LoginRateLimiter loginRateLimiter;
+    // MEDIUM de la re-auditoria e2e (2026-09-08): hash valido de una
+    // contrasena que nadie usa realmente. Se compara siempre contra algo
+    // (exista o no el usuario) para que el costo de passwordEncoder.matches
+    // (bcrypt, deliberadamente lento) sea el mismo en los dos casos -- antes,
+    // el && de Java cortaba en corto si el email no existia y ese branch
+    // volvia casi al instante, dejando un timing attack para enumerar
+    // emails registrados solo midiendo cuanto tarda la respuesta.
+    private final String hashDummy;
 
     public LoginService(UsuarioRepository usuarioRepository, PasswordEncoder passwordEncoder, TokenService tokenService,
                          LoginRateLimiter loginRateLimiter) {
@@ -26,6 +34,7 @@ public class LoginService implements LoginUseCase {
         this.passwordEncoder = passwordEncoder;
         this.tokenService = tokenService;
         this.loginRateLimiter = loginRateLimiter;
+        this.hashDummy = passwordEncoder.encode("valor-que-nunca-se-usa-como-contrasena-real");
     }
 
     @Override
@@ -34,8 +43,9 @@ public class LoginService implements LoginUseCase {
         loginRateLimiter.verificarPermitido(email);
 
         Optional<Usuario> usuarioOpt = usuarioRepository.buscarPorEmail(email);
-        boolean credencialesValidas = usuarioOpt.isPresent() && request.getContrasena() != null
-                && passwordEncoder.matches(request.getContrasena(), usuarioOpt.get().getContrasena());
+        String hashAComparar = usuarioOpt.map(Usuario::getContrasena).orElse(hashDummy);
+        boolean contrasenaCoincide = request.getContrasena() != null && passwordEncoder.matches(request.getContrasena(), hashAComparar);
+        boolean credencialesValidas = usuarioOpt.isPresent() && contrasenaCoincide;
 
         if (!credencialesValidas) {
             loginRateLimiter.registrarFallo(email);
