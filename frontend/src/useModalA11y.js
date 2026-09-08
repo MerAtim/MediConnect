@@ -9,6 +9,18 @@ const SELECTOR_FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled
 export function useModalA11y(open, onClose){
   const containerRef = useRef(null)
   const elementoPrevioRef = useRef(null)
+  // MEDIUM de la re-auditoria e2e (2026-09-08): "refoco espurio en modales
+  // por props onClose/onCancel inestables". Antes el efecto de abajo tenia
+  // a onClose en sus dependencias -- si el padre pasaba un onClose inline
+  // (referencia nueva en cada render, el patron mas comun: onClose={() =>
+  // setAlgo(false)}), cualquier re-render del padre ajeno al modal volvia
+  // a disparar el efecto entero y robaba el foco de vuelta al primer campo,
+  // aunque el usuario ya estuviera escribiendo en otro. Guardar la ultima
+  // referencia en un ref (mutacion durante el render, no un efecto -- es el
+  // uso previsto de un ref) permite que el efecto de foco/Tab-trap dependa
+  // solo de `open`, sin perder acceso al onClose mas reciente para Escape.
+  const onCloseRef = useRef(onClose)
+  onCloseRef.current = onClose
 
   useEffect(() => {
     if(!open) return
@@ -20,7 +32,7 @@ export function useModalA11y(open, onClose){
 
     function handleKeyDown(e){
       if(e.key === 'Escape'){
-        onClose()
+        onCloseRef.current()
         return
       }
       if(e.key !== 'Tab' || !container) return
@@ -42,7 +54,7 @@ export function useModalA11y(open, onClose){
       document.removeEventListener('keydown', handleKeyDown)
       elementoPrevioRef.current?.focus?.()
     }
-  }, [open, onClose])
+  }, [open])
 
   return containerRef
 }

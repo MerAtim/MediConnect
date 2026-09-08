@@ -51,8 +51,14 @@ export default function App(){
   // apiFetch vive en apiClient.js para que los forms/modals también lo usen
   // (antes tenían su propio fetch sin manejo de sesión expirada). Se
   // re-registra en cada render para que el 401 siempre dispare el
-  // handleLogout más reciente, no uno de un render viejo.
-  setSessionExpiredHandler(handleLogout)
+  // handleLogout más reciente, no uno de un render viejo -- en un efecto
+  // (sin dependencias, así que corre después de cada render, igual que
+  // antes) en vez del cuerpo del render, que es un lugar incorrecto para
+  // un efecto secundario como este (rompe la pureza del render, y
+  // duplicaría el registro en cada render bajo React StrictMode).
+  useEffect(() => {
+    setSessionExpiredHandler(handleLogout)
+  })
 
   const [mostrarCambiarPropia, setMostrarCambiarPropia] = useState(false)
   const [usuarioAResetear, setUsuarioAResetear] = useState(null)
