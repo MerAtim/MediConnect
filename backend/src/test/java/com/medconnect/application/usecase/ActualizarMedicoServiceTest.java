@@ -31,7 +31,7 @@ public class ActualizarMedicoServiceTest {
     @Test
     public void actualizar_lanzaExcepcion_siFaltaNombre() {
         MedicoRepository repo = Mockito.mock(MedicoRepository.class);
-        when(repo.buscarPorId(1L)).thenReturn(Optional.of(new Medico(1L, "Ana Pérez", "Cardiología", "MP1234", null, null, null, null)));
+        when(repo.buscarPorId(1L)).thenReturn(Optional.of(new Medico(1L, "Ana Pérez", "Cardiología", "MP1234", null, null, null)));
 
         ActualizarMedicoService service = new ActualizarMedicoService(repo);
 
@@ -43,7 +43,7 @@ public class ActualizarMedicoServiceTest {
     @Test
     public void actualizar_guardaYDevuelveMedicoActualizado() {
         MedicoRepository repo = Mockito.mock(MedicoRepository.class);
-        when(repo.buscarPorId(1L)).thenReturn(Optional.of(new Medico(1L, "Ana Pérez", "Cardiología", "MP1234", null, null, null, null)));
+        when(repo.buscarPorId(1L)).thenReturn(Optional.of(new Medico(1L, "Ana Pérez", "Cardiología", "MP1234", null, null, null)));
         when(repo.guardar(any(Medico.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         ActualizarMedicoService service = new ActualizarMedicoService(repo);
@@ -59,9 +59,9 @@ public class ActualizarMedicoServiceTest {
     @Test
     public void actualizar_lanzaExcepcion_siEmailYaUsadoPorOtroMedico() {
         MedicoRepository repo = Mockito.mock(MedicoRepository.class);
-        when(repo.buscarPorId(1L)).thenReturn(Optional.of(new Medico(1L, "Ana Pérez", "Cardiología", "MP1234", null, null, null, null)));
+        when(repo.buscarPorId(1L)).thenReturn(Optional.of(new Medico(1L, "Ana Pérez", "Cardiología", "MP1234", null, null, null)));
         when(repo.buscarPorEmail("otro@medconnect.com"))
-                .thenReturn(Optional.of(new Medico(2L, "Otro", "Clínica Médica", "MP9999", null, null, "otro@medconnect.com", null)));
+                .thenReturn(Optional.of(new Medico(2L, "Otro", "Clínica Médica", "MP9999", null, null, "otro@medconnect.com")));
 
         ActualizarMedicoService service = new ActualizarMedicoService(repo);
 
@@ -73,9 +73,9 @@ public class ActualizarMedicoServiceTest {
     @Test
     public void actualizar_permiteConservarSuPropioEmail() {
         MedicoRepository repo = Mockito.mock(MedicoRepository.class);
-        when(repo.buscarPorId(1L)).thenReturn(Optional.of(new Medico(1L, "Ana Pérez", "Cardiología", "MP1234", null, null, "ana@medconnect.com", null)));
+        when(repo.buscarPorId(1L)).thenReturn(Optional.of(new Medico(1L, "Ana Pérez", "Cardiología", "MP1234", null, null, "ana@medconnect.com")));
         when(repo.buscarPorEmail("ana@medconnect.com"))
-                .thenReturn(Optional.of(new Medico(1L, "Ana Pérez", "Cardiología", "MP1234", null, null, "ana@medconnect.com", null)));
+                .thenReturn(Optional.of(new Medico(1L, "Ana Pérez", "Cardiología", "MP1234", null, null, "ana@medconnect.com")));
         when(repo.guardar(any(Medico.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         ActualizarMedicoService service = new ActualizarMedicoService(repo);

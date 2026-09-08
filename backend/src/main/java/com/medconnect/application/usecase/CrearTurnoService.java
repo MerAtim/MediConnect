@@ -56,7 +56,7 @@ public class CrearTurnoService implements CrearTurnoUseCase {
             throw new TurnoInvalidoException("El médico no está disponible en la fecha y hora solicitada");
         }
 
-        Medico medico = new Medico(request.getMedicoId(), null, null, null, null, null, null, null);
+        Medico medico = new Medico(request.getMedicoId(), null, null, null, null, null, null);
         Paciente paciente = new Paciente(request.getPacienteId(), null, null, null, null, null, null, null, null);
 
         Turno turno = new Turno(

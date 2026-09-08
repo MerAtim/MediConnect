@@ -30,8 +30,6 @@ final class MedicoFactory {
                 request.getMatricula(),
                 request.getDireccion(),
                 request.getTelefono(),
-                email,
-                null
-        );
+                email);
     }
 }
