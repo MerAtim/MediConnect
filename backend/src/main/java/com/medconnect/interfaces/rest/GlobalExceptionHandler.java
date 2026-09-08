@@ -60,4 +60,18 @@ public class GlobalExceptionHandler {
         log.warn("Login bloqueado por rate limit: {}", ex.getMessage());
         return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS).body(ex.getMessage());
     }
+
+    // Red de seguridad para los Value Objects del dominio (Email, Dni):
+    // validan su propio formato en el constructor y tiran esta excepcion.
+    // En los flujos normales de creacion/actualizacion el formato ya se
+    // valida antes de llegar aca (ver MedicoFactory/PacienteFactory/
+    // RegistrarUsuarioService), asi que este handler solo entra en juego
+    // si un dato YA persistido esta mal formado (legacy, insercion manual,
+    // migracion) -- sin esto, reconstruir ese registro en un simple GET o
+    // login tiraba un 500 crudo en vez de un error controlado.
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<String> handleIllegalArgument(IllegalArgumentException ex) {
+        log.warn("Argumento invalido (posible dato corrupto en la base): {}", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex.getMessage());
+    }
 }
