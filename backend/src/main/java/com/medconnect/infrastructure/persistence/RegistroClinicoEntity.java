@@ -6,12 +6,14 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.Index;
 import jakarta.persistence.Table;
 
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "registros_clinicos")
+@Table(name = "registros_clinicos",
+        indexes = @Index(name = "idx_registros_clinicos_paciente_fecha", columnList = "paciente_id, fecha"))
 public class RegistroClinicoEntity {
 
     @Id
