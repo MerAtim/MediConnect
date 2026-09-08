@@ -2,13 +2,19 @@
 
 Este archivo se mantiene actualizado al final de cada sesión de trabajo para que,
 aunque pasen días sin conectarte, se pueda seguir sin releer el proyecto entero.
-Última actualización: **2026-09-08**, tras mergear PR #55
-(`feature/dni-value-object`, ver punto 9 de la segunda auditoría, sub-punto
-de Value Objects): `Dni` como Value Object en `Paciente`, mismo patrón que
-`Email` — cierra el candidato que había quedado aparte en la PR #50. De
-paso encontró y arregló un bug real en producción (`buscarPorDni`
-comparando `String.equals(Dni)`, siempre `false`). Matrícula se descartó
-explícitamente (formatos reales muy variados, sin regex seguro). Antes,
+Última actualización: **2026-09-08**, tras mergear PR #56
+(`feature/hooks-de-datos`, ver "Sexta ronda" más abajo): `App.jsx` bajó
+a 267 líneas extrayendo el estado/fetching de cada sección a 7 hooks
+(`useToasts`, `useAuth`, `useMedicos`, `usePacientes`, `useUsuarios`,
+`useTurnos`, `useOtorgarTurno`, `useHistoriaClinica`) — el corte que
+había quedado sugerido tras el split de componentes (PR #48). **Con
+esto no queda ningún punto pendiente anotado.** Antes, PR #55
+(`feature/dni-value-object`): `Dni` como Value Object en `Paciente`,
+mismo patrón que `Email` — cierra el candidato que había quedado aparte
+en la PR #50. De paso encontró y arregló un bug real en producción
+(`buscarPorDni` comparando `String.equals(Dni)`, siempre `false`).
+Matrícula se descartó explícitamente (formatos reales muy variados, sin
+regex seguro, sin estándar ni siquiera a nivel nacional). Antes,
 PR #54 (`fix/swagger-api-docs-403`, ver "Fix suelto" más abajo):
 `/v3/api-docs` devolvía 403 por una incompatibilidad binaria de
 `springdoc-openapi` 2.5.0 con Spring Boot 3.5.6 (no la hipótesis de
@@ -1331,23 +1337,42 @@ renderizadas, cero errores de consola — antes no mostraba ningún
 endpoint). Suite completa: 202 tests, 201 OK (hueco de
 Testcontainers-en-Windows ya conocido).
 
+## Sexta ronda (2026-09-08): hooks de datos y último Value Object
+
+~~Extraer hooks de datos de App.jsx~~ — resuelto, PR #56
+(`feature/hooks-de-datos`). Después del split de componentes (PR #48,
+`App.jsx` de 1063 a 661 líneas separando el JSX), el estado y el fetching
+de cada sección seguían viviendo en `App`. Se extrajeron a 7 hooks flat
+en `frontend/src/` (mismo patrón que `useModalA11y.js`): `useToasts`,
+`useAuth`, `useMedicos`, `usePacientes`, `useUsuarios`, `useTurnos`,
+`useOtorgarTurno` (depende de `useTurnos.cargarTurnos` para refrescar
+tras crear), `useHistoriaClinica`. `App.jsx` bajó a **267 líneas**, queda
+como raíz de composición pura: cablea los hooks entre sí y arma el JSX.
+Refactor puro sin cambio de comportamiento (mismos `AbortController` de
+las tres carreras de paginación ya conocidas, mismos mensajes). Verificado
+con Playwright real: flujo completo médico/paciente/turno de prueba
+ejercitando cada hook nuevo de punta a punta en los tres roles, cero
+errores de consola nuevos.
+
+Antes de esto, PR #55 (`feature/dni-value-object`): `Dni` como Value
+Object en `Paciente` (mismo patrón que `Email`, PR #50) — ver detalle en
+el sub-punto de Value Objects, punto 9 de la segunda auditoría, más
+arriba. Cierra el candidato de DNI que había quedado aparte; Matrícula
+se descartó explícitamente (sin estándar internacional ni siquiera
+nacional — varía por colegio/provincia, ver conversación con el usuario
+del 2026-09-08).
+
 ## Plan sugerido para la próxima sesión
 
-Sin pedido puntual del usuario para arrancar: de las 5 secciones de
-`App.jsx`, el JSX de cada una ya está en su propio archivo, pero sigue
-siendo una sola función grande por sección con bastante estado propio
-threadeado por props desde `App`. Si en algún momento el archivo vuelve a
-sentirse grande, el próximo corte natural sería extraer hooks de datos
-(`useTurnos`, `useMedicos`, etc.) en vez de seguir bajando por componentes.
-
 Los 6 puntos del punto 9 de la segunda auditoría están todos resueltos
-— OpenAPI (PR #43), índices de DB (PR #49), Value Objects de Email
-(PR #50, alcance acordado solo Email — DNI/Matrícula quedan como
-candidato aparte si se quiere después), Factory pattern (PR #51,
-Medico/Paciente), versionado de API (PR #52, `/api/v1/**`) y
-accesibilidad de forms (PR #53) — y el hallazgo suelto de esa ronda
-también (`/v3/api-docs`, PR #54). Sin pedido pendiente puntual, no hay un
-próximo paso obvio — preguntar al usuario qué sigue.
+— OpenAPI (PR #43), índices de DB (PR #49), Value Objects (PR #50 Email,
+PR #55 DNI — Matrícula descartada explícitamente, sin estándar posible),
+Factory pattern (PR #51, Medico/Paciente), versionado de API (PR #52,
+`/api/v1/**`) y accesibilidad de forms (PR #53) — más el hallazgo suelto
+de esa ronda (`/v3/api-docs`, PR #54) y el corte de hooks de datos
+sugerido después del split de componentes (PR #56). **No queda ningún
+punto pendiente anotado.** Sin pedido puntual del usuario, no hay un
+próximo paso obvio — preguntar qué sigue.
 
 Único hallazgo suelto sin arreglar (de la PR #52, quedó fuera de su
 alcance a propósito): `/v3/api-docs` devuelve 403 pese a que
