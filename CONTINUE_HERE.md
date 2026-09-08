@@ -1535,9 +1535,102 @@ espurio en modales por props `onClose`/`onCancel` inestables, botón de
 excesivo en `TurnosSection`, duplicación entre `useMedicos`/`usePacientes`
 y entre los 3 formularios, banner "cuenta no vinculada" sin `aria-live`.
 
+## Novena ronda (2026-09-08): los 16 MEDIUM de la re-auditoría, resueltos
+
+Mismo criterio que las rondas anteriores: un PR por punto, agrupando los
+que compartan naturaleza. Para los puntos con una decisión de
+producto/diseño genuina (no un bug de lectura obvia), se le preguntó al
+usuario con opciones concretas antes de tocar código — mismo patrón que
+HIGH #8/#9.
+
+1. ~~Campo `contrasena` muerto en `Medico`~~ — resuelto, PR #65
+   (`fix/remove-dead-medico-contrasena-field`): nunca se persistía
+   (`MedicoEntity` no tiene esa columna), residuo de una época en que
+   `Medico` manejaba su propia autenticación antes de centralizarla en
+   `Usuario`. Cambio mecánico en ~70 call sites de `new Medico(...)`.
+2. ~~`DataIntegrityViolationException` filtrándose sin traducir en
+   `CrearTurnoService`~~ — resuelto, PR #66
+   (`fix/crear-turno-no-depende-de-spring-data`): única violación de
+   arquitectura hexagonal encontrada — la capa de aplicación importaba un
+   tipo de Spring Data. El try/catch se mueve a
+   `TurnoRepositoryAdapter.guardar()` (infraestructura, el único lado con
+   permiso de depender de ambos mundos).
+3. ~~`InMemoryLoginRateLimiter` con crecimiento de memoria sin límite~~ —
+   resuelto, PR #67 (`fix/rate-limiter-memory-leak`): cada email que
+   fallaba un login dejaba una entrada para siempre. `limpiarExpirados()`,
+   nuevo `@Scheduled` cada 5 minutos (primer uso de `@EnableScheduling` en
+   el proyecto).
+4. ~~Timing attack para enumerar emails registrados en login~~ — resuelto,
+   PR #68 (`fix/login-timing-attack-email-enumeration`): el `&&` de Java
+   cortaba en corto si el email no existía, así que `passwordEncoder.
+   matches` (bcrypt, lento a propósito) nunca se llamaba en ese caso.
+   Ahora siempre se llama, comparando contra un hash dummy si el email no
+   existe.
+5. ~~Transiciones de estado de turno más allá de "cancelado" sin test~~ —
+   resuelto, PR #69 (`test/turno-transiciones-estado-mas-alla-de-cancelado`):
+   solo tests, documentan el comportamiento permisivo real de
+   `cambiarEstado` (no impone máquina de estados, solo bloquea
+   `CANCELADO`).
+6. y 7. ~~`setSessionExpiredHandler` en el cuerpo del render~~ y ~~refoco
+   espurio en modales por props inestables~~ — resueltos juntos, PR #70
+   (`fix/modal-refoco-espurio-y-session-expired-en-render`): el primero se
+   mueve a un `useEffect`; el segundo, `useModalA11y` guardaba `onClose` en
+   las dependencias del efecto de foco — con un `onClose` inline (como en
+   `CambiarContrasenaModal`), cualquier re-render ajeno al modal volvía a
+   robar el foco al primer campo. Se guarda la última referencia en un ref
+   y el efecto pasa a depender solo de `open`. `useModalA11y.test.jsx`,
+   primer test de un hook en este proyecto — reproduce el bug a mano antes
+   de aplicar el fix.
+8. y 9. ~~Botón "Ver historia" sin `aria-expanded`/`aria-controls`~~ y
+   ~~banner "cuenta no vinculada" sin `aria-live`~~ — resueltos juntos, PR
+   #71 (`fix/a11y-ver-historia-y-banner-no-vinculado`).
+10. ~~Doble reserva de paciente sin test/decisión~~ — resuelto, PR #72
+    (`fix/bloquear-doble-reserva-paciente`). Decisión del usuario: bloquear
+    igual que para el médico, mismo criterio de detección (igualdad exacta
+    de fechaHora), ahora también del lado del paciente.
+11. ~~`UNIQUE(email)` inconsistente con el soft-delete (500 al reusar el
+    email de un perfil eliminado)~~ — resuelto, PR #73
+    (`fix/email-perfil-eliminado-400-en-vez-de-500`). Decisión del
+    usuario: 400 claro, sin reactivar el perfil eliminado. Nuevo método
+    `existeEmailEnPerfilEliminado` en los puertos de repositorio (mira
+    toda la tabla, no solo activos).
+12. ~~Solapamiento de turnos solo detecta timestamp idéntico (no
+    rango)~~ — **documentado como limitación conocida, sin cambio de
+    código**. Decisión del usuario: agregar un campo de duración a `Turno`
+    es un cambio de modelo más grande (migración, UI, decisión de
+    duración por defecto/variable por especialidad) que excede el alcance
+    de un fix puntual — candidato a feature futura, no un bug a resolver
+    ahora.
+13. ~~Sin revocación de JWT~~ — resuelto, PR #74
+    (`feature/revocacion-jwt-en-memoria`). Decisión del usuario: blacklist
+    en memoria, mismo alcance que `InMemoryLoginRateLimiter`. Sin `jti`
+    por token: se marca un punto de corte en el tiempo por email — logout
+    y cambio de contraseña (propia o reset por admin) invalidan todos los
+    tokens emitidos antes de ese instante para ese email. Efecto
+    secundario aceptado: revoca todas las sesiones activas de ese email,
+    no solo una. Alcance recortado explícitamente respecto de lo
+    preguntado: no se revoca al eliminar médico/paciente (las cuentas
+    están desacopladas a propósito, ver HIGH #8 — el `Usuario` sigue
+    pudiendo loguearse de nuevo con la misma contraseña de todas formas) ni
+    existe un "eliminar usuario" hoy.
+14. y 15. ~~Prop-drilling excesivo en `TurnosSection`~~ y ~~duplicación
+    entre `useMedicos`/`usePacientes` y entre los 3 formularios~~ —
+    resueltos juntos, PR #75
+    (`refactor/turnos-section-y-formularios-duplicados`): `TurnosSection`
+    (236 líneas, 30 props) se descompone en `TurnoFiltros`,
+    `HistoriaClinicaPanel` y `Paginacion`. `Paginacion` también unifica el
+    bloque de paginación repetido en `MedicosSection`/`PacientesSection`;
+    `CuentaVinculadaSelect` unifica el select repetido en
+    `MedicoForm`/`PacienteForm`; `useSubmitForm` unifica el patrón
+    loading/try/catch/notify repetido en los 3 formularios (`Medico`,
+    `Paciente`, `Usuario`).
+
+**Los 16 MEDIUM están resueltos** (15 con código + 1 documentado por
+decisión explícita del usuario). Quedan los 12 LOW, explícitamente
+pospuestos para otra sesión.
+
 ## Plan sugerido para la próxima sesión
 
-Sin pedido puntual del usuario: seguir con los 16 MEDIUM de la
-re-auditoría (mismo criterio de "un PR por punto", agrupando los que
-compartan naturaleza como ya se hizo antes). Los 12 LOW quedan
-después, explícitamente pospuestos por el usuario.
+Sin pedido puntual del usuario: seguir con los 12 LOW de la
+re-auditoría (mismo criterio de "un PR por punto"). Con esto se cierra
+por completo el ciclo de la re-auditoría e2e del 2026-09-08.
