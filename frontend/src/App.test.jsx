@@ -17,13 +17,13 @@ function jsonResponse(body, ok = true, status = ok ? 200 : 400) {
 // Mock generico de fetch: resuelve segun el path de la URL para que el
 // login y los fetch en cascada del useEffect de init no rompan el test.
 function mockFetchPorDefecto(url) {
-  if (url.includes('/api/medicos/especialidades')) return jsonResponse([])
-  if (url.includes('/api/medicos/emails-vinculados')) return jsonResponse([])
-  if (url.includes('/api/pacientes/emails-vinculados')) return jsonResponse([])
-  if (url.includes('/api/medicos')) return jsonResponse(PAGE_VACIA)
-  if (url.includes('/api/pacientes')) return jsonResponse(PAGE_VACIA)
-  if (url.includes('/api/usuarios')) return jsonResponse([])
-  if (url.includes('/api/turnos')) return jsonResponse(PAGE_VACIA)
+  if (url.includes('/api/v1/medicos/especialidades')) return jsonResponse([])
+  if (url.includes('/api/v1/medicos/emails-vinculados')) return jsonResponse([])
+  if (url.includes('/api/v1/pacientes/emails-vinculados')) return jsonResponse([])
+  if (url.includes('/api/v1/medicos')) return jsonResponse(PAGE_VACIA)
+  if (url.includes('/api/v1/pacientes')) return jsonResponse(PAGE_VACIA)
+  if (url.includes('/api/v1/usuarios')) return jsonResponse([])
+  if (url.includes('/api/v1/turnos')) return jsonResponse(PAGE_VACIA)
   return jsonResponse([])
 }
 
@@ -47,7 +47,7 @@ describe('LoginScreen', () => {
   test('muestra un mensaje de error si el login falla', async () => {
     const user = userEvent.setup()
     vi.stubGlobal('fetch', vi.fn(async (url) => {
-      if (String(url).includes('/api/auth/login')) {
+      if (String(url).includes('/api/v1/auth/login')) {
         return jsonResponse('email o contraseña incorrectos', false, 401)
       }
       return mockFetchPorDefecto(String(url))
@@ -68,7 +68,7 @@ describe('LoginScreen', () => {
     const user = userEvent.setup()
     vi.stubGlobal('fetch', vi.fn(async (url) => {
       const u = String(url)
-      if (u.includes('/api/auth/login')) {
+      if (u.includes('/api/v1/auth/login')) {
         // El JWT viaja en una cookie httpOnly (Set-Cookie), no en el body.
         return jsonResponse({
           id: 1,

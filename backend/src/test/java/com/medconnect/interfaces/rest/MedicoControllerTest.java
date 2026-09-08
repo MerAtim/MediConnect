@@ -69,7 +69,7 @@ public class MedicoControllerTest {
 
         String body = "{\"especialidad\":\"Cardiología\",\"matricula\":\"MP1234\"}";
 
-        mockMvc.perform(post("/api/medicos")
+        mockMvc.perform(post("/api/v1/medicos")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isBadRequest())
@@ -83,7 +83,7 @@ public class MedicoControllerTest {
 
         String body = "{\"nombre\":\"Ana Pérez\",\"especialidad\":\"Cardiología\",\"matricula\":\"MP1234\"}";
 
-        mockMvc.perform(post("/api/medicos")
+        mockMvc.perform(post("/api/v1/medicos")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isCreated())
@@ -96,7 +96,7 @@ public class MedicoControllerTest {
         Medico medico = new Medico(1L, "Ana Pérez", "Cardiología", "MP1234", null, null, "medico@medconnect.com", null);
         when(buscarMedicoUseCase.buscarPorEmail("medico@medconnect.com")).thenReturn(Optional.of(medico));
 
-        mockMvc.perform(get("/api/medicos/me"))
+        mockMvc.perform(get("/api/v1/medicos/me"))
                 .andExpect(status().isOk())
                 .andExpect(content().json("{\"id\":1,\"nombre\":\"Ana Pérez\"}"));
     }
@@ -106,7 +106,7 @@ public class MedicoControllerTest {
         loguearComo("MEDICO", "sin-vincular@medconnect.com");
         when(buscarMedicoUseCase.buscarPorEmail("sin-vincular@medconnect.com")).thenReturn(Optional.empty());
 
-        mockMvc.perform(get("/api/medicos/me"))
+        mockMvc.perform(get("/api/v1/medicos/me"))
                 .andExpect(status().isNotFound());
     }
 
@@ -115,7 +115,7 @@ public class MedicoControllerTest {
         Medico medico = new Medico(1L, "Ana Pérez", "Cardiología", "MP1234", null, null, null, null);
         when(buscarMedicoUseCase.buscarPorId(1L)).thenReturn(Optional.of(medico));
 
-        mockMvc.perform(get("/api/medicos/1"))
+        mockMvc.perform(get("/api/v1/medicos/1"))
                 .andExpect(status().isOk())
                 .andExpect(content().json(
                         "{\"id\":1,\"nombre\":\"Ana Pérez\",\"especialidad\":\"Cardiología\",\"matricula\":\"MP1234\"}"));
@@ -125,7 +125,7 @@ public class MedicoControllerTest {
     public void buscarPorId_devuelve404_siNoExiste() throws Exception {
         when(buscarMedicoUseCase.buscarPorId(99L)).thenReturn(Optional.empty());
 
-        mockMvc.perform(get("/api/medicos/99"))
+        mockMvc.perform(get("/api/v1/medicos/99"))
                 .andExpect(status().isNotFound());
     }
 
@@ -133,7 +133,7 @@ public class MedicoControllerTest {
     public void buscarTodos_devuelveListadoPaginado() throws Exception {
         when(buscarMedicoUseCase.buscarTodos()).thenReturn(List.of());
 
-        mockMvc.perform(get("/api/medicos"))
+        mockMvc.perform(get("/api/v1/medicos"))
                 .andExpect(status().isOk())
                 .andExpect(content().json("{\"content\":[],\"totalElements\":0}"));
     }
@@ -144,7 +144,7 @@ public class MedicoControllerTest {
         Medico clinico = new Medico(2L, "Luis Gómez", "Clínica Médica", "MP5678", null, null, null, null);
         when(buscarMedicoUseCase.buscarTodos()).thenReturn(List.of(cardiologa, clinico));
 
-        mockMvc.perform(get("/api/medicos").param("especialidad", "Cardiología"))
+        mockMvc.perform(get("/api/v1/medicos").param("especialidad", "Cardiología"))
                 .andExpect(status().isOk())
                 .andExpect(content().json("{\"content\":[{\"id\":1,\"nombre\":\"Ana Pérez\"}],\"totalElements\":1}"));
     }
@@ -156,7 +156,7 @@ public class MedicoControllerTest {
         Medico m3 = new Medico(3L, "Otra Cardióloga", "Cardiología", "MP9999", null, null, null, null);
         when(buscarMedicoUseCase.buscarTodos()).thenReturn(List.of(m1, m2, m3));
 
-        mockMvc.perform(get("/api/medicos/especialidades"))
+        mockMvc.perform(get("/api/v1/medicos/especialidades"))
                 .andExpect(status().isOk())
                 .andExpect(content().json("[\"Cardiología\",\"Clínica Médica\"]"));
     }
@@ -167,7 +167,7 @@ public class MedicoControllerTest {
         Medico sinEmail = new Medico(2L, "Luis Gómez", "Clínica Médica", "MP5678", null, null, null, null);
         when(buscarMedicoUseCase.buscarTodos()).thenReturn(List.of(conEmail, sinEmail));
 
-        mockMvc.perform(get("/api/medicos/emails-vinculados"))
+        mockMvc.perform(get("/api/v1/medicos/emails-vinculados"))
                 .andExpect(status().isOk())
                 .andExpect(content().json("[{\"id\":1,\"email\":\"ana@medconnect.com\"}]"));
     }
@@ -179,7 +179,7 @@ public class MedicoControllerTest {
 
         String body = "{\"nombre\":\"Ana Pérez\",\"especialidad\":\"Clínica Médica\",\"matricula\":\"MP1234\"}";
 
-        mockMvc.perform(put("/api/medicos/1")
+        mockMvc.perform(put("/api/v1/medicos/1")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isOk())
@@ -192,7 +192,7 @@ public class MedicoControllerTest {
 
         String body = "{\"nombre\":\"Ana Pérez\",\"especialidad\":\"Cardiología\",\"matricula\":\"MP1234\"}";
 
-        mockMvc.perform(put("/api/medicos/99")
+        mockMvc.perform(put("/api/v1/medicos/99")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isNotFound());
@@ -202,7 +202,7 @@ public class MedicoControllerTest {
     public void eliminar_devuelve204_siExiste() throws Exception {
         when(eliminarMedicoUseCase.eliminar(1L)).thenReturn(true);
 
-        mockMvc.perform(delete("/api/medicos/1"))
+        mockMvc.perform(delete("/api/v1/medicos/1"))
                 .andExpect(status().isNoContent());
     }
 
@@ -210,7 +210,7 @@ public class MedicoControllerTest {
     public void eliminar_devuelve404_siNoExiste() throws Exception {
         when(eliminarMedicoUseCase.eliminar(99L)).thenReturn(false);
 
-        mockMvc.perform(delete("/api/medicos/99"))
+        mockMvc.perform(delete("/api/v1/medicos/99"))
                 .andExpect(status().isNotFound());
     }
 }

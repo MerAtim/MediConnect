@@ -44,7 +44,7 @@ public class AuthControllerTest {
 
         String body = "{\"nombre\":\"Ana Pérez\",\"email\":\"ana@medconnect.com\",\"contrasena\":\"secreto123\",\"role\":\"PACIENTE\"}";
 
-        mockMvc.perform(post("/api/auth/registro")
+        mockMvc.perform(post("/api/v1/auth/registro")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isCreated())
@@ -55,7 +55,7 @@ public class AuthControllerTest {
     public void registrar_devuelve400_siRoleInvalido() throws Exception {
         String body = "{\"nombre\":\"Ana Pérez\",\"email\":\"ana@medconnect.com\",\"contrasena\":\"secreto123\",\"role\":\"NO_EXISTE\"}";
 
-        mockMvc.perform(post("/api/auth/registro")
+        mockMvc.perform(post("/api/v1/auth/registro")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isBadRequest());
@@ -68,7 +68,7 @@ public class AuthControllerTest {
 
         String body = "{\"nombre\":\"Ana Pérez\",\"email\":\"ana@medconnect.com\",\"contrasena\":\"secreto123\",\"role\":\"PACIENTE\"}";
 
-        mockMvc.perform(post("/api/auth/registro")
+        mockMvc.perform(post("/api/v1/auth/registro")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isBadRequest())
@@ -82,7 +82,7 @@ public class AuthControllerTest {
 
         String body = "{\"email\":\"ana@medconnect.com\",\"contrasena\":\"secreto123\"}";
 
-        mockMvc.perform(post("/api/auth/login")
+        mockMvc.perform(post("/api/v1/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isOk())
@@ -99,7 +99,7 @@ public class AuthControllerTest {
 
         String body = "{\"email\":\"ana@medconnect.com\",\"contrasena\":\"mala\"}";
 
-        mockMvc.perform(post("/api/auth/login")
+        mockMvc.perform(post("/api/v1/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isUnauthorized())
@@ -113,7 +113,7 @@ public class AuthControllerTest {
 
         String body = "{\"email\":\"ana@medconnect.com\",\"contrasena\":\"mala\"}";
 
-        mockMvc.perform(post("/api/auth/login")
+        mockMvc.perform(post("/api/v1/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isTooManyRequests())
@@ -122,7 +122,7 @@ public class AuthControllerTest {
 
     @Test
     public void logout_devuelve204_yLimpiaLaCookie() throws Exception {
-        mockMvc.perform(post("/api/auth/logout"))
+        mockMvc.perform(post("/api/v1/auth/logout"))
                 .andExpect(status().isNoContent())
                 .andExpect(cookie().maxAge("jwt", 0));
     }

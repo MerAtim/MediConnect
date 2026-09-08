@@ -18,7 +18,7 @@ public class OpenApiConfig {
         return new OpenAPI().info(new Info()
                 .title("MedConnect API")
                 .description("Gestión de turnos e historias clínicas. La autenticación usa una cookie httpOnly "
-                        + "(POST /api/auth/login) — logueate en la app desde este mismo navegador antes de "
+                        + "(POST /api/v1/auth/login) — logueate en la app desde este mismo navegador antes de "
                         + "probar un endpoint protegido con \"Try it out\".")
                 .version("v1"));
     }

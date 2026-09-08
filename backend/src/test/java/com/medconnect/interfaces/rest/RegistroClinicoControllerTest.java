@@ -79,7 +79,7 @@ public class RegistroClinicoControllerTest {
 
         String body = "{\"pacienteId\":3,\"diagnostico\":\"Fractura\",\"tratamiento\":\"Reposo\"}";
 
-        mockMvc.perform(post("/api/historias-clinicas")
+        mockMvc.perform(post("/api/v1/historias-clinicas")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isCreated())
@@ -93,7 +93,7 @@ public class RegistroClinicoControllerTest {
 
         String body = "{\"pacienteId\":3,\"diagnostico\":\"Fractura\",\"tratamiento\":\"Reposo\"}";
 
-        mockMvc.perform(post("/api/historias-clinicas")
+        mockMvc.perform(post("/api/v1/historias-clinicas")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isForbidden());
@@ -112,7 +112,7 @@ public class RegistroClinicoControllerTest {
 
         String body = "{\"medicoId\":999,\"pacienteId\":3,\"diagnostico\":\"Fractura\",\"tratamiento\":\"Reposo\"}";
 
-        mockMvc.perform(post("/api/historias-clinicas")
+        mockMvc.perform(post("/api/v1/historias-clinicas")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isCreated());
@@ -131,7 +131,7 @@ public class RegistroClinicoControllerTest {
 
         String body = "{\"pacienteId\":3,\"diagnostico\":\"Fractura\",\"tratamiento\":\"Reposo\"}";
 
-        mockMvc.perform(post("/api/historias-clinicas")
+        mockMvc.perform(post("/api/v1/historias-clinicas")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isBadRequest())
@@ -154,7 +154,7 @@ public class RegistroClinicoControllerTest {
                 "Fractura", "Reposo", null);
         when(buscarRegistroClinicoUseCase.buscarPorPaciente(3L)).thenReturn(List.of(registro));
 
-        mockMvc.perform(get("/api/historias-clinicas").param("pacienteId", "3"))
+        mockMvc.perform(get("/api/v1/historias-clinicas").param("pacienteId", "3"))
                 .andExpect(status().isOk())
                 .andExpect(content().json(
                         "[{\"id\":1,\"medicoId\":2,\"pacienteId\":3,\"diagnostico\":\"Fractura\",\"tratamiento\":\"Reposo\"}]"));
@@ -180,7 +180,7 @@ public class RegistroClinicoControllerTest {
         when(buscarRegistroClinicoUseCase.buscarPorPaciente(3L)).thenReturn(List.of(r1, r2));
         when(buscarMedicoUseCase.buscarPorIds(List.of(2L, 7L))).thenReturn(Map.of(2L, medicoA, 7L, medicoB));
 
-        mockMvc.perform(get("/api/historias-clinicas").param("pacienteId", "3"))
+        mockMvc.perform(get("/api/v1/historias-clinicas").param("pacienteId", "3"))
                 .andExpect(status().isOk())
                 .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$[0].medicoNombre").value("Dr A"))
                 .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$[1].medicoNombre").value("Dr B"));
@@ -198,7 +198,7 @@ public class RegistroClinicoControllerTest {
         when(buscarMedicoUseCase.buscarPorEmail("medico@medconnect.com")).thenReturn(Optional.of(medicoLogueado));
         when(buscarTurnoUseCase.buscarPorMedico(2L)).thenReturn(List.of());
 
-        mockMvc.perform(get("/api/historias-clinicas").param("pacienteId", "3"))
+        mockMvc.perform(get("/api/v1/historias-clinicas").param("pacienteId", "3"))
                 .andExpect(status().isForbidden());
 
         Mockito.verify(buscarRegistroClinicoUseCase, Mockito.never()).buscarPorPaciente(any());
@@ -209,7 +209,7 @@ public class RegistroClinicoControllerTest {
         loguearComo("MEDICO", "sin-vincular@medconnect.com");
         when(buscarMedicoUseCase.buscarPorEmail("sin-vincular@medconnect.com")).thenReturn(Optional.empty());
 
-        mockMvc.perform(get("/api/historias-clinicas").param("pacienteId", "3"))
+        mockMvc.perform(get("/api/v1/historias-clinicas").param("pacienteId", "3"))
                 .andExpect(status().isForbidden());
     }
 
@@ -217,7 +217,7 @@ public class RegistroClinicoControllerTest {
     public void exportar_devuelve404_siPacienteNoExiste() throws Exception {
         when(buscarPacienteUseCase.buscarPorId(99L)).thenReturn(Optional.empty());
 
-        mockMvc.perform(get("/api/historias-clinicas/exportar").param("pacienteId", "99"))
+        mockMvc.perform(get("/api/v1/historias-clinicas/exportar").param("pacienteId", "99"))
                 .andExpect(status().isNotFound());
     }
 
@@ -227,7 +227,7 @@ public class RegistroClinicoControllerTest {
                 Optional.of(new Paciente(3L, "Juan Gómez", "30111222", null, null, null, null, null, null)));
         when(buscarRegistroClinicoUseCase.buscarPorPaciente(3L)).thenReturn(List.of());
 
-        mockMvc.perform(get("/api/historias-clinicas/exportar").param("pacienteId", "3"))
+        mockMvc.perform(get("/api/v1/historias-clinicas/exportar").param("pacienteId", "3"))
                 .andExpect(status().isOk())
                 .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.header()
                         .string("Content-Disposition", org.hamcrest.Matchers.containsString("attachment")));

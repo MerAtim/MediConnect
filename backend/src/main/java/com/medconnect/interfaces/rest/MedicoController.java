@@ -24,7 +24,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/medicos")
+@RequestMapping("/api/v1/medicos")
 public class MedicoController {
 
     private final CrearMedicoUseCase crearMedicoUseCase;

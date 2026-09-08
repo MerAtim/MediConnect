@@ -35,7 +35,7 @@ import java.util.Objects;
 import java.util.Optional;
 
 @RestController
-@RequestMapping("/api/historias-clinicas")
+@RequestMapping("/api/v1/historias-clinicas")
 public class RegistroClinicoController {
 
     private static final Logger log = LoggerFactory.getLogger(RegistroClinicoController.class);
