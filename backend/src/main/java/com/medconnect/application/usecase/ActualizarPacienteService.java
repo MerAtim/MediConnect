@@ -21,7 +21,8 @@ public class ActualizarPacienteService implements ActualizarPacienteUseCase {
             return Optional.empty();
         }
 
-        Paciente paciente = PacienteFactory.crear(id, request, pacienteRepository::buscarPorEmail);
+        Paciente paciente = PacienteFactory.crear(id, request, pacienteRepository::buscarPorEmail,
+                pacienteRepository::existeEmailEnPerfilEliminado);
         return Optional.of(pacienteRepository.guardar(paciente));
     }
 }

@@ -4,6 +4,7 @@ import com.medconnect.domain.model.Email;
 
 import java.util.Optional;
 import java.util.function.Function;
+import java.util.function.Predicate;
 import java.util.function.Supplier;
 
 // Antes reimplementado con variaciones en Crear/Actualizar Medico/Paciente y
@@ -40,5 +41,21 @@ final class ValidacionEmail {
                 throw siYaExiste.get();
             }
         });
+    }
+
+    // MEDIUM de la re-auditoria e2e (2026-09-08): el UNIQUE(email) de la
+    // base es a nivel de toda la tabla (incluye filas soft-deleted).
+    // asegurarDisponible (arriba) solo mira perfiles activos, asi que sin
+    // este chequeo aparte un email "disponible" para la app podia
+    // pertenecer a un perfil eliminado y explotar en la unique constraint
+    // (500 crudo) al guardar.
+    static void asegurarNoPerteneceAPerfilEliminado(String email, Predicate<String> existeEnPerfilEliminado,
+                                                      Supplier<? extends RuntimeException> siPerteneceAEliminado) {
+        if (email == null) {
+            return;
+        }
+        if (existeEnPerfilEliminado.test(email)) {
+            throw siPerteneceAEliminado.get();
+        }
     }
 }

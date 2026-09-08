@@ -53,6 +53,11 @@ public class MedicoRepositoryAdapter implements MedicoRepository {
     }
 
     @Override
+    public boolean existeEmailEnPerfilEliminado(String email) {
+        return jpaRepository.existsByEmailAndActivoFalse(email);
+    }
+
+    @Override
     public List<Medico> buscarTodos() {
         return jpaRepository.findAllActivos().stream().map(this::toDomain).toList();
     }

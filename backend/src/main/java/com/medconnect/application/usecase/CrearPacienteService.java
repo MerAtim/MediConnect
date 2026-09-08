@@ -15,7 +15,8 @@ public class CrearPacienteService implements CrearPacienteUseCase {
 
     @Override
     public CreatePacienteResponse crear(CreatePacienteRequest request) {
-        Paciente paciente = PacienteFactory.crear(null, request, pacienteRepository::buscarPorEmail);
+        Paciente paciente = PacienteFactory.crear(null, request, pacienteRepository::buscarPorEmail,
+                pacienteRepository::existeEmailEnPerfilEliminado);
         Paciente guardado = pacienteRepository.guardar(paciente);
         return new CreatePacienteResponse(guardado.getId());
     }

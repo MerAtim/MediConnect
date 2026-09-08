@@ -15,7 +15,8 @@ public class CrearMedicoService implements CrearMedicoUseCase {
 
     @Override
     public CreateMedicoResponse crear(CreateMedicoRequest request) {
-        Medico medico = MedicoFactory.crear(null, request, medicoRepository::buscarPorEmail);
+        Medico medico = MedicoFactory.crear(null, request, medicoRepository::buscarPorEmail,
+                medicoRepository::existeEmailEnPerfilEliminado);
         Medico guardado = medicoRepository.guardar(medico);
         return new CreateMedicoResponse(guardado.getId());
     }
