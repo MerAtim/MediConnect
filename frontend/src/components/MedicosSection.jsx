@@ -1,5 +1,6 @@
 import React from 'react'
 import MedicoForm from './MedicoForm.jsx'
+import Paginacion from './Paginacion.jsx'
 import SkeletonRows from './SkeletonRows.jsx'
 
 export default function MedicosSection({
@@ -65,29 +66,7 @@ export default function MedicosSection({
           </tbody>
         </table>
       </div>
-      {totalPaginasMedicos > 1 && (
-        <div className="flex items-center justify-between mt-4">
-          <button
-            type="button"
-            disabled={medicosLoading || paginaMedicos === 0}
-            onClick={() => onIrAPagina(paginaMedicos - 1)}
-            className="btn-secondary !px-3 !py-1.5 text-xs"
-          >
-            ← Anterior
-          </button>
-          <span className="text-sm text-neutral-500">
-            Página {paginaMedicos + 1} de {totalPaginasMedicos}
-          </span>
-          <button
-            type="button"
-            disabled={medicosLoading || paginaMedicos + 1 >= totalPaginasMedicos}
-            onClick={() => onIrAPagina(paginaMedicos + 1)}
-            className="btn-secondary !px-3 !py-1.5 text-xs"
-          >
-            Siguiente →
-          </button>
-        </div>
-      )}
+      <Paginacion pagina={paginaMedicos} totalPaginas={totalPaginasMedicos} loading={medicosLoading} onIrAPagina={onIrAPagina} />
     </section>
   )
 }

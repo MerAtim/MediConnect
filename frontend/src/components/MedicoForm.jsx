@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
-import { apiFetch } from '../apiClient.js'
 import { MEDICOS_API } from '../config.js'
-import { readErrorMessage } from '../utils.js'
+import { useSubmitForm } from '../useSubmitForm.js'
+import CuentaVinculadaSelect from './CuentaVinculadaSelect.jsx'
 import FloatingInput from './FloatingInput.jsx'
 
 export default function MedicoForm({medico, onGuardado, onCancelarEdicion, notify, cuentasDisponibles}){
@@ -12,27 +12,22 @@ export default function MedicoForm({medico, onGuardado, onCancelarEdicion, notif
   const [telefono, setTelefono] = useState(medico?.telefono ?? '')
   const [direccion, setDireccion] = useState(medico?.direccion ?? '')
   const [email, setEmail] = useState(medico?.email ?? '')
-  const [loading, setLoading] = useState(false)
+  const {loading, submit} = useSubmitForm(notify)
 
   async function handleSubmit(e){
     e.preventDefault()
-    setLoading(true)
-    try{
-      const url = isEditing ? `${MEDICOS_API}/${medico.id}` : MEDICOS_API
-      const resp = await apiFetch(url, {
-        method: isEditing ? 'PUT' : 'POST',
-        headers: {'Content-Type':'application/json'},
-        body: JSON.stringify({nombre, especialidad, matricula, telefono, direccion, email})
-      })
-      if(!resp.ok) throw new Error(await readErrorMessage(resp))
-      if(!isEditing){ setNombre(''); setEspecialidad(''); setMatricula(''); setTelefono(''); setDireccion(''); setEmail('') }
-      notify(isEditing ? 'Cambios guardados.' : 'Médico agregado.', 'success')
-      await onGuardado()
-    }catch(err){
-      notify(err.message)
-    }finally{
-      setLoading(false)
-    }
+    const url = isEditing ? `${MEDICOS_API}/${medico.id}` : MEDICOS_API
+    await submit(url, {
+      method: isEditing ? 'PUT' : 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({nombre, especialidad, matricula, telefono, direccion, email})
+    }, {
+      mensajeExito: isEditing ? 'Cambios guardados.' : 'Médico agregado.',
+      onExito: async () => {
+        if(!isEditing){ setNombre(''); setEspecialidad(''); setMatricula(''); setTelefono(''); setDireccion(''); setEmail('') }
+        await onGuardado()
+      }
+    })
   }
 
   return (
@@ -42,18 +37,7 @@ export default function MedicoForm({medico, onGuardado, onCancelarEdicion, notif
       <FloatingInput label="Matrícula" value={matricula} onChange={e=>setMatricula(e.target.value)} required />
       <FloatingInput label="Teléfono" value={telefono} onChange={e=>setTelefono(e.target.value)} />
       <FloatingInput className="sm:col-span-2" label="Dirección" value={direccion} onChange={e=>setDireccion(e.target.value)} />
-      <label className="sm:col-span-2 block">
-        <span className="label">Cuenta de acceso vinculada</span>
-        <select className="input-field" value={email} onChange={e=>setEmail(e.target.value)}>
-          <option value="">Sin vincular</option>
-          {email && !cuentasDisponibles.some(c => c.email === email) && (
-            <option value={email}>{email} (cuenta no encontrada)</option>
-          )}
-          {cuentasDisponibles.map(c => (
-            <option key={c.id} value={c.email}>{c.nombre} ({c.email})</option>
-          ))}
-        </select>
-      </label>
+      <CuentaVinculadaSelect email={email} onEmailChange={setEmail} cuentasDisponibles={cuentasDisponibles} />
       <div className="sm:col-span-2 flex gap-3">
         <button type="submit" disabled={loading} className="btn-primary sm:w-fit">
           {loading ? 'Guardando…' : isEditing ? 'Guardar cambios' : 'Agregar médico'}

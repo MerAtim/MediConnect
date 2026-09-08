@@ -1,5 +1,6 @@
 import React from 'react'
 import PacienteForm from './PacienteForm.jsx'
+import Paginacion from './Paginacion.jsx'
 import SkeletonRows from './SkeletonRows.jsx'
 
 export default function PacientesSection({
@@ -78,29 +79,7 @@ export default function PacientesSection({
           </tbody>
         </table>
       </div>
-      {totalPaginasPacientes > 1 && (
-        <div className="flex items-center justify-between mt-4">
-          <button
-            type="button"
-            disabled={pacientesLoading || paginaPacientes === 0}
-            onClick={() => onIrAPagina(paginaPacientes - 1)}
-            className="btn-secondary !px-3 !py-1.5 text-xs"
-          >
-            ← Anterior
-          </button>
-          <span className="text-sm text-neutral-500">
-            Página {paginaPacientes + 1} de {totalPaginasPacientes}
-          </span>
-          <button
-            type="button"
-            disabled={pacientesLoading || paginaPacientes + 1 >= totalPaginasPacientes}
-            onClick={() => onIrAPagina(paginaPacientes + 1)}
-            className="btn-secondary !px-3 !py-1.5 text-xs"
-          >
-            Siguiente →
-          </button>
-        </div>
-      )}
+      <Paginacion pagina={paginaPacientes} totalPaginas={totalPaginasPacientes} loading={pacientesLoading} onIrAPagina={onIrAPagina} />
     </section>
   )
 }

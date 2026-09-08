@@ -1,7 +1,6 @@
 import React, { useState } from 'react'
-import { apiFetch } from '../apiClient.js'
 import { ROLES_ADMIN, USUARIOS_API } from '../config.js'
-import { readErrorMessage } from '../utils.js'
+import { useSubmitForm } from '../useSubmitForm.js'
 import FloatingInput from './FloatingInput.jsx'
 
 export default function UsuarioForm({notify, onGuardado}){
@@ -9,26 +8,21 @@ export default function UsuarioForm({notify, onGuardado}){
   const [email, setEmail] = useState('')
   const [contrasena, setContrasena] = useState('')
   const [role, setRole] = useState('MEDICO')
-  const [loading, setLoading] = useState(false)
+  const {loading, submit} = useSubmitForm(notify)
 
   async function handleSubmit(e){
     e.preventDefault()
-    setLoading(true)
-    try{
-      const resp = await apiFetch(USUARIOS_API, {
-        method: 'POST',
-        headers: {'Content-Type':'application/json'},
-        body: JSON.stringify({nombre, email, contrasena, role})
-      })
-      if(!resp.ok) throw new Error(await readErrorMessage(resp))
-      notify(`Cuenta creada para ${email}.`, 'success')
-      setNombre(''); setEmail(''); setContrasena(''); setRole('MEDICO')
-      await onGuardado()
-    }catch(err){
-      notify(err.message)
-    }finally{
-      setLoading(false)
-    }
+    await submit(USUARIOS_API, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({nombre, email, contrasena, role})
+    }, {
+      mensajeExito: `Cuenta creada para ${email}.`,
+      onExito: async () => {
+        setNombre(''); setEmail(''); setContrasena(''); setRole('MEDICO')
+        await onGuardado()
+      }
+    })
   }
 
   return (
