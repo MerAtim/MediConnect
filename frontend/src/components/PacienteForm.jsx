@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
-import { apiFetch } from '../apiClient.js'
 import { PACIENTES_API } from '../config.js'
-import { readErrorMessage } from '../utils.js'
+import { useSubmitForm } from '../useSubmitForm.js'
+import CuentaVinculadaSelect from './CuentaVinculadaSelect.jsx'
 import FloatingInput from './FloatingInput.jsx'
 
 export default function PacienteForm({paciente, onGuardado, onCancelarEdicion, notify, cuentasDisponibles}){
@@ -14,27 +14,22 @@ export default function PacienteForm({paciente, onGuardado, onCancelarEdicion, n
   const [numeroAfiliado, setNumeroAfiliado] = useState(paciente?.numeroAfiliado ?? '')
   const [plan, setPlan] = useState(paciente?.plan ?? '')
   const [email, setEmail] = useState(paciente?.email ?? '')
-  const [loading, setLoading] = useState(false)
+  const {loading, submit} = useSubmitForm(notify)
 
   async function handleSubmit(e){
     e.preventDefault()
-    setLoading(true)
-    try{
-      const url = isEditing ? `${PACIENTES_API}/${paciente.id}` : PACIENTES_API
-      const resp = await apiFetch(url, {
-        method: isEditing ? 'PUT' : 'POST',
-        headers: {'Content-Type':'application/json'},
-        body: JSON.stringify({nombre, dni, telefono, direccion, obraSocial, numeroAfiliado, plan, email})
-      })
-      if(!resp.ok) throw new Error(await readErrorMessage(resp))
-      if(!isEditing){ setNombre(''); setDni(''); setTelefono(''); setDireccion(''); setObraSocial(''); setNumeroAfiliado(''); setPlan(''); setEmail('') }
-      notify(isEditing ? 'Cambios guardados.' : 'Paciente agregado.', 'success')
-      await onGuardado()
-    }catch(err){
-      notify(err.message)
-    }finally{
-      setLoading(false)
-    }
+    const url = isEditing ? `${PACIENTES_API}/${paciente.id}` : PACIENTES_API
+    await submit(url, {
+      method: isEditing ? 'PUT' : 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({nombre, dni, telefono, direccion, obraSocial, numeroAfiliado, plan, email})
+    }, {
+      mensajeExito: isEditing ? 'Cambios guardados.' : 'Paciente agregado.',
+      onExito: async () => {
+        if(!isEditing){ setNombre(''); setDni(''); setTelefono(''); setDireccion(''); setObraSocial(''); setNumeroAfiliado(''); setPlan(''); setEmail('') }
+        await onGuardado()
+      }
+    })
   }
 
   return (
@@ -46,18 +41,7 @@ export default function PacienteForm({paciente, onGuardado, onCancelarEdicion, n
       <FloatingInput label="Obra social / prepaga" value={obraSocial} onChange={e=>setObraSocial(e.target.value)} />
       <FloatingInput label="Número de afiliado" value={numeroAfiliado} onChange={e=>setNumeroAfiliado(e.target.value)} />
       <FloatingInput label="Plan" value={plan} onChange={e=>setPlan(e.target.value)} />
-      <label className="sm:col-span-2 block">
-        <span className="label">Cuenta de acceso vinculada</span>
-        <select className="input-field" value={email} onChange={e=>setEmail(e.target.value)}>
-          <option value="">Sin vincular</option>
-          {email && !cuentasDisponibles.some(c => c.email === email) && (
-            <option value={email}>{email} (cuenta no encontrada)</option>
-          )}
-          {cuentasDisponibles.map(c => (
-            <option key={c.id} value={c.email}>{c.nombre} ({c.email})</option>
-          ))}
-        </select>
-      </label>
+      <CuentaVinculadaSelect email={email} onEmailChange={setEmail} cuentasDisponibles={cuentasDisponibles} />
       <div className="sm:col-span-2 flex gap-3">
         <button type="submit" disabled={loading} className="btn-primary sm:w-fit">
           {loading ? 'Guardando…' : isEditing ? 'Guardar cambios' : 'Agregar paciente'}

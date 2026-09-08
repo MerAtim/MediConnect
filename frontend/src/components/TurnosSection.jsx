@@ -1,6 +1,9 @@
 import React from 'react'
 import EstadoBadge from './EstadoBadge.jsx'
+import HistoriaClinicaPanel from './HistoriaClinicaPanel.jsx'
+import Paginacion from './Paginacion.jsx'
 import SkeletonRows from './SkeletonRows.jsx'
+import TurnoFiltros from './TurnoFiltros.jsx'
 
 export default function TurnosSection({
   esAdmin, esMedico, esPaciente, puedeGestionarTurnos, hoy,
@@ -23,27 +26,15 @@ export default function TurnosSection({
       )}
 
       {esAdmin && (
-        <form onSubmit={onFiltrar} className="flex flex-wrap items-end gap-3 mb-4">
-          <div>
-            <label className="label" htmlFor="turnos-filtro-medico-id">Médico ID</label>
-            <input id="turnos-filtro-medico-id" type="number" className="input-field w-32" value={filtroMedicoId} onChange={e=>onFiltroMedicoIdChange(e.target.value)} />
-          </div>
-          <div>
-            <label className="label" htmlFor="turnos-filtro-paciente-id">Paciente ID</label>
-            <input id="turnos-filtro-paciente-id" type="number" className="input-field w-32" value={filtroPacienteId} onChange={e=>onFiltroPacienteIdChange(e.target.value)} />
-          </div>
-          <button type="submit" disabled={listLoading} className="btn-primary">
-            {listLoading ? 'Buscando…' : 'Buscar'}
-          </button>
-          <button
-            type="button"
-            disabled={listLoading}
-            onClick={onVerTodos}
-            className="btn-secondary"
-          >
-            Ver todos
-          </button>
-        </form>
+        <TurnoFiltros
+          filtroMedicoId={filtroMedicoId}
+          onFiltroMedicoIdChange={onFiltroMedicoIdChange}
+          filtroPacienteId={filtroPacienteId}
+          onFiltroPacienteIdChange={onFiltroPacienteIdChange}
+          onFiltrar={onFiltrar}
+          onVerTodos={onVerTodos}
+          loading={listLoading}
+        />
       )}
 
       <div className="overflow-x-auto rounded-lg border border-neutral-200">
@@ -131,70 +122,19 @@ export default function TurnosSection({
                   </td>
                 </tr>
                 {esMedico && historiaAbiertaId === t.id && (
-                  <tr id={`historia-turno-${t.id}`} className="bg-paper-100/40">
-                    <td colSpan={8} className="px-4 py-4">
-                      <div className="space-y-3">
-                        <h3 className="font-medium text-neutral-700">
-                          Historia clínica de {t.pacienteNombre ?? `#${t.pacienteId}`}
-                        </h3>
-                        {historiaLoading ? (
-                          <p className="text-sm text-neutral-400">Cargando…</p>
-                        ) : (historiaPorPaciente[t.pacienteId]?.length ?? 0) === 0 ? (
-                          <p className="text-sm text-neutral-400">Sin registros previos.</p>
-                        ) : (
-                          <ul className="space-y-2">
-                            {historiaPorPaciente[t.pacienteId].map(r => (
-                              <li key={r.id} className="rounded-lg border border-neutral-200 bg-paper-50 px-3 py-2 text-sm">
-                                <div className="text-neutral-500">
-                                  {r.fecha} — {r.medicoNombre ?? `#${r.medicoId}`}{r.medicoEspecialidad ? ` (${r.medicoEspecialidad})` : ''}
-                                </div>
-                                <div><span className="font-medium">Diagnóstico:</span> {r.diagnostico}</div>
-                                <div><span className="font-medium">Tratamiento:</span> {r.tratamiento}</div>
-                                {r.observaciones && (
-                                  <div><span className="font-medium">Observaciones:</span> {r.observaciones}</div>
-                                )}
-                              </li>
-                            ))}
-                          </ul>
-                        )}
-                        <div className="space-y-2 pt-2 border-t border-neutral-200">
-                          <p className="text-sm font-medium text-neutral-700">Agregar registro de esta consulta</p>
-                          <label className="sr-only" htmlFor={`historia-diagnostico-${t.id}`}>Diagnóstico</label>
-                          <input
-                            id={`historia-diagnostico-${t.id}`}
-                            className="input-field"
-                            placeholder="Diagnóstico"
-                            value={diagnostico}
-                            onChange={e => onDiagnosticoChange(e.target.value)}
-                          />
-                          <label className="sr-only" htmlFor={`historia-tratamiento-${t.id}`}>Tratamiento</label>
-                          <input
-                            id={`historia-tratamiento-${t.id}`}
-                            className="input-field"
-                            placeholder="Tratamiento"
-                            value={tratamientoRegistro}
-                            onChange={e => onTratamientoChange(e.target.value)}
-                          />
-                          <label className="sr-only" htmlFor={`historia-observaciones-${t.id}`}>Observaciones (opcional)</label>
-                          <input
-                            id={`historia-observaciones-${t.id}`}
-                            className="input-field"
-                            placeholder="Observaciones (opcional)"
-                            value={observacionesRegistro}
-                            onChange={e => onObservacionesChange(e.target.value)}
-                          />
-                          <button
-                            type="button"
-                            disabled={guardandoRegistro || !diagnostico || !tratamientoRegistro}
-                            onClick={() => onAgregarRegistro(t)}
-                            className="btn-primary !px-3 !py-1.5 text-xs"
-                          >
-                            {guardandoRegistro ? 'Guardando…' : 'Guardar registro'}
-                          </button>
-                        </div>
-                      </div>
-                    </td>
-                  </tr>
+                  <HistoriaClinicaPanel
+                    turno={t}
+                    historiaPorPaciente={historiaPorPaciente}
+                    historiaLoading={historiaLoading}
+                    diagnostico={diagnostico}
+                    onDiagnosticoChange={onDiagnosticoChange}
+                    tratamientoRegistro={tratamientoRegistro}
+                    onTratamientoChange={onTratamientoChange}
+                    observacionesRegistro={observacionesRegistro}
+                    onObservacionesChange={onObservacionesChange}
+                    guardandoRegistro={guardandoRegistro}
+                    onAgregarRegistro={onAgregarRegistro}
+                  />
                 )}
               </React.Fragment>
             ))}
@@ -208,29 +148,7 @@ export default function TurnosSection({
           </tbody>
         </table>
       </div>
-      {totalPaginasTurnos > 1 && (
-        <div className="flex items-center justify-between mt-4">
-          <button
-            type="button"
-            disabled={listLoading || paginaTurnos === 0}
-            onClick={() => onIrAPagina(paginaTurnos - 1)}
-            className="btn-secondary !px-3 !py-1.5 text-xs"
-          >
-            ← Anterior
-          </button>
-          <span className="text-sm text-neutral-500">
-            Página {paginaTurnos + 1} de {totalPaginasTurnos}
-          </span>
-          <button
-            type="button"
-            disabled={listLoading || paginaTurnos + 1 >= totalPaginasTurnos}
-            onClick={() => onIrAPagina(paginaTurnos + 1)}
-            className="btn-secondary !px-3 !py-1.5 text-xs"
-          >
-            Siguiente →
-          </button>
-        </div>
-      )}
+      <Paginacion pagina={paginaTurnos} totalPaginas={totalPaginasTurnos} loading={listLoading} onIrAPagina={onIrAPagina} />
     </section>
   )
 }
