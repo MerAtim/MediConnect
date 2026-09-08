@@ -44,6 +44,25 @@ public class ActualizarEstadoTurnoServiceTest {
         assertTrue(service.actualizarEstado(99L, TurnoEstado.CONFIRMADO).isEmpty());
     }
 
+    // MEDIUM de la re-auditoria e2e (2026-09-08): "transiciones de estado
+    // de turno mas alla de cancelado sin test" -- a nivel service tambien
+    // faltaba cubrir una transicion que no sea PENDIENTE -> CONFIRMADO.
+    @Test
+    public void actualizarEstado_cambiaEstadoYGuarda_deConfirmadoACancelado() {
+        TurnoRepository repo = Mockito.mock(TurnoRepository.class);
+        Turno turno = new Turno(1L, LocalDateTime.of(2026, 8, 12, 10, 0), "Cardiología", null, null, TurnoEstado.CONFIRMADO);
+
+        when(repo.buscarPorId(1L)).thenReturn(Optional.of(turno));
+        when(repo.guardar(any(Turno.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        ActualizarEstadoTurnoService service = new ActualizarEstadoTurnoService(repo);
+
+        Optional<Turno> resultado = service.actualizarEstado(1L, TurnoEstado.CANCELADO);
+
+        assertTrue(resultado.isPresent());
+        assertEquals(TurnoEstado.CANCELADO, resultado.get().getEstado());
+    }
+
     @Test
     public void actualizarEstado_lanzaExcepcion_siTurnoYaEstaCancelado() {
         TurnoRepository repo = Mockito.mock(TurnoRepository.class);

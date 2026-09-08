@@ -44,6 +44,40 @@ public class TurnoTest {
         assertEquals(TurnoEstado.CANCELADO, turno.getEstado());
     }
 
+    // MEDIUM de la re-auditoria e2e (2026-09-08): "transiciones de estado
+    // de turno mas alla de cancelado sin test" -- cambiarEstado no impone
+    // ninguna maquina de estados, solo bloquea mutar un turno ya
+    // CANCELADO. Estos tests documentan y verifican ese comportamiento
+    // permisivo tal cual esta hoy (cualquier transicion entre PENDIENTE y
+    // CONFIRMADO, en cualquier direccion, y confirmar un turno ya
+    // confirmado), no una nueva regla de negocio.
+    @Test
+    public void cambiarEstado_permiteCancelarUnTurnoConfirmado() {
+        Turno turno = turno(TurnoEstado.CONFIRMADO);
+
+        turno.cambiarEstado(TurnoEstado.CANCELADO);
+
+        assertEquals(TurnoEstado.CANCELADO, turno.getEstado());
+    }
+
+    @Test
+    public void cambiarEstado_permiteVolverAPendienteDesdeConfirmado() {
+        Turno turno = turno(TurnoEstado.CONFIRMADO);
+
+        turno.cambiarEstado(TurnoEstado.PENDIENTE);
+
+        assertEquals(TurnoEstado.PENDIENTE, turno.getEstado());
+    }
+
+    @Test
+    public void cambiarEstado_permiteEstablecerElMismoEstado() {
+        Turno turno = turno(TurnoEstado.CONFIRMADO);
+
+        turno.cambiarEstado(TurnoEstado.CONFIRMADO);
+
+        assertEquals(TurnoEstado.CONFIRMADO, turno.getEstado());
+    }
+
     @Test
     public void habilitaHistoriaClinica_esTrue_siYaOcurrioYNoEstaCancelado() {
         Turno turno = turno(TurnoEstado.CONFIRMADO);
