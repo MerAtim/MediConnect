@@ -2,10 +2,13 @@
 
 Este archivo se mantiene actualizado al final de cada sesión de trabajo para que,
 aunque pasen días sin conectarte, se pueda seguir sin releer el proyecto entero.
-Última actualización: **2026-09-08**, tras mergear PR #53
-(`feature/accesibilidad-forms`, ver punto 9 de la segunda auditoría):
-accesibilidad de los forms inline — **cierra por completo la segunda
-auditoría** (los 6 puntos de mejoras de diseño ya resueltos). Antes, PR
+Última actualización: **2026-09-08**, tras mergear PR #54
+(`fix/swagger-api-docs-403`, ver "Fix suelto" más abajo): `/v3/api-docs`
+devolvía 403 por una incompatibilidad binaria de `springdoc-openapi`
+2.5.0 con Spring Boot 3.5.6 (no la hipótesis de matching de rutas
+anotada en la PR #52, que resultó falsa) — bump a 2.9.1. Antes, PR #53:
+accesibilidad de los forms inline — cierra por completo la segunda
+auditoría (los 6 puntos de mejoras de diseño ya resueltos). Antes, PR
 #52: toda la API de negocio pasó de `/api/**` a `/api/v1/**`. Antes, PR
 #51: `MedicoFactory`/`PacienteFactory` deduplican la construcción de
 Medico/Paciente. Antes, PR #50: `Email` como Value Object. Antes, PR #49:
@@ -1041,13 +1044,10 @@ por punto, mismo flujo de siempre. Estado:
      versión da 403 (Spring Security rechaza antes de llegar a "ruta no
      encontrada" — fail closed), `/api/v1/**` funciona, actuator/swagger-ui
      sin cambios; frontend real (Playwright) contra ese backend sin
-     errores. **Hallazgo aparte, sin arreglar (fuera de alcance de esta
-     PR)**: `/v3/api-docs` devuelve 403 pese a que `SecurityConfig` lo
-     permite explícitamente en una línea que quedó intacta — parece una
-     regresión de la suba a Spring Boot 3.5.6 (PR #47) en cómo matchea
-     rutas sin segmento final al final del patrón (`/v3/api-docs/**` no
-     matchea `/v3/api-docs` a secas), nadie probó Swagger específicamente
-     en esa PR. `swagger-ui/index.html` carga bien igual.
+     errores. **Hallazgo aparte, sin arreglar en esta PR**: `/v3/api-docs`
+     devuelve 403 pese a que `SecurityConfig` lo permite explícitamente —
+     ~~hipótesis inicial: regresión de matching de rutas~~ **resultó ser
+     otra causa completamente distinta, ver PR #54 más abajo**.
    - ~~Accesibilidad de los forms inline~~ — resuelto, PR #53
      (`feature/accesibilidad-forms`): **último de los 6 puntos, segunda
      auditoría cerrada por completo**. Gaps reales encontrados revisando
@@ -1261,6 +1261,42 @@ prueba (creados y borrados en la misma corrida) que ejercita lo más
 riesgoso del refactor — expandir "Ver historia", agregar un registro
 clínico, cancelación en dos pasos del paciente.
 
+## Fix suelto (2026-09-08): /v3/api-docs devolvía 403
+
+~~Hallazgo de la PR #52~~ — resuelto, PR #54 (`fix/swagger-api-docs-403`).
+La hipótesis inicial (anotada en la PR #52: regresión de matching de
+rutas, `/v3/api-docs/**` no matchea `/v3/api-docs` a secas) **era un
+falso positivo** — se descartó probándolo explícitamente: se revirtió
+ese cambio a `SecurityConfig` y el bug siguió resuelto igual, solo con
+la versión nueva de springdoc.
+
+La causa real, encontrada con
+`logging.level.org.springframework.security=DEBUG`:
+`springdoc-openapi-starter-webmvc-ui` 2.5.0 (fijado a mano en el pom
+desde la PR #43, no gestionado por el BOM de Spring Boot — advertencia
+que ya estaba anotada ahí) es **binariamente incompatible** con
+`spring-web` 6.2.11 (el que trae Spring Boot 3.5.6 desde la PR #47) —
+`java.lang.NoSuchMethodError` en `ControllerAdviceBean.<init>` al armar
+la spec completa en `GET /v3/api-docs`. El request en sí estaba
+permitido; el error interno disparaba un forward a `/error`, que sí
+requiere autenticación → 403, enmascarando el 500 real. Por eso
+`/v3/api-docs/swagger-config` (no pasa por el código que crashea)
+siempre devolvió 200 y despistaba sobre dónde estaba el problema —
+**lección para la próxima vez que se suba de versión Spring Boot: si el
+proyecto tiene alguna dependencia fijada a mano por fuera del BOM
+(buscar versiones explícitas en el pom), revisarla también, no solo
+compilar y correr los tests**.
+
+Fix: bump a **2.9.1** (la serie compatible con Spring Boot 3.x según la
+doc oficial de springdoc — la serie 3.x apunta a Spring Boot 4). De paso
+se agregó `/v3/api-docs.yaml` al `permitAll` (mismo criterio que el
+resto de la documentación pública, nunca estuvo cubierto ni antes ni con
+la hipótesis descartada). Verificado contra Postgres real y con
+Playwright real contra `swagger-ui/index.html` (30 operaciones
+renderizadas, cero errores de consola — antes no mostraba ningún
+endpoint). Suite completa: 202 tests, 201 OK (hueco de
+Testcontainers-en-Windows ya conocido).
+
 ## Plan sugerido para la próxima sesión
 
 Sin pedido puntual del usuario para arrancar: de las 5 secciones de
@@ -1269,12 +1305,14 @@ siendo una sola función grande por sección con bastante estado propio
 threadeado por props desde `App`. Si en algún momento el archivo vuelve a
 sentirse grande, el próximo corte natural sería extraer hooks de datos
 (`useTurnos`, `useMedicos`, etc.) en vez de seguir bajando por componentes.
-Si no: **los 6 puntos del punto 9 de la segunda auditoría están todos
-resueltos** — OpenAPI (PR #43), índices de DB (PR #49), Value Objects de
-Email (PR #50, alcance acordado solo Email — DNI/Matrícula quedan como
+
+Los 6 puntos del punto 9 de la segunda auditoría están todos resueltos
+— OpenAPI (PR #43), índices de DB (PR #49), Value Objects de Email
+(PR #50, alcance acordado solo Email — DNI/Matrícula quedan como
 candidato aparte si se quiere después), Factory pattern (PR #51,
 Medico/Paciente), versionado de API (PR #52, `/api/v1/**`) y
-accesibilidad de forms (PR #53). Sin pedido pendiente puntual, no hay un
+accesibilidad de forms (PR #53) — y el hallazgo suelto de esa ronda
+también (`/v3/api-docs`, PR #54). Sin pedido pendiente puntual, no hay un
 próximo paso obvio — preguntar al usuario qué sigue.
 
 Único hallazgo suelto sin arreglar (de la PR #52, quedó fuera de su
