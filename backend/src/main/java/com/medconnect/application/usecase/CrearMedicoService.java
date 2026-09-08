@@ -18,7 +18,8 @@ public class CrearMedicoService implements CrearMedicoUseCase {
     public CreateMedicoResponse crear(CreateMedicoRequest request) {
         request.validar();
 
-        String email = ValidacionEmail.normalizar(request.getEmail());
+        String email = ValidacionEmail.normalizarOpcional(request.getEmail(),
+                () -> new MedicoInvalidoException("email invalido"));
         ValidacionEmail.asegurarDisponible(email, medicoRepository::buscarPorEmail, Medico::getId, null,
                 () -> new MedicoInvalidoException("ya existe un medico con ese email"));
 

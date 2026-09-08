@@ -1,5 +1,7 @@
 package com.medconnect.application.usecase;
 
+import com.medconnect.domain.model.Email;
+
 import java.util.Optional;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -12,8 +14,19 @@ final class ValidacionEmail {
     private ValidacionEmail() {
     }
 
-    static String normalizar(String email) {
-        return (email == null || email.trim().isEmpty()) ? null : email.trim();
+    // Devuelve el email trimeado y validado, o null si vino vacio (Medico/
+    // Paciente pueden no tener cuenta vinculada). El formato lo valida Email
+    // (Value Object en domain.model) -- este metodo solo lo traduce a la
+    // excepcion de negocio que corresponda en cada caso de uso.
+    static String normalizarOpcional(String email, Supplier<? extends RuntimeException> siFormatoInvalido) {
+        String trimmed = (email == null) ? null : email.trim();
+        if (trimmed == null || trimmed.isEmpty()) {
+            return null;
+        }
+        if (!Email.esFormatoValido(trimmed)) {
+            throw siFormatoInvalido.get();
+        }
+        return trimmed;
     }
 
     static <T> void asegurarDisponible(String email, Function<String, Optional<T>> buscarPorEmail,

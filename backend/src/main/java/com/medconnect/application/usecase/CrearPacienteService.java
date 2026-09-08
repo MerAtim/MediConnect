@@ -18,7 +18,8 @@ public class CrearPacienteService implements CrearPacienteUseCase {
     public CreatePacienteResponse crear(CreatePacienteRequest request) {
         request.validar();
 
-        String email = ValidacionEmail.normalizar(request.getEmail());
+        String email = ValidacionEmail.normalizarOpcional(request.getEmail(),
+                () -> new PacienteInvalidoException("email invalido"));
         ValidacionEmail.asegurarDisponible(email, pacienteRepository::buscarPorEmail, Paciente::getId, null,
                 () -> new PacienteInvalidoException("ya existe un paciente con ese email"));
 

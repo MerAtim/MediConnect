@@ -14,15 +14,22 @@ public class ValidacionEmailTest {
     }
 
     @Test
-    public void normalizar_devuelveNull_siEsNullOBlanco() {
-        assertNull(ValidacionEmail.normalizar(null));
-        assertNull(ValidacionEmail.normalizar(""));
-        assertNull(ValidacionEmail.normalizar("   "));
+    public void normalizarOpcional_devuelveNull_siEsNullOBlanco() {
+        assertNull(ValidacionEmail.normalizarOpcional(null, () -> new RuntimeException("no deberia lanzar")));
+        assertNull(ValidacionEmail.normalizarOpcional("", () -> new RuntimeException("no deberia lanzar")));
+        assertNull(ValidacionEmail.normalizarOpcional("   ", () -> new RuntimeException("no deberia lanzar")));
     }
 
     @Test
-    public void normalizar_recortaEspacios() {
-        assertEquals("ana@medconnect.com", ValidacionEmail.normalizar("  ana@medconnect.com  "));
+    public void normalizarOpcional_recortaEspacios() {
+        assertEquals("ana@medconnect.com",
+                ValidacionEmail.normalizarOpcional("  ana@medconnect.com  ", () -> new RuntimeException("no deberia lanzar")));
+    }
+
+    @Test
+    public void normalizarOpcional_lanzaExcepcion_siElFormatoEsInvalido() {
+        assertThrows(RuntimeException.class, () ->
+                ValidacionEmail.normalizarOpcional("no-es-un-email", () -> new RuntimeException("email invalido")));
     }
 
     @Test

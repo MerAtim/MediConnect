@@ -4,14 +4,14 @@ public class Usuario {
 
     private Long id;
     private String nombre;
-    private String email;
+    private Email email;
     private String contrasena;
     private UsuarioRole role;
 
     public Usuario(Long id, String nombre, String email, String contrasena, UsuarioRole role) {
         this.id = id;
         this.nombre = nombre;
-        this.email = email;
+        this.email = new Email(email);
         this.contrasena = contrasena;
         this.role = role;
     }
@@ -32,12 +32,12 @@ public class Usuario {
         this.nombre = nombre;
     }
 
-    public String getEmail() {
+    public Email getEmail() {
         return email;
     }
 
     public void setEmail(String email) {
-        this.email = email;
+        this.email = new Email(email);
     }
 
     public String getContrasena() {

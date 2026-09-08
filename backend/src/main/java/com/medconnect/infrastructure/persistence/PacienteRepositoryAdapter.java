@@ -29,7 +29,7 @@ public class PacienteRepositoryAdapter implements PacienteRepository {
                 paciente.getObraSocial(),
                 paciente.getNumeroAfiliado(),
                 paciente.getPlan(),
-                paciente.getEmail()
+                paciente.getEmail() != null ? paciente.getEmail().getValor() : null
         );
         PacienteEntity guardado = jpaRepository.save(entity);
         paciente.setId(guardado.getId());

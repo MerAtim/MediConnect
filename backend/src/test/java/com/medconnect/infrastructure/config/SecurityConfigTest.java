@@ -199,10 +199,10 @@ public class SecurityConfigTest {
                         .cookie(jwtCookie(UsuarioRole.ADMINISTRADOR)))
                 .andExpect(noRechazadoPorAutorizacion());
         mockMvc.perform(patch(url).contentType(MediaType.APPLICATION_JSON).content("{\"estado\":\"CONFIRMADO\"}")
-                        .cookie(jwtCookie(UsuarioRole.MEDICO, medico.getEmail())))
+                        .cookie(jwtCookie(UsuarioRole.MEDICO, medico.getEmail().getValor())))
                 .andExpect(noRechazadoPorAutorizacion());
         mockMvc.perform(patch(url).contentType(MediaType.APPLICATION_JSON).content("{\"estado\":\"CANCELADO\"}")
-                        .cookie(jwtCookie(UsuarioRole.PACIENTE, paciente.getEmail())))
+                        .cookie(jwtCookie(UsuarioRole.PACIENTE, paciente.getEmail().getValor())))
                 .andExpect(noRechazadoPorAutorizacion());
     }
 
@@ -226,7 +226,7 @@ public class SecurityConfigTest {
                         .cookie(jwtCookie(UsuarioRole.PACIENTE)))
                 .andExpect(status().isForbidden());
         mockMvc.perform(get("/api/historias-clinicas").param("pacienteId", pacienteId)
-                        .cookie(jwtCookie(UsuarioRole.MEDICO, medico.getEmail())))
+                        .cookie(jwtCookie(UsuarioRole.MEDICO, medico.getEmail().getValor())))
                 .andExpect(status().isOk());
     }
 
@@ -265,7 +265,7 @@ public class SecurityConfigTest {
 
         @Override
         public Optional<Medico> buscarPorEmail(String email) {
-            return store.stream().filter(m -> email.equals(m.getEmail())).findFirst();
+            return store.stream().filter(m -> m.getEmail() != null && email.equals(m.getEmail().getValor())).findFirst();
         }
 
         @Override
@@ -302,7 +302,7 @@ public class SecurityConfigTest {
 
         @Override
         public Optional<Paciente> buscarPorEmail(String email) {
-            return store.stream().filter(p -> email.equals(p.getEmail())).findFirst();
+            return store.stream().filter(p -> p.getEmail() != null && email.equals(p.getEmail().getValor())).findFirst();
         }
 
         @Override
@@ -369,7 +369,7 @@ public class SecurityConfigTest {
 
         @Override
         public Optional<Usuario> buscarPorEmail(String email) {
-            return store.stream().filter(u -> u.getEmail().equals(email)).findFirst();
+            return store.stream().filter(u -> u.getEmail().getValor().equals(email)).findFirst();
         }
 
         @Override

@@ -23,7 +23,8 @@ public class ActualizarPacienteService implements ActualizarPacienteUseCase {
         }
         request.validar();
 
-        String email = ValidacionEmail.normalizar(request.getEmail());
+        String email = ValidacionEmail.normalizarOpcional(request.getEmail(),
+                () -> new PacienteInvalidoException("email invalido"));
         ValidacionEmail.asegurarDisponible(email, pacienteRepository::buscarPorEmail, Paciente::getId, id,
                 () -> new PacienteInvalidoException("ya existe un paciente con ese email"));
 

@@ -41,7 +41,7 @@ public class JwtTokenService implements TokenService {
         Date ahora = new Date();
         Date expira = new Date(ahora.getTime() + expirationMs);
         return Jwts.builder()
-                .subject(usuario.getEmail())
+                .subject(usuario.getEmail().getValor())
                 .claim("id", usuario.getId())
                 .claim("nombre", usuario.getNombre())
                 .claim("role", usuario.getRole().name())

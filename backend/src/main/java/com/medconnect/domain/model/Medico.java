@@ -8,7 +8,7 @@ public class Medico {
     private String matricula;
     private String direccion;
     private String telefono;
-    private String email;
+    private Email email;
     private String contrasena;
 
     public Medico(Long id, String nombre, String especialidad, String matricula, String direccion, String telefono, String email, String contrasena) {
@@ -18,7 +18,7 @@ public class Medico {
         this.matricula = matricula;
         this.direccion = direccion;
         this.telefono = telefono;
-        this.email = email;
+        this.email = Email.deNullable(email);
         this.contrasena = contrasena;
     }
 
@@ -70,12 +70,12 @@ public class Medico {
         this.telefono = telefono;
     }
 
-    public String getEmail() {
+    public Email getEmail() {
         return email;
     }
 
     public void setEmail(String email) {
-        this.email = email;
+        this.email = Email.deNullable(email);
     }
 
     public String getContrasena() {
