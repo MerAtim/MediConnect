@@ -121,4 +121,18 @@ public class CrearPacienteServiceTest {
         assertThrows(PacienteInvalidoException.class, () -> service.crear(req));
         Mockito.verify(repo, Mockito.never()).buscarPorEmail(any());
     }
+
+    @Test
+    public void crearPaciente_lanzaExcepcion_siElDniTieneFormatoInvalido() {
+        PacienteRepository repo = Mockito.mock(PacienteRepository.class);
+
+        CrearPacienteService service = new CrearPacienteService(repo);
+
+        CreatePacienteRequest req = new CreatePacienteRequest(
+                "Juan Gómez", "no-es-un-dni", null, null, null, null, null, null
+        );
+
+        assertThrows(PacienteInvalidoException.class, () -> service.crear(req));
+        Mockito.verify(repo, Mockito.never()).buscarPorEmail(any());
+    }
 }

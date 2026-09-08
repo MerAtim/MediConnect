@@ -1,6 +1,7 @@
 package com.medconnect.application.usecase;
 
 import com.medconnect.domain.exception.PacienteInvalidoException;
+import com.medconnect.domain.model.Dni;
 
 public class CreatePacienteRequest {
     private String nombre;
@@ -63,6 +64,9 @@ public class CreatePacienteRequest {
         }
         if (dni == null || dni.trim().isEmpty()) {
             throw new PacienteInvalidoException("dni es obligatorio");
+        }
+        if (!Dni.esFormatoValido(dni.trim())) {
+            throw new PacienteInvalidoException("dni invalido");
         }
     }
 }

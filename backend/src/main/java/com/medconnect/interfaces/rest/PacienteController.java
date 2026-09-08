@@ -108,7 +108,7 @@ public class PacienteController {
     public ResponseEntity<PacienteResponse> buscarPorDni(@RequestParam String dni) {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         return pacientesVisibles(auth).stream()
-                .filter(p -> dni.equals(p.getDni()))
+                .filter(p -> p.getDni() != null && dni.equals(p.getDni().getValor()))
                 .findFirst()
                 .map(p -> ResponseEntity.ok(toResponse(p)))
                 .orElseGet(() -> ResponseEntity.notFound().build());
@@ -185,7 +185,7 @@ public class PacienteController {
         return new PacienteResponse(
                 paciente.getId(),
                 paciente.getNombre(),
-                paciente.getDni(),
+                paciente.getDni() != null ? paciente.getDni().getValor() : null,
                 paciente.getTelefono(),
                 paciente.getDireccion(),
                 paciente.getObraSocial(),

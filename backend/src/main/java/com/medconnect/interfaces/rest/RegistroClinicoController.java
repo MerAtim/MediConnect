@@ -128,7 +128,8 @@ public class RegistroClinicoController {
 
         StringBuilder sb = new StringBuilder();
         sb.append("Historia clínica\n");
-        sb.append("Paciente: ").append(paciente.getNombre()).append(" (DNI ").append(paciente.getDni()).append(")\n");
+        sb.append("Paciente: ").append(paciente.getNombre()).append(" (DNI ")
+                .append(paciente.getDni() != null ? paciente.getDni().getValor() : null).append(")\n");
         sb.append("=".repeat(60)).append("\n\n");
         if (registros.isEmpty()) {
             sb.append("Sin registros clínicos.\n");
