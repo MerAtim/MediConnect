@@ -158,7 +158,7 @@ export default function App(){
 
       <main className="max-w-3xl mx-auto px-6 py-8 space-y-8">
         {(esMedico || esPaciente) && vinculado === false && (
-          <div className="card border border-warning-300 bg-warning-50">
+          <div className="card border border-warning-300 bg-warning-50" role="status" aria-live="polite">
             <p className="text-sm text-warning-800">
               Tu cuenta todavía no está vinculada a ningún perfil de {esMedico ? 'médico' : 'paciente'}
               {' '}en el sistema, por eso no ves {esMedico ? 'tus pacientes ni turnos' : 'tu turno ni tu historial'} todavía.
