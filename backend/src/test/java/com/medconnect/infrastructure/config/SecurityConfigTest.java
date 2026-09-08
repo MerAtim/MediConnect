@@ -468,6 +468,13 @@ public class SecurityConfigTest {
         }
 
         @Override
+        public boolean existeEmailEnPerfilEliminado(String email) {
+            // Este fake hace hard-delete (ver eliminar() abajo), asi que nunca
+            // hay una fila "eliminada pero presente" para encontrar.
+            return false;
+        }
+
+        @Override
         public List<Medico> buscarTodos() {
             return new ArrayList<>(store);
         }
@@ -502,6 +509,13 @@ public class SecurityConfigTest {
         @Override
         public Optional<Paciente> buscarPorEmail(String email) {
             return store.stream().filter(p -> p.getEmail() != null && email.equals(p.getEmail().getValor())).findFirst();
+        }
+
+        @Override
+        public boolean existeEmailEnPerfilEliminado(String email) {
+            // Este fake hace hard-delete (ver eliminar() abajo), asi que nunca
+            // hay una fila "eliminada pero presente" para encontrar.
+            return false;
         }
 
         @Override

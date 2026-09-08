@@ -21,7 +21,8 @@ public class ActualizarMedicoService implements ActualizarMedicoUseCase {
             return Optional.empty();
         }
 
-        Medico medico = MedicoFactory.crear(id, request, medicoRepository::buscarPorEmail);
+        Medico medico = MedicoFactory.crear(id, request, medicoRepository::buscarPorEmail,
+                medicoRepository::existeEmailEnPerfilEliminado);
         return Optional.of(medicoRepository.guardar(medico));
     }
 }

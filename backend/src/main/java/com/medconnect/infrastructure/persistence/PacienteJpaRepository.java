@@ -20,4 +20,6 @@ public interface PacienteJpaRepository extends JpaRepository<PacienteEntity, Lon
 
     @Query("SELECT p FROM PacienteEntity p WHERE p.email = :email AND (p.activo = true OR p.activo IS NULL)")
     Optional<PacienteEntity> findActivoByEmail(@Param("email") String email);
+
+    boolean existsByEmailAndActivoFalse(String email);
 }

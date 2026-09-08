@@ -75,6 +75,26 @@ public class CrearMedicoServiceTest {
         assertThrows(MedicoInvalidoException.class, () -> service.crear(req));
     }
 
+    // MEDIUM de la re-auditoria e2e (2026-09-08): "UNIQUE(email) inconsistente
+    // con el soft-delete" -- buscarPorEmail (arriba) solo mira activos, pero
+    // el UNIQUE de la base es sobre toda la tabla. Sin este chequeo, crear
+    // con el email de un perfil eliminado pasaba esta validacion y explotaba
+    // 500 al guardar.
+    @Test
+    public void crearMedico_lanzaExcepcion_siElEmailPerteneceAUnPerfilEliminado() {
+        MedicoRepository repo = Mockito.mock(MedicoRepository.class);
+        when(repo.existeEmailEnPerfilEliminado("ana@medconnect.com")).thenReturn(true);
+
+        CrearMedicoService service = new CrearMedicoService(repo);
+
+        CreateMedicoRequest req = new CreateMedicoRequest(
+                "Ana Pérez", "Cardiología", "MP1234", null, null, "ana@medconnect.com"
+        );
+
+        assertThrows(MedicoInvalidoException.class, () -> service.crear(req));
+        Mockito.verify(repo, Mockito.never()).guardar(any());
+    }
+
     @Test
     public void crearMedico_permiteEmailVacio_sinChocarConOtrosSinVincular() {
         MedicoRepository repo = Mockito.mock(MedicoRepository.class);

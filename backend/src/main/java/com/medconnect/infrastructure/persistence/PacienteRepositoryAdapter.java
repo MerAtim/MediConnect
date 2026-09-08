@@ -55,6 +55,11 @@ public class PacienteRepositoryAdapter implements PacienteRepository {
     }
 
     @Override
+    public boolean existeEmailEnPerfilEliminado(String email) {
+        return jpaRepository.existsByEmailAndActivoFalse(email);
+    }
+
+    @Override
     public List<Paciente> buscarTodos() {
         return jpaRepository.findAllActivos().stream().map(this::toDomain).toList();
     }
