@@ -13,10 +13,13 @@ public class ActualizarContrasenaService implements ActualizarContrasenaUseCase 
 
     private final UsuarioRepository usuarioRepository;
     private final PasswordEncoder passwordEncoder;
+    private final TokenRevocationService tokenRevocationService;
 
-    public ActualizarContrasenaService(UsuarioRepository usuarioRepository, PasswordEncoder passwordEncoder) {
+    public ActualizarContrasenaService(UsuarioRepository usuarioRepository, PasswordEncoder passwordEncoder,
+                                        TokenRevocationService tokenRevocationService) {
         this.usuarioRepository = usuarioRepository;
         this.passwordEncoder = passwordEncoder;
+        this.tokenRevocationService = tokenRevocationService;
     }
 
     @Override
@@ -32,6 +35,11 @@ public class ActualizarContrasenaService implements ActualizarContrasenaUseCase 
         validarNueva(request.getContrasenaNueva());
         usuario.setContrasena(passwordEncoder.encode(request.getContrasenaNueva()));
         usuarioRepository.guardar(usuario);
+        // MEDIUM de la re-auditoria e2e (2026-09-08): sin esto, un token
+        // robado antes del cambio de contrasena seguia siendo valido despues
+        // -- cambiar la contrasena no alcanzaba para desactivar una sesion
+        // ya comprometida.
+        tokenRevocationService.revocarTokensPrevios(usuario.getEmail().getValor());
     }
 
     @Override
@@ -45,6 +53,7 @@ public class ActualizarContrasenaService implements ActualizarContrasenaUseCase 
         Usuario usuario = usuarioOpt.get();
         usuario.setContrasena(passwordEncoder.encode(request.getContrasenaNueva()));
         usuarioRepository.guardar(usuario);
+        tokenRevocationService.revocarTokensPrevios(usuario.getEmail().getValor());
         return true;
     }
 

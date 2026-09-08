@@ -1,5 +1,6 @@
 package com.medconnect.infrastructure.security;
 
+import com.medconnect.application.usecase.TokenRevocationService;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
 import jakarta.servlet.FilterChain;
@@ -22,9 +23,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private static final String COOKIE_NAME = "jwt";
 
     private final JwtTokenService jwtTokenService;
+    private final TokenRevocationService tokenRevocationService;
 
-    public JwtAuthenticationFilter(JwtTokenService jwtTokenService) {
+    public JwtAuthenticationFilter(JwtTokenService jwtTokenService, TokenRevocationService tokenRevocationService) {
         this.jwtTokenService = jwtTokenService;
+        this.tokenRevocationService = tokenRevocationService;
     }
 
     @Override
@@ -37,6 +40,17 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 Claims claims = jwtTokenService.validarYParsear(token);
                 String email = claims.getSubject();
                 String role = claims.get("role", String.class);
+
+                // MEDIUM de la re-auditoria e2e (2026-09-08): la firma y el
+                // vencimiento ya los valido validarYParsear() arriba (tira
+                // JwtException si estan mal); esto cubre el caso que la firma
+                // sola no puede cubrir -- un token todavia sin vencer pero
+                // revocado explicitamente (logout, cambio de contrasena).
+                if (tokenRevocationService.fueRevocado(email, claims.getIssuedAt())) {
+                    SecurityContextHolder.clearContext();
+                    filterChain.doFilter(request, response);
+                    return;
+                }
 
                 var authentication = new UsernamePasswordAuthenticationToken(
                         email, null, List.of(new SimpleGrantedAuthority("ROLE_" + role)));
