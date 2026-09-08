@@ -23,7 +23,7 @@ public class PacienteRepositoryAdapter implements PacienteRepository {
         PacienteEntity entity = new PacienteEntity(
                 paciente.getId(),
                 paciente.getNombre(),
-                paciente.getDni(),
+                paciente.getDni() != null ? paciente.getDni().getValor() : null,
                 paciente.getTelefono(),
                 paciente.getDireccion(),
                 paciente.getObraSocial(),

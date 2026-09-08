@@ -4,7 +4,7 @@ public class Paciente {
 
     private Long id;
     private String nombre;
-    private String dni;
+    private Dni dni;
     private String telefono;
     private String direccion;
     private String obraSocial;
@@ -15,7 +15,7 @@ public class Paciente {
     public Paciente(Long id, String nombre, String dni, String telefono, String direccion, String obraSocial, String numeroAfiliado, String plan, String email) {
         this.id = id;
         this.nombre = nombre;
-        this.dni = dni;
+        this.dni = Dni.deNullable(dni);
         this.telefono = telefono;
         this.direccion = direccion;
         this.obraSocial = obraSocial;
@@ -40,12 +40,12 @@ public class Paciente {
         this.nombre = nombre;
     }
 
-    public String getDni() {
+    public Dni getDni() {
         return dni;
     }
 
     public void setDni(String dni) {
-        this.dni = dni;
+        this.dni = Dni.deNullable(dni);
     }
 
     public String getTelefono() {
