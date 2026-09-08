@@ -1,7 +1,13 @@
-import React, {useEffect, useRef, useState} from 'react'
-import {AUTH_API, AUTH_STORAGE_KEY, HISTORIAS_API, MEDICOS_API, PACIENTES_API, TURNOS_API, USUARIOS_API} from './config.js'
-import {apiFetch, setSessionExpiredHandler} from './apiClient.js'
-import {readErrorMessage} from './utils.js'
+import React, {useEffect, useState} from 'react'
+import {setSessionExpiredHandler} from './apiClient.js'
+import {useToasts} from './useToasts.js'
+import {useAuth} from './useAuth.js'
+import {useMedicos} from './useMedicos.js'
+import {usePacientes} from './usePacientes.js'
+import {useUsuarios} from './useUsuarios.js'
+import {useTurnos} from './useTurnos.js'
+import {useOtorgarTurno} from './useOtorgarTurno.js'
+import {useHistoriaClinica} from './useHistoriaClinica.js'
 import CambiarContrasenaModal from './components/CambiarContrasenaModal.jsx'
 import ConfirmModal from './components/ConfirmModal.jsx'
 import LoginScreen from './components/LoginScreen.jsx'
@@ -33,42 +39,14 @@ export default function App(){
     return () => document.removeEventListener('mousedown', handleRipple)
   }, [])
 
-  const [toasts, setToasts] = useState([])
-
-  function notify(message, type = 'error'){
-    const id = Date.now() + Math.random()
-    setToasts(prev => [...prev, {id, message, type, leaving: false}])
-    setTimeout(() => {
-      setToasts(prev => prev.map(t => t.id === id ? {...t, leaving: true} : t))
-      setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 200)
-    }, 3500)
-  }
-
-  // El JWT vive en una cookie httpOnly que el navegador manda solo
-  // (credentials: 'include' en cada fetch) — JS no puede leerla ni
-  // escribirla, así que acá solo guardamos datos no sensibles para
-  // renderizar la UI sin esperar un round-trip.
-  const [auth, setAuth] = useState(() => {
-    const stored = localStorage.getItem(AUTH_STORAGE_KEY)
-    return stored ? JSON.parse(stored) : null
-  })
-
-  function handleLoginExitoso(data){
-    setAuth(data)
-    localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(data))
-  }
-
-  async function handleLogout(){
-    setAuth(null)
-    localStorage.removeItem(AUTH_STORAGE_KEY)
-    try{
-      // Limpia la cookie del lado del servidor. Best-effort: si la llamada
-      // de red falla igual ya deslogueamos localmente.
-      await fetch(`${AUTH_API}/logout`, {method: 'POST', credentials: 'include'})
-    }catch{
-      // ignorado a propósito
-    }
-  }
+  const {toasts, notify} = useToasts()
+  const {auth, handleLoginExitoso, handleLogout, vinculado, chequearVinculacion} = useAuth(notify)
+  const medicosHook = useMedicos(notify)
+  const pacientesHook = usePacientes(notify)
+  const usuariosHook = useUsuarios(notify)
+  const turnosHook = useTurnos(notify)
+  const otorgarTurnoHook = useOtorgarTurno(notify, turnosHook.cargarTurnos)
+  const historiaHook = useHistoriaClinica(notify)
 
   // apiFetch vive en apiClient.js para que los forms/modals también lo usen
   // (antes tenían su propio fetch sin manejo de sesión expirada). Se
@@ -76,395 +54,23 @@ export default function App(){
   // handleLogout más reciente, no uno de un render viejo.
   setSessionExpiredHandler(handleLogout)
 
-  const [medicos, setMedicos] = useState([])
-  const [pacientes, setPacientes] = useState([])
-  const [usuarios, setUsuarios] = useState([])
-  const [medicosLoading, setMedicosLoading] = useState(false)
-  const [pacientesLoading, setPacientesLoading] = useState(false)
-  const [editingMedico, setEditingMedico] = useState(null)
-  const [editingPaciente, setEditingPaciente] = useState(null)
-  const [paginaMedicos, setPaginaMedicos] = useState(0)
-  const [totalPaginasMedicos, setTotalPaginasMedicos] = useState(0)
-  const [paginaPacientes, setPaginaPacientes] = useState(0)
-  const [totalPaginasPacientes, setTotalPaginasPacientes] = useState(0)
-  const [medicosVinculados, setMedicosVinculados] = useState([])
-  const [pacientesVinculados, setPacientesVinculados] = useState([])
-  const [especialidades, setEspecialidades] = useState([])
-  const [medicosPorEspecialidad, setMedicosPorEspecialidad] = useState([])
-
-  const [fechaHora, setFechaHora] = useState('2026-08-12T10:00:00')
-  const [especialidad, setEspecialidad] = useState('')
-  const [medicoId, setMedicoId] = useState('')
-  const [preparacion, setPreparacion] = useState('')
-  const [loading, setLoading] = useState(false)
-
-  const [dniBusqueda, setDniBusqueda] = useState('')
-  const [pacienteEncontrado, setPacienteEncontrado] = useState(null)
-
-  const [turnos, setTurnos] = useState([])
-  const [filtroMedicoId, setFiltroMedicoId] = useState('')
-  const [filtroPacienteId, setFiltroPacienteId] = useState('')
-  const [paginaTurnos, setPaginaTurnos] = useState(0)
-  const [totalPaginasTurnos, setTotalPaginasTurnos] = useState(0)
-  const [listLoading, setListLoading] = useState(false)
-  const [estadoUpdatingId, setEstadoUpdatingId] = useState(null)
-  const [turnoACancelar, setTurnoACancelar] = useState(null)
-  const [pasoCancelacion, setPasoCancelacion] = useState(0)
-
-  const [historiaAbiertaId, setHistoriaAbiertaId] = useState(null)
-  const [historiaPorPaciente, setHistoriaPorPaciente] = useState({})
-  const [historiaLoading, setHistoriaLoading] = useState(false)
-  const [diagnostico, setDiagnostico] = useState('')
-  const [tratamientoRegistro, setTratamientoRegistro] = useState('')
-  const [observacionesRegistro, setObservacionesRegistro] = useState('')
-  const [guardandoRegistro, setGuardandoRegistro] = useState(false)
-
-  const [vinculado, setVinculado] = useState(null)
   const [mostrarCambiarPropia, setMostrarCambiarPropia] = useState(false)
   const [usuarioAResetear, setUsuarioAResetear] = useState(null)
-
-  async function chequearVinculacion(){
-    try{
-      const url = auth.role === 'MEDICO' ? `${MEDICOS_API}/me` : `${PACIENTES_API}/me`
-      const resp = await apiFetch(url)
-      setVinculado(resp.ok)
-    }catch(err){
-      notify(err.message)
-    }
-  }
-
-  async function cargarUsuarios(){
-    try{
-      const resp = await apiFetch(USUARIOS_API)
-      if(resp.ok) setUsuarios(await resp.json())
-    }catch(err){
-      notify(err.message)
-    }
-  }
-
-  // Los tres abort ref de acá abajo (medicos/pacientes/turnos) existen para
-  // que clicks rápidos de paginación no dejen la pantalla mostrando la
-  // respuesta que llegó última en vez de la que se pidió última: al
-  // arrancar un pedido nuevo se cancela el anterior, y el `finally` de la
-  // request cancelada no toca el loading si ya hay una más nueva en curso.
-  const medicosAbortRef = useRef(null)
-
-  async function cargarMedicos(paginaParam = paginaMedicos){
-    medicosAbortRef.current?.abort()
-    const controller = new AbortController()
-    medicosAbortRef.current = controller
-    setMedicosLoading(true)
-    try{
-      const params = new URLSearchParams()
-      params.set('page', paginaParam)
-      const resp = await apiFetch(`${MEDICOS_API}?${params}`, {signal: controller.signal})
-      if(resp.ok){
-        const data = await resp.json()
-        setMedicos(data.content)
-        setPaginaMedicos(data.page)
-        setTotalPaginasMedicos(data.totalPages)
-      }
-    }catch(err){
-      if(err.name !== 'AbortError') notify(err.message)
-    }finally{
-      if(medicosAbortRef.current === controller) setMedicosLoading(false)
-    }
-  }
-
-  function irAPaginaMedicos(pagina){
-    cargarMedicos(pagina)
-  }
-
-  const pacientesAbortRef = useRef(null)
-
-  async function cargarPacientes(paginaParam = paginaPacientes){
-    pacientesAbortRef.current?.abort()
-    const controller = new AbortController()
-    pacientesAbortRef.current = controller
-    setPacientesLoading(true)
-    try{
-      const params = new URLSearchParams()
-      params.set('page', paginaParam)
-      const resp = await apiFetch(`${PACIENTES_API}?${params}`, {signal: controller.signal})
-      if(resp.ok){
-        const data = await resp.json()
-        setPacientes(data.content)
-        setPaginaPacientes(data.page)
-        setTotalPaginasPacientes(data.totalPages)
-      }
-    }catch(err){
-      if(err.name !== 'AbortError') notify(err.message)
-    }finally{
-      if(pacientesAbortRef.current === controller) setPacientesLoading(false)
-    }
-  }
-
-  function irAPaginaPacientes(pagina){
-    cargarPacientes(pagina)
-  }
-
-  async function cargarMedicosVinculados(){
-    try{
-      const resp = await apiFetch(`${MEDICOS_API}/emails-vinculados`)
-      if(resp.ok) setMedicosVinculados(await resp.json())
-    }catch(err){
-      notify(err.message)
-    }
-  }
-
-  async function cargarPacientesVinculados(){
-    try{
-      const resp = await apiFetch(`${PACIENTES_API}/emails-vinculados`)
-      if(resp.ok) setPacientesVinculados(await resp.json())
-    }catch(err){
-      notify(err.message)
-    }
-  }
-
-  async function cargarEspecialidades(){
-    try{
-      const resp = await apiFetch(`${MEDICOS_API}/especialidades`)
-      if(resp.ok) setEspecialidades(await resp.json())
-    }catch(err){
-      notify(err.message)
-    }
-  }
-
-  async function handleEspecialidadChange(valor){
-    setEspecialidad(valor)
-    setMedicoId('')
-    if(!valor){ setMedicosPorEspecialidad([]); return }
-    try{
-      const params = new URLSearchParams({especialidad: valor, size: '500'})
-      const resp = await apiFetch(`${MEDICOS_API}?${params}`)
-      if(resp.ok){
-        const data = await resp.json()
-        setMedicosPorEspecialidad(data.content)
-      }
-    }catch(err){
-      notify(err.message)
-    }
-  }
-
-  async function eliminarMedico(medico){
-    if(!window.confirm(`¿Eliminar a ${medico.nombre}?`)) return
-    try{
-      const resp = await apiFetch(`${MEDICOS_API}/${medico.id}`, {method: 'DELETE'})
-      if(!resp.ok) throw new Error(`HTTP ${resp.status}`)
-      if(editingMedico?.id === medico.id) setEditingMedico(null)
-      notify('Médico eliminado.', 'success')
-      await cargarMedicos()
-      await cargarMedicosVinculados()
-    }catch(err){
-      notify(err.message)
-    }
-  }
-
-  async function eliminarPaciente(paciente){
-    if(!window.confirm(`¿Eliminar a ${paciente.nombre}?`)) return
-    try{
-      const resp = await apiFetch(`${PACIENTES_API}/${paciente.id}`, {method: 'DELETE'})
-      if(!resp.ok) throw new Error(`HTTP ${resp.status}`)
-      if(editingPaciente?.id === paciente.id) setEditingPaciente(null)
-      notify('Paciente eliminado.', 'success')
-      await cargarPacientes()
-      await cargarPacientesVinculados()
-    }catch(err){
-      notify(err.message)
-    }
-  }
-
-  const turnosAbortRef = useRef(null)
-
-  async function cargarTurnos(medicoIdParam = filtroMedicoId, pacienteIdParam = filtroPacienteId, paginaParam = paginaTurnos){
-    turnosAbortRef.current?.abort()
-    const controller = new AbortController()
-    turnosAbortRef.current = controller
-    setListLoading(true)
-    try{
-      const params = new URLSearchParams()
-      if(medicoIdParam) params.set('medicoId', medicoIdParam)
-      if(pacienteIdParam) params.set('pacienteId', pacienteIdParam)
-      params.set('page', paginaParam)
-      const resp = await apiFetch(`${TURNOS_API}?${params}`, {signal: controller.signal})
-      if(!resp.ok) throw new Error(`HTTP ${resp.status}`)
-      const data = await resp.json()
-      setTurnos(data.content)
-      setPaginaTurnos(data.page)
-      setTotalPaginasTurnos(data.totalPages)
-    }catch(err){
-      if(err.name !== 'AbortError') notify(err.message)
-    }finally{
-      if(turnosAbortRef.current === controller) setListLoading(false)
-    }
-  }
 
   useEffect(() => {
     if(!auth) return
     if(auth.role === 'ADMINISTRADOR') {
-      cargarMedicos(); cargarUsuarios(); cargarMedicosVinculados(); cargarEspecialidades()
+      medicosHook.cargarMedicos()
+      usuariosHook.cargarUsuarios()
+      medicosHook.cargarMedicosVinculados()
+      otorgarTurnoHook.cargarEspecialidades()
     }
-    if(auth.role === 'ADMINISTRADOR' || auth.role === 'MEDICO') cargarPacientes()
-    if(auth.role === 'ADMINISTRADOR') cargarPacientesVinculados()
+    if(auth.role === 'ADMINISTRADOR' || auth.role === 'MEDICO') pacientesHook.cargarPacientes()
+    if(auth.role === 'ADMINISTRADOR') pacientesHook.cargarPacientesVinculados()
     if(auth.role === 'MEDICO' || auth.role === 'PACIENTE') chequearVinculacion()
-    cargarTurnos()
+    turnosHook.cargarTurnos()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [auth])
-
-  async function buscarPacientePorDni(e){
-    e.preventDefault()
-    const params = new URLSearchParams({dni: dniBusqueda.trim()})
-    const resp = await apiFetch(`${PACIENTES_API}/buscar-por-dni?${params}`)
-    if(resp.ok){
-      setPacienteEncontrado(await resp.json())
-    }else{
-      setPacienteEncontrado(null)
-      notify('No se encontró ningún paciente con ese DNI. Dalo de alta primero en la sección Pacientes.')
-    }
-  }
-
-  async function handleSubmit(e){
-    e.preventDefault()
-    setLoading(true)
-    try{
-      const resp = await apiFetch(TURNOS_API, {
-        method: 'POST',
-        headers: {'Content-Type':'application/json'},
-        body: JSON.stringify({
-          fechaHora, especialidad, medicoId: Number(medicoId), pacienteId: pacienteEncontrado.id, preparacion
-        })
-      })
-      if(!resp.ok) throw new Error(await readErrorMessage(resp))
-      const data = await resp.json()
-      notify(`Turno creado para ${pacienteEncontrado.nombre} el ${fechaHora}.`, 'success')
-      setEspecialidad('')
-      setMedicoId('')
-      setPreparacion('')
-      setDniBusqueda('')
-      setPacienteEncontrado(null)
-      await cargarTurnos()
-    }catch(err){
-      notify(err.message)
-    }finally{setLoading(false)}
-  }
-
-  function handleFiltrar(e){
-    e.preventDefault()
-    cargarTurnos(filtroMedicoId, filtroPacienteId, 0)
-  }
-
-  function irAPaginaTurnos(pagina){
-    cargarTurnos(filtroMedicoId, filtroPacienteId, pagina)
-  }
-
-  async function cambiarEstado(id, nuevoEstado){
-    setEstadoUpdatingId(id)
-    try{
-      const resp = await apiFetch(`${TURNOS_API}/${id}/estado`, {
-        method: 'PATCH',
-        headers: {'Content-Type':'application/json'},
-        body: JSON.stringify({estado: nuevoEstado})
-      })
-      if(!resp.ok) throw new Error(await readErrorMessage(resp))
-      notify(nuevoEstado === 'CONFIRMADO' ? 'Turno confirmado.' : 'Turno cancelado.', 'success')
-      await cargarTurnos()
-    }catch(err){
-      notify(err.message)
-    }finally{
-      setEstadoUpdatingId(null)
-    }
-  }
-
-  function iniciarCancelacionComoPaciente(turno){
-    setTurnoACancelar(turno)
-    setPasoCancelacion(1)
-  }
-
-  function cerrarModalCancelacion(){
-    setTurnoACancelar(null)
-    setPasoCancelacion(0)
-  }
-
-  function confirmarPrimerPaso(){
-    setPasoCancelacion(2)
-  }
-
-  function confirmarCancelacionDefinitiva(){
-    cambiarEstado(turnoACancelar.id, 'CANCELADO')
-    cerrarModalCancelacion()
-  }
-
-  async function cargarHistoria(pacienteId){
-    setHistoriaLoading(true)
-    try{
-      const resp = await apiFetch(`${HISTORIAS_API}?pacienteId=${pacienteId}`)
-      if(!resp.ok) throw new Error(await readErrorMessage(resp))
-      const data = await resp.json()
-      setHistoriaPorPaciente(prev => ({...prev, [pacienteId]: data}))
-    }catch(err){
-      notify(err.message)
-    }finally{
-      setHistoriaLoading(false)
-    }
-  }
-
-  function toggleHistoria(turno){
-    if(historiaAbiertaId === turno.id){
-      setHistoriaAbiertaId(null)
-      return
-    }
-    setHistoriaAbiertaId(turno.id)
-    setDiagnostico('')
-    setTratamientoRegistro('')
-    setObservacionesRegistro('')
-    if(!historiaPorPaciente[turno.pacienteId]){
-      cargarHistoria(turno.pacienteId)
-    }
-  }
-
-  async function agregarRegistro(turno){
-    setGuardandoRegistro(true)
-    try{
-      const resp = await apiFetch(HISTORIAS_API, {
-        method: 'POST',
-        headers: {'Content-Type':'application/json'},
-        body: JSON.stringify({
-          medicoId: turno.medicoId,
-          pacienteId: turno.pacienteId,
-          diagnostico,
-          tratamiento: tratamientoRegistro,
-          observaciones: observacionesRegistro
-        })
-      })
-      if(!resp.ok) throw new Error(await readErrorMessage(resp))
-      notify('Registro clínico agregado.', 'success')
-      setDiagnostico('')
-      setTratamientoRegistro('')
-      setObservacionesRegistro('')
-      await cargarHistoria(turno.pacienteId)
-    }catch(err){
-      notify(err.message)
-    }finally{
-      setGuardandoRegistro(false)
-    }
-  }
-
-  async function descargarHistoria(pacienteId){
-    try{
-      const resp = await apiFetch(`${HISTORIAS_API}/exportar?pacienteId=${pacienteId}`)
-      if(!resp.ok) throw new Error(await readErrorMessage(resp))
-      const blob = await resp.blob()
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = `historia-clinica-paciente-${pacienteId}.txt`
-      document.body.appendChild(a)
-      a.click()
-      a.remove()
-      URL.revokeObjectURL(url)
-    }catch(err){
-      notify(err.message)
-    }
-  }
 
   if(!auth){
     return (
@@ -482,36 +88,36 @@ export default function App(){
   const hoy = new Date().toLocaleDateString('es-AR', {day: '2-digit', month: '2-digit', year: 'numeric'})
 
   const emailsMedicosOcupados = new Set(
-    medicosVinculados.filter(m => m.id !== editingMedico?.id).map(m => m.email).filter(Boolean)
+    medicosHook.medicosVinculados.filter(m => m.id !== medicosHook.editingMedico?.id).map(m => m.email).filter(Boolean)
   )
-  const cuentasMedicoDisponibles = usuarios.filter(u => u.role === 'MEDICO' && !emailsMedicosOcupados.has(u.email))
+  const cuentasMedicoDisponibles = usuariosHook.usuarios.filter(u => u.role === 'MEDICO' && !emailsMedicosOcupados.has(u.email))
 
   const emailsPacientesOcupados = new Set(
-    pacientesVinculados.filter(p => p.id !== editingPaciente?.id).map(p => p.email).filter(Boolean)
+    pacientesHook.pacientesVinculados.filter(p => p.id !== pacientesHook.editingPaciente?.id).map(p => p.email).filter(Boolean)
   )
-  const cuentasPacienteDisponibles = usuarios.filter(u => u.role === 'PACIENTE' && !emailsPacientesOcupados.has(u.email))
+  const cuentasPacienteDisponibles = usuariosHook.usuarios.filter(u => u.role === 'PACIENTE' && !emailsPacientesOcupados.has(u.email))
 
   return (
     <div className="min-h-screen bg-neutral-200 font-sans">
       <ToastContainer toasts={toasts} />
       <ConfirmModal
-        open={pasoCancelacion === 1}
+        open={turnosHook.pasoCancelacion === 1}
         title="Cancelar turno"
-        message={turnoACancelar ? `¿Seguro que querés cancelar el turno del ${turnoACancelar.fechaHora}?` : ''}
+        message={turnosHook.turnoACancelar ? `¿Seguro que querés cancelar el turno del ${turnosHook.turnoACancelar.fechaHora}?` : ''}
         confirmLabel="Sí, cancelar"
         cancelLabel="No, mantener el turno"
-        onConfirm={confirmarPrimerPaso}
-        onCancel={cerrarModalCancelacion}
+        onConfirm={turnosHook.confirmarPrimerPaso}
+        onCancel={turnosHook.cerrarModalCancelacion}
       />
       <ConfirmModal
-        open={pasoCancelacion === 2}
+        open={turnosHook.pasoCancelacion === 2}
         title="¿Confirmás la cancelación?"
         message="Esta acción no se puede deshacer y libera el horario para otro paciente."
         confirmLabel="Confirmar cancelación"
         cancelLabel="Volver"
         danger
-        onConfirm={confirmarCancelacionDefinitiva}
-        onCancel={cerrarModalCancelacion}
+        onConfirm={turnosHook.confirmarCancelacionDefinitiva}
+        onCancel={turnosHook.cerrarModalCancelacion}
       />
       <CambiarContrasenaModal
         open={mostrarCambiarPropia}
@@ -558,67 +164,67 @@ export default function App(){
 
         {esAdmin && (
           <UsuariosSection
-            usuarios={usuarios}
+            usuarios={usuariosHook.usuarios}
             notify={notify}
-            onGuardado={cargarUsuarios}
+            onGuardado={usuariosHook.cargarUsuarios}
             onResetearClick={setUsuarioAResetear}
           />
         )}
 
         {esAdmin && (
           <MedicosSection
-            medicos={medicos}
-            medicosLoading={medicosLoading}
-            editingMedico={editingMedico}
-            onEditar={setEditingMedico}
-            onCancelarEdicion={() => setEditingMedico(null)}
-            onGuardado={async () => { setEditingMedico(null); await cargarMedicos(); await cargarMedicosVinculados() }}
-            onEliminar={eliminarMedico}
+            medicos={medicosHook.medicos}
+            medicosLoading={medicosHook.medicosLoading}
+            editingMedico={medicosHook.editingMedico}
+            onEditar={medicosHook.setEditingMedico}
+            onCancelarEdicion={() => medicosHook.setEditingMedico(null)}
+            onGuardado={async () => { medicosHook.setEditingMedico(null); await medicosHook.cargarMedicos(); await medicosHook.cargarMedicosVinculados() }}
+            onEliminar={medicosHook.eliminarMedico}
             notify={notify}
             cuentasDisponibles={cuentasMedicoDisponibles}
-            paginaMedicos={paginaMedicos}
-            totalPaginasMedicos={totalPaginasMedicos}
-            onIrAPagina={irAPaginaMedicos}
+            paginaMedicos={medicosHook.paginaMedicos}
+            totalPaginasMedicos={medicosHook.totalPaginasMedicos}
+            onIrAPagina={medicosHook.irAPaginaMedicos}
           />
         )}
 
         {(esAdmin || esMedico) && (
           <PacientesSection
             esAdmin={esAdmin}
-            pacientes={pacientes}
-            pacientesLoading={pacientesLoading}
-            editingPaciente={editingPaciente}
-            onEditar={setEditingPaciente}
-            onCancelarEdicion={() => setEditingPaciente(null)}
-            onGuardado={async () => { setEditingPaciente(null); await cargarPacientes(); await cargarPacientesVinculados() }}
-            onEliminar={eliminarPaciente}
-            onDescargarHistoria={descargarHistoria}
+            pacientes={pacientesHook.pacientes}
+            pacientesLoading={pacientesHook.pacientesLoading}
+            editingPaciente={pacientesHook.editingPaciente}
+            onEditar={pacientesHook.setEditingPaciente}
+            onCancelarEdicion={() => pacientesHook.setEditingPaciente(null)}
+            onGuardado={async () => { pacientesHook.setEditingPaciente(null); await pacientesHook.cargarPacientes(); await pacientesHook.cargarPacientesVinculados() }}
+            onEliminar={pacientesHook.eliminarPaciente}
+            onDescargarHistoria={historiaHook.descargarHistoria}
             notify={notify}
             cuentasDisponibles={cuentasPacienteDisponibles}
-            paginaPacientes={paginaPacientes}
-            totalPaginasPacientes={totalPaginasPacientes}
-            onIrAPagina={irAPaginaPacientes}
+            paginaPacientes={pacientesHook.paginaPacientes}
+            totalPaginasPacientes={pacientesHook.totalPaginasPacientes}
+            onIrAPagina={pacientesHook.irAPaginaPacientes}
           />
         )}
 
         {esAdmin && (
           <OtorgarTurnoSection
-            dniBusqueda={dniBusqueda}
-            onDniBusquedaChange={valor => { setDniBusqueda(valor); setPacienteEncontrado(null) }}
-            onBuscarPorDni={buscarPacientePorDni}
-            pacienteEncontrado={pacienteEncontrado}
-            fechaHora={fechaHora}
-            onFechaHoraChange={setFechaHora}
-            especialidad={especialidad}
-            onEspecialidadChange={handleEspecialidadChange}
-            especialidades={especialidades}
-            medicoId={medicoId}
-            onMedicoIdChange={setMedicoId}
-            medicosPorEspecialidad={medicosPorEspecialidad}
-            preparacion={preparacion}
-            onPreparacionChange={setPreparacion}
-            loading={loading}
-            onSubmit={handleSubmit}
+            dniBusqueda={otorgarTurnoHook.dniBusqueda}
+            onDniBusquedaChange={otorgarTurnoHook.onDniBusquedaChange}
+            onBuscarPorDni={otorgarTurnoHook.buscarPacientePorDni}
+            pacienteEncontrado={otorgarTurnoHook.pacienteEncontrado}
+            fechaHora={otorgarTurnoHook.fechaHora}
+            onFechaHoraChange={otorgarTurnoHook.setFechaHora}
+            especialidad={otorgarTurnoHook.especialidad}
+            onEspecialidadChange={otorgarTurnoHook.handleEspecialidadChange}
+            especialidades={otorgarTurnoHook.especialidades}
+            medicoId={otorgarTurnoHook.medicoId}
+            onMedicoIdChange={otorgarTurnoHook.setMedicoId}
+            medicosPorEspecialidad={otorgarTurnoHook.medicosPorEspecialidad}
+            preparacion={otorgarTurnoHook.preparacion}
+            onPreparacionChange={otorgarTurnoHook.setPreparacion}
+            loading={otorgarTurnoHook.loading}
+            onSubmit={otorgarTurnoHook.handleSubmit}
           />
         )}
 
@@ -628,32 +234,32 @@ export default function App(){
           esPaciente={esPaciente}
           puedeGestionarTurnos={puedeGestionarTurnos}
           hoy={hoy}
-          turnos={turnos}
-          listLoading={listLoading}
-          filtroMedicoId={filtroMedicoId}
-          onFiltroMedicoIdChange={setFiltroMedicoId}
-          filtroPacienteId={filtroPacienteId}
-          onFiltroPacienteIdChange={setFiltroPacienteId}
-          onFiltrar={handleFiltrar}
-          onVerTodos={() => { setFiltroMedicoId(''); setFiltroPacienteId(''); cargarTurnos('', '', 0) }}
-          paginaTurnos={paginaTurnos}
-          totalPaginasTurnos={totalPaginasTurnos}
-          onIrAPagina={irAPaginaTurnos}
-          estadoUpdatingId={estadoUpdatingId}
-          onCambiarEstado={cambiarEstado}
-          onIniciarCancelacionPaciente={iniciarCancelacionComoPaciente}
-          historiaAbiertaId={historiaAbiertaId}
-          onToggleHistoria={toggleHistoria}
-          historiaPorPaciente={historiaPorPaciente}
-          historiaLoading={historiaLoading}
-          diagnostico={diagnostico}
-          onDiagnosticoChange={setDiagnostico}
-          tratamientoRegistro={tratamientoRegistro}
-          onTratamientoChange={setTratamientoRegistro}
-          observacionesRegistro={observacionesRegistro}
-          onObservacionesChange={setObservacionesRegistro}
-          guardandoRegistro={guardandoRegistro}
-          onAgregarRegistro={agregarRegistro}
+          turnos={turnosHook.turnos}
+          listLoading={turnosHook.listLoading}
+          filtroMedicoId={turnosHook.filtroMedicoId}
+          onFiltroMedicoIdChange={turnosHook.setFiltroMedicoId}
+          filtroPacienteId={turnosHook.filtroPacienteId}
+          onFiltroPacienteIdChange={turnosHook.setFiltroPacienteId}
+          onFiltrar={turnosHook.handleFiltrar}
+          onVerTodos={turnosHook.verTodos}
+          paginaTurnos={turnosHook.paginaTurnos}
+          totalPaginasTurnos={turnosHook.totalPaginasTurnos}
+          onIrAPagina={turnosHook.irAPaginaTurnos}
+          estadoUpdatingId={turnosHook.estadoUpdatingId}
+          onCambiarEstado={turnosHook.cambiarEstado}
+          onIniciarCancelacionPaciente={turnosHook.iniciarCancelacionComoPaciente}
+          historiaAbiertaId={historiaHook.historiaAbiertaId}
+          onToggleHistoria={historiaHook.toggleHistoria}
+          historiaPorPaciente={historiaHook.historiaPorPaciente}
+          historiaLoading={historiaHook.historiaLoading}
+          diagnostico={historiaHook.diagnostico}
+          onDiagnosticoChange={historiaHook.setDiagnostico}
+          tratamientoRegistro={historiaHook.tratamientoRegistro}
+          onTratamientoChange={historiaHook.setTratamientoRegistro}
+          observacionesRegistro={historiaHook.observacionesRegistro}
+          onObservacionesChange={historiaHook.setObservacionesRegistro}
+          guardandoRegistro={historiaHook.guardandoRegistro}
+          onAgregarRegistro={historiaHook.agregarRegistro}
         />
       </main>
     </div>
