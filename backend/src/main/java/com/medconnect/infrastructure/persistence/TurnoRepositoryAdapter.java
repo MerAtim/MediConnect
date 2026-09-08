@@ -58,7 +58,7 @@ public class TurnoRepositoryAdapter implements TurnoRepository {
 
     private Turno toDomain(TurnoEntity entity) {
         Medico medico = entity.getMedicoId() != null
-                ? new Medico(entity.getMedicoId(), null, null, null, null, null, null, null)
+                ? new Medico(entity.getMedicoId(), null, null, null, null, null, null)
                 : null;
         Paciente paciente = entity.getPacienteId() != null
                 ? new Paciente(entity.getPacienteId(), null, null, null, null, null, null, null, null)

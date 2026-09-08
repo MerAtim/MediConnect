@@ -36,7 +36,7 @@ public class CrearRegistroClinicoServiceTest {
 
     private static Turno turnoEntre(Long medicoId, Long pacienteId, LocalDateTime fechaHora, TurnoEstado estado) {
         return new Turno(1L, fechaHora, "Traumatología",
-                new Medico(medicoId, null, null, null, null, null, null, null),
+                new Medico(medicoId, null, null, null, null, null, null),
                 new Paciente(pacienteId, null, null, null, null, null, null, null, null),
                 estado);
     }
@@ -48,7 +48,7 @@ public class CrearRegistroClinicoServiceTest {
         PacienteRepository pacienteRepo = Mockito.mock(PacienteRepository.class);
         TurnoRepository turnoRepo = Mockito.mock(TurnoRepository.class);
 
-        when(medicoRepo.buscarPorId(2L)).thenReturn(Optional.of(new Medico(2L, null, null, null, null, null, null, null)));
+        when(medicoRepo.buscarPorId(2L)).thenReturn(Optional.of(new Medico(2L, null, null, null, null, null, null)));
         when(pacienteRepo.buscarPorId(3L)).thenReturn(Optional.of(new Paciente(3L, null, null, null, null, null, null, null, null)));
         when(turnoRepo.buscarPorMedico(2L)).thenReturn(List.of(turnoEntre(2L, 3L)));
         when(repo.guardar(any(RegistroClinico.class))).thenAnswer(invocation -> {
@@ -71,7 +71,7 @@ public class CrearRegistroClinicoServiceTest {
         PacienteRepository pacienteRepo = Mockito.mock(PacienteRepository.class);
         TurnoRepository turnoRepo = Mockito.mock(TurnoRepository.class);
 
-        when(medicoRepo.buscarPorId(2L)).thenReturn(Optional.of(new Medico(2L, null, null, null, null, null, null, null)));
+        when(medicoRepo.buscarPorId(2L)).thenReturn(Optional.of(new Medico(2L, null, null, null, null, null, null)));
         when(pacienteRepo.buscarPorId(3L)).thenReturn(Optional.of(new Paciente(3L, null, null, null, null, null, null, null, null)));
         when(turnoRepo.buscarPorMedico(2L)).thenReturn(List.of(turnoEntre(2L, 99L)));
 
@@ -102,7 +102,7 @@ public class CrearRegistroClinicoServiceTest {
         PacienteRepository pacienteRepo = Mockito.mock(PacienteRepository.class);
         TurnoRepository turnoRepo = Mockito.mock(TurnoRepository.class);
 
-        when(medicoRepo.buscarPorId(2L)).thenReturn(Optional.of(new Medico(2L, null, null, null, null, null, null, null)));
+        when(medicoRepo.buscarPorId(2L)).thenReturn(Optional.of(new Medico(2L, null, null, null, null, null, null)));
         when(pacienteRepo.buscarPorId(3L)).thenReturn(Optional.empty());
 
         CrearRegistroClinicoService service = new CrearRegistroClinicoService(repo, medicoRepo, pacienteRepo, turnoRepo);
@@ -117,7 +117,7 @@ public class CrearRegistroClinicoServiceTest {
         PacienteRepository pacienteRepo = Mockito.mock(PacienteRepository.class);
         TurnoRepository turnoRepo = Mockito.mock(TurnoRepository.class);
 
-        when(medicoRepo.buscarPorId(2L)).thenReturn(Optional.of(new Medico(2L, null, null, null, null, null, null, null)));
+        when(medicoRepo.buscarPorId(2L)).thenReturn(Optional.of(new Medico(2L, null, null, null, null, null, null)));
         when(pacienteRepo.buscarPorId(3L)).thenReturn(Optional.of(new Paciente(3L, null, null, null, null, null, null, null, null)));
         when(turnoRepo.buscarPorMedico(2L)).thenReturn(List.of(
                 turnoEntre(2L, 3L, LocalDateTime.now().minusDays(1), TurnoEstado.CANCELADO)));
@@ -135,7 +135,7 @@ public class CrearRegistroClinicoServiceTest {
         PacienteRepository pacienteRepo = Mockito.mock(PacienteRepository.class);
         TurnoRepository turnoRepo = Mockito.mock(TurnoRepository.class);
 
-        when(medicoRepo.buscarPorId(2L)).thenReturn(Optional.of(new Medico(2L, null, null, null, null, null, null, null)));
+        when(medicoRepo.buscarPorId(2L)).thenReturn(Optional.of(new Medico(2L, null, null, null, null, null, null)));
         when(pacienteRepo.buscarPorId(3L)).thenReturn(Optional.of(new Paciente(3L, null, null, null, null, null, null, null, null)));
         when(turnoRepo.buscarPorMedico(2L)).thenReturn(List.of(
                 turnoEntre(2L, 3L, LocalDateTime.now().plusDays(1), TurnoEstado.CONFIRMADO)));

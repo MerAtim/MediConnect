@@ -136,7 +136,7 @@ public class PacienteControllerTest {
                 new org.springframework.security.authentication.UsernamePasswordAuthenticationToken(
                         "medico@medconnect.com", null,
                         List.of(new org.springframework.security.core.authority.SimpleGrantedAuthority("ROLE_MEDICO"))));
-        com.medconnect.domain.model.Medico medico = new com.medconnect.domain.model.Medico(2L, null, null, null, null, null, null, null);
+        com.medconnect.domain.model.Medico medico = new com.medconnect.domain.model.Medico(2L, null, null, null, null, null, null);
         Paciente paciente = new Paciente(3L, "Juan Gómez", "30111222", null, null, null, null, null, null);
         com.medconnect.domain.model.Turno turno = new com.medconnect.domain.model.Turno(
                 1L, null, "Cardiología", medico, paciente, null);
@@ -154,7 +154,7 @@ public class PacienteControllerTest {
                 new org.springframework.security.authentication.UsernamePasswordAuthenticationToken(
                         "medico@medconnect.com", null,
                         List.of(new org.springframework.security.core.authority.SimpleGrantedAuthority("ROLE_MEDICO"))));
-        com.medconnect.domain.model.Medico medico = new com.medconnect.domain.model.Medico(2L, null, null, null, null, null, null, null);
+        com.medconnect.domain.model.Medico medico = new com.medconnect.domain.model.Medico(2L, null, null, null, null, null, null);
         Paciente pacienteAjeno = new Paciente(99L, "Otro Paciente", "40111222", null, null, null, null, null, null);
         when(buscarPacienteUseCase.buscarPorId(99L)).thenReturn(Optional.of(pacienteAjeno));
         when(buscarMedicoUseCase.buscarPorEmail("medico@medconnect.com")).thenReturn(Optional.of(medico));
@@ -179,7 +179,7 @@ public class PacienteControllerTest {
                 new org.springframework.security.authentication.UsernamePasswordAuthenticationToken(
                         "medico@medconnect.com", null,
                         List.of(new org.springframework.security.core.authority.SimpleGrantedAuthority("ROLE_MEDICO"))));
-        com.medconnect.domain.model.Medico medico = new com.medconnect.domain.model.Medico(2L, null, null, null, null, null, null, null);
+        com.medconnect.domain.model.Medico medico = new com.medconnect.domain.model.Medico(2L, null, null, null, null, null, null);
         Paciente paciente = new Paciente(3L, "Juan Gómez", "30111222", null, null, null, null, null, null);
         com.medconnect.domain.model.Turno turno = new com.medconnect.domain.model.Turno(
                 1L, null, "Cardiología", medico, paciente, null);
@@ -233,7 +233,7 @@ public class PacienteControllerTest {
                 new org.springframework.security.authentication.UsernamePasswordAuthenticationToken(
                         "medico@medconnect.com", null,
                         List.of(new org.springframework.security.core.authority.SimpleGrantedAuthority("ROLE_MEDICO"))));
-        com.medconnect.domain.model.Medico medico = new com.medconnect.domain.model.Medico(2L, null, null, null, null, null, null, null);
+        com.medconnect.domain.model.Medico medico = new com.medconnect.domain.model.Medico(2L, null, null, null, null, null, null);
         when(buscarMedicoUseCase.buscarPorEmail("medico@medconnect.com")).thenReturn(Optional.of(medico));
         when(buscarTurnoUseCase.buscarPorMedico(2L)).thenReturn(List.of());
 

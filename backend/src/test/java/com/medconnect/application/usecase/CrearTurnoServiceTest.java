@@ -35,7 +35,7 @@ public class CrearTurnoServiceTest {
         MedicoRepository medicoRepo = Mockito.mock(MedicoRepository.class);
         PacienteRepository pacienteRepo = Mockito.mock(PacienteRepository.class);
 
-        when(medicoRepo.buscarPorId(2L)).thenReturn(Optional.of(new Medico(2L, null, null, null, null, null, null, null)));
+        when(medicoRepo.buscarPorId(2L)).thenReturn(Optional.of(new Medico(2L, null, null, null, null, null, null)));
         when(pacienteRepo.buscarPorId(3L)).thenReturn(Optional.of(new Paciente(3L, null, null, null, null, null, null, null, null)));
         when(repo.guardar(any(Turno.class))).thenAnswer(invocation -> {
             Turno t = invocation.getArgument(0);
@@ -56,7 +56,7 @@ public class CrearTurnoServiceTest {
         MedicoRepository medicoRepo = Mockito.mock(MedicoRepository.class);
         PacienteRepository pacienteRepo = Mockito.mock(PacienteRepository.class);
 
-        when(medicoRepo.buscarPorId(2L)).thenReturn(Optional.of(new Medico(2L, null, null, null, null, null, null, null)));
+        when(medicoRepo.buscarPorId(2L)).thenReturn(Optional.of(new Medico(2L, null, null, null, null, null, null)));
         when(pacienteRepo.buscarPorId(3L)).thenReturn(Optional.of(new Paciente(3L, null, null, null, null, null, null, null, null)));
         // Simular que ya existe un turno a la misma fecha para el médico
         when(repo.buscarPorMedico(2L)).thenReturn(java.util.List.of(
@@ -87,7 +87,7 @@ public class CrearTurnoServiceTest {
         MedicoRepository medicoRepo = Mockito.mock(MedicoRepository.class);
         PacienteRepository pacienteRepo = Mockito.mock(PacienteRepository.class);
 
-        when(medicoRepo.buscarPorId(2L)).thenReturn(Optional.of(new Medico(2L, null, null, null, null, null, null, null)));
+        when(medicoRepo.buscarPorId(2L)).thenReturn(Optional.of(new Medico(2L, null, null, null, null, null, null)));
         when(pacienteRepo.buscarPorId(3L)).thenReturn(Optional.of(new Paciente(3L, null, null, null, null, null, null, null, null)));
         // El chequeo en memoria no detecta nada, pero la base rechaza por la unique constraint
         // (simula dos requests concurrentes reservando el mismo horario con el mismo medico).
@@ -105,7 +105,7 @@ public class CrearTurnoServiceTest {
         MedicoRepository medicoRepo = Mockito.mock(MedicoRepository.class);
         PacienteRepository pacienteRepo = Mockito.mock(PacienteRepository.class);
 
-        when(medicoRepo.buscarPorId(2L)).thenReturn(Optional.of(new Medico(2L, null, null, null, null, null, null, null)));
+        when(medicoRepo.buscarPorId(2L)).thenReturn(Optional.of(new Medico(2L, null, null, null, null, null, null)));
         when(pacienteRepo.buscarPorId(3L)).thenReturn(Optional.empty());
 
         CrearTurnoService service = new CrearTurnoService(repo, medicoRepo, pacienteRepo);

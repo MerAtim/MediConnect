@@ -76,7 +76,7 @@ public class CrearRegistroClinicoIntegrationTest {
     @Test
     public void crearRegistroClinico_quedaCifradoEnLaColumnaCruda_yLegibleViaApi() throws Exception {
         Medico medico = medicoRepository.guardar(
-                new Medico(null, "Dr Cifrado", "Clínica", "MP-CIF-1", null, null, "medico.cifrado.it@medconnect.com", null));
+                new Medico(null, "Dr Cifrado", "Clínica", "MP-CIF-1", null, null, "medico.cifrado.it@medconnect.com"));
         Paciente paciente = pacienteRepository.guardar(
                 new Paciente(null, "Pac Cifrado", "30333444", null, null, null, null, null, null));
         // Turno ya ocurrido y no cancelado: habilita el acceso a historia

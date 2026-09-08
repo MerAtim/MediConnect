@@ -93,7 +93,7 @@ public class MedicoControllerTest {
     @Test
     public void obtenerPropio_devuelve200_siMedicoEstaVinculado() throws Exception {
         loguearComo("MEDICO", "medico@medconnect.com");
-        Medico medico = new Medico(1L, "Ana Pérez", "Cardiología", "MP1234", null, null, "medico@medconnect.com", null);
+        Medico medico = new Medico(1L, "Ana Pérez", "Cardiología", "MP1234", null, null, "medico@medconnect.com");
         when(buscarMedicoUseCase.buscarPorEmail("medico@medconnect.com")).thenReturn(Optional.of(medico));
 
         mockMvc.perform(get("/api/v1/medicos/me"))
@@ -112,7 +112,7 @@ public class MedicoControllerTest {
 
     @Test
     public void buscarPorId_devuelve200_siExiste() throws Exception {
-        Medico medico = new Medico(1L, "Ana Pérez", "Cardiología", "MP1234", null, null, null, null);
+        Medico medico = new Medico(1L, "Ana Pérez", "Cardiología", "MP1234", null, null, null);
         when(buscarMedicoUseCase.buscarPorId(1L)).thenReturn(Optional.of(medico));
 
         mockMvc.perform(get("/api/v1/medicos/1"))
@@ -140,8 +140,8 @@ public class MedicoControllerTest {
 
     @Test
     public void buscarTodos_filtraPorEspecialidad() throws Exception {
-        Medico cardiologa = new Medico(1L, "Ana Pérez", "Cardiología", "MP1234", null, null, null, null);
-        Medico clinico = new Medico(2L, "Luis Gómez", "Clínica Médica", "MP5678", null, null, null, null);
+        Medico cardiologa = new Medico(1L, "Ana Pérez", "Cardiología", "MP1234", null, null, null);
+        Medico clinico = new Medico(2L, "Luis Gómez", "Clínica Médica", "MP5678", null, null, null);
         when(buscarMedicoUseCase.buscarTodos()).thenReturn(List.of(cardiologa, clinico));
 
         mockMvc.perform(get("/api/v1/medicos").param("especialidad", "Cardiología"))
@@ -151,9 +151,9 @@ public class MedicoControllerTest {
 
     @Test
     public void especialidades_devuelveListaDistintaYOrdenada() throws Exception {
-        Medico m1 = new Medico(1L, "Ana Pérez", "Cardiología", "MP1234", null, null, null, null);
-        Medico m2 = new Medico(2L, "Luis Gómez", "Clínica Médica", "MP5678", null, null, null, null);
-        Medico m3 = new Medico(3L, "Otra Cardióloga", "Cardiología", "MP9999", null, null, null, null);
+        Medico m1 = new Medico(1L, "Ana Pérez", "Cardiología", "MP1234", null, null, null);
+        Medico m2 = new Medico(2L, "Luis Gómez", "Clínica Médica", "MP5678", null, null, null);
+        Medico m3 = new Medico(3L, "Otra Cardióloga", "Cardiología", "MP9999", null, null, null);
         when(buscarMedicoUseCase.buscarTodos()).thenReturn(List.of(m1, m2, m3));
 
         mockMvc.perform(get("/api/v1/medicos/especialidades"))
@@ -163,8 +163,8 @@ public class MedicoControllerTest {
 
     @Test
     public void emailsVinculados_omiteMedicosSinEmail() throws Exception {
-        Medico conEmail = new Medico(1L, "Ana Pérez", "Cardiología", "MP1234", null, null, "ana@medconnect.com", null);
-        Medico sinEmail = new Medico(2L, "Luis Gómez", "Clínica Médica", "MP5678", null, null, null, null);
+        Medico conEmail = new Medico(1L, "Ana Pérez", "Cardiología", "MP1234", null, null, "ana@medconnect.com");
+        Medico sinEmail = new Medico(2L, "Luis Gómez", "Clínica Médica", "MP5678", null, null, null);
         when(buscarMedicoUseCase.buscarTodos()).thenReturn(List.of(conEmail, sinEmail));
 
         mockMvc.perform(get("/api/v1/medicos/emails-vinculados"))
@@ -174,7 +174,7 @@ public class MedicoControllerTest {
 
     @Test
     public void actualizar_devuelve200_yBody_siExiste() throws Exception {
-        Medico medico = new Medico(1L, "Ana Pérez", "Clínica Médica", "MP1234", null, null, null, null);
+        Medico medico = new Medico(1L, "Ana Pérez", "Clínica Médica", "MP1234", null, null, null);
         when(actualizarMedicoUseCase.actualizar(eq(1L), any())).thenReturn(Optional.of(medico));
 
         String body = "{\"nombre\":\"Ana Pérez\",\"especialidad\":\"Clínica Médica\",\"matricula\":\"MP1234\"}";

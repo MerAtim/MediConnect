@@ -64,7 +64,7 @@ public class CrearMedicoServiceTest {
     public void crearMedico_lanzaExcepcion_siEmailYaExiste() {
         MedicoRepository repo = Mockito.mock(MedicoRepository.class);
         when(repo.buscarPorEmail("ana@medconnect.com"))
-                .thenReturn(Optional.of(new Medico(1L, "Otra", "Clínica Médica", "MP9999", null, null, "ana@medconnect.com", null)));
+                .thenReturn(Optional.of(new Medico(1L, "Otra", "Clínica Médica", "MP9999", null, null, "ana@medconnect.com")));
 
         CrearMedicoService service = new CrearMedicoService(repo);
 

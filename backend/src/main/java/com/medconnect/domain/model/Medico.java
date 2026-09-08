@@ -9,9 +9,8 @@ public class Medico {
     private String direccion;
     private String telefono;
     private Email email;
-    private String contrasena;
 
-    public Medico(Long id, String nombre, String especialidad, String matricula, String direccion, String telefono, String email, String contrasena) {
+    public Medico(Long id, String nombre, String especialidad, String matricula, String direccion, String telefono, String email) {
         this.id = id;
         this.nombre = nombre;
         this.especialidad = especialidad;
@@ -19,7 +18,6 @@ public class Medico {
         this.direccion = direccion;
         this.telefono = telefono;
         this.email = Email.deNullable(email);
-        this.contrasena = contrasena;
     }
 
     public Long getId() {
@@ -78,19 +76,10 @@ public class Medico {
         this.email = Email.deNullable(email);
     }
 
-    public String getContrasena() {
-        return contrasena;
-    }
-
-    public void setContrasena(String contrasena) {
-        this.contrasena = contrasena;
-    }
-
     @Override
     public String toString() {
         return "Medico: id: " + id + ", nombre: " + nombre + ", especialidad: " + especialidad + ", matricula: " + matricula
-                + ", direccion: " + direccion + ", telefono: " + telefono + ", email: " + email + ", contrasena: "
-                + contrasena;
+                + ", direccion: " + direccion + ", telefono: " + telefono + ", email: " + email;
     }
 
         

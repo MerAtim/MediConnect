@@ -73,8 +73,6 @@ public class MedicoRepositoryAdapter implements MedicoRepository {
                 entity.getMatricula(),
                 entity.getDireccion(),
                 entity.getTelefono(),
-                entity.getEmail(),
-                null
-        );
+                entity.getEmail());
     }
 }

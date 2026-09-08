@@ -64,7 +64,7 @@ public class CrearTurnoIntegrationTest {
 
     @Test
     public void crearTurno_persisteEnPostgresReal_yRespetaLaUniqueConstraint() throws Exception {
-        Medico medico = medicoRepository.guardar(new Medico(null, "Ana Pérez", "Cardiología", "MP-IT-1", null, null, null, null));
+        Medico medico = medicoRepository.guardar(new Medico(null, "Ana Pérez", "Cardiología", "MP-IT-1", null, null, null));
         Paciente paciente = pacienteRepository.guardar(new Paciente(null, "Juan Gómez", "30111222", null, null, null, null, null, null));
 
         String body = "{\"fechaHora\":\"2026-08-12T12:00:00\",\"especialidad\":\"Traumatología\",\"medicoId\":"

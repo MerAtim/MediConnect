@@ -20,7 +20,7 @@ import static org.mockito.Mockito.when;
 
 public class EliminarMedicoServiceTest {
 
-    private final Medico medico = new Medico(1L, "Ana Pérez", "Cardiología", "MP1234", null, null, null, null);
+    private final Medico medico = new Medico(1L, "Ana Pérez", "Cardiología", "MP1234", null, null, null);
 
     private Turno turno(LocalDateTime fechaHora, TurnoEstado estado) {
         return new Turno(1L, fechaHora, "Cardiología", medico, null, estado);
