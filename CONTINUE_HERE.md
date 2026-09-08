@@ -2,17 +2,14 @@
 
 Este archivo se mantiene actualizado al final de cada sesión de trabajo para que,
 aunque pasen días sin conectarte, se pueda seguir sin releer el proyecto entero.
-Última actualización: **2026-09-08**, tras mergear PR #50
-(`feature/email-value-object`, ver punto 9 de la segunda auditoría): `Email`
-como Value Object en el dominio (Medico/Paciente/Usuario), otro de los
-puntos pospuestos de esa auditoría — cierra un gap real, antes no había
-ninguna validación de formato de email en el proyecto. Antes, PR #49:
-índices de DB en `paciente_id` de `turnos`/`registros_clinicos`. Y antes,
-PR #48 (ver "Quinta ronda"): terminado el corte de las 5 secciones grandes
-de `App.jsx` en componentes
-propios que había quedado a medias en la PR #34. Y antes de eso, PR #47
-(ver "Cuarta ronda"): Java 17 → 25 y Spring Boot 3.2.0 → 3.5.6 en todo el
-proyecto (pom, Dockerfile, CI, docs).
+Última actualización: **2026-09-08**, tras mergear PR #51
+(`feature/factory-medico-paciente`, ver punto 9 de la segunda auditoría):
+`MedicoFactory`/`PacienteFactory` deduplican la construcción de Medico/
+Paciente entre Crear y Actualizar. Antes, PR #50: `Email` como Value
+Object en el dominio. Antes, PR #49: índices de DB en `paciente_id` de
+`turnos`/`registros_clinicos`. Y antes, PR #48 (ver "Quinta ronda"):
+terminado el corte de las 5 secciones grandes de `App.jsx` en componentes
+propios que había quedado a medias en la PR #34.
 
 ## Stack y arquitectura
 
@@ -1009,6 +1006,23 @@ por punto, mismo flujo de siempre. Estado:
      conocido), 202/202 en CI. Verificado también con curl contra Postgres
      real. **DNI y Matrícula quedan afuera a propósito** — si se quiere
      Value Objects para esos, es un punto aparte.
+   - ~~Factory pattern~~ — resuelto, PR #51
+     (`feature/factory-medico-paciente`): `CrearMedicoService`/
+     `ActualizarMedicoService` (y lo mismo para Paciente) duplicaban
+     exactamente la misma secuencia (validar → normalizar y chequear
+     disponibilidad del email → construir el objeto de dominio), única
+     diferencia real el `id` (null al crear, el existente al actualizar) —
+     mismo tipo de duplicación que `ValidacionEmail` ya resolvía para el
+     chequeo de email (PR #40), pero ahí había quedado afuera la
+     construcción del objeto en sí. `MedicoFactory.crear(id, request,
+     buscarPorEmail)` / `PacienteFactory.crear(...)` (`application.usecase`,
+     package-private) centralizan esa secuencia completa; los 4 servicios
+     quedan reducidos a: validar existencia (solo Actualizar), pedirle el
+     objeto a la factory, guardar. **Turno, RegistroClinico y Usuario
+     quedan afuera a propósito**: cada uno se crea en un solo lugar (sin
+     "Actualizar" equivalente), una factory ahí no eliminaría duplicación
+     real. Refactor puro: los 4 test files existentes de Crear/
+     ActualizarMedico/Paciente pasan sin modificar ni uno.
 
 ## Tercera ronda (2026-09-01): madurez operativa
 
@@ -1211,8 +1225,8 @@ sentirse grande, el próximo corte natural sería extraer hooks de datos
 (`useTurnos`, `useMedicos`, etc.) en vez de seguir bajando por componentes.
 Si no, el usuario está retomando por partes los puntos pospuestos de la
 segunda auditoría (punto 9, más arriba) — ya resueltos OpenAPI (PR #43),
-índices de DB (PR #49) y Value Objects de Email (PR #50, alcance acordado
+índices de DB (PR #49), Value Objects de Email (PR #50, alcance acordado
 solo Email — DNI/Matrícula quedan como candidato aparte si se quiere
-después). Quedan: Factory pattern, versionado de API, accesibilidad de los
-forms inline. Sin orden de prioridad fijado todavía — preguntar antes de
-arrancar cuál sigue.
+después) y Factory pattern (PR #51, Medico/Paciente). Quedan, en este
+orden ya acordado con el usuario: **versionado de API**, después
+**accesibilidad de los forms inline**.
