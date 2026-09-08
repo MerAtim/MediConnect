@@ -1,10 +1,12 @@
 package com.medconnect.infrastructure.persistence;
 
+import com.medconnect.domain.exception.TurnoInvalidoException;
 import com.medconnect.domain.model.Medico;
 import com.medconnect.domain.model.Paciente;
 import com.medconnect.domain.model.Turno;
 import com.medconnect.domain.port.TurnoRepository;
 import org.springframework.context.annotation.Profile;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -31,7 +33,20 @@ public class TurnoRepositoryAdapter implements TurnoRepository {
                 turno.getEstado(),
                 turno.getPreparacion()
         );
-        TurnoEntity guardado = jpaRepository.save(entity);
+        TurnoEntity guardado;
+        // Traduce la excepcion de infraestructura (constraint unique(medico_id,
+        // fecha_hora) que absorbe la carrera de dos requests concurrentes
+        // reservando el mismo horario) a una excepcion de dominio aca, en el
+        // adapter -- antes este try/catch vivia en CrearTurnoService
+        // (application.usecase), que terminaba dependiendo de un tipo de
+        // Spring Data. La capa de aplicacion no deberia conocer excepciones de
+        // infraestructura; el adapter es el unico lado con permiso de
+        // depender de ambas.
+        try {
+            guardado = jpaRepository.save(entity);
+        } catch (DataIntegrityViolationException ex) {
+            throw new TurnoInvalidoException("El médico no está disponible en la fecha y hora solicitada");
+        }
         turno.setId(guardado.getId());
         return turno;
     }
