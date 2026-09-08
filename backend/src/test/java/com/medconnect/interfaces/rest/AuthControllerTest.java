@@ -4,18 +4,25 @@ import com.medconnect.application.usecase.LoginResponse;
 import com.medconnect.application.usecase.LoginUseCase;
 import com.medconnect.application.usecase.RegistrarUsuarioResponse;
 import com.medconnect.application.usecase.RegistrarUsuarioUseCase;
+import com.medconnect.application.usecase.TokenRevocationService;
 import com.medconnect.domain.exception.CredencialesInvalidasException;
 import com.medconnect.domain.exception.DemasiadosIntentosException;
 import com.medconnect.domain.exception.UsuarioInvalidoException;
 import com.medconnect.domain.model.UsuarioRole;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import org.springframework.http.MediaType;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
+import java.util.List;
+
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
@@ -27,15 +34,22 @@ public class AuthControllerTest {
     private MockMvc mockMvc;
     private RegistrarUsuarioUseCase registrarUsuarioUseCase;
     private LoginUseCase loginUseCase;
+    private TokenRevocationService tokenRevocationService;
 
     @BeforeEach
     public void setup() {
         registrarUsuarioUseCase = Mockito.mock(RegistrarUsuarioUseCase.class);
         loginUseCase = Mockito.mock(LoginUseCase.class);
-        AuthController controller = new AuthController(registrarUsuarioUseCase, loginUseCase, false, 86400000L);
+        tokenRevocationService = Mockito.mock(TokenRevocationService.class);
+        AuthController controller = new AuthController(registrarUsuarioUseCase, loginUseCase, tokenRevocationService, false, 86400000L);
         mockMvc = MockMvcBuilders.standaloneSetup(controller)
                 .setControllerAdvice(new GlobalExceptionHandler())
                 .build();
+    }
+
+    @AfterEach
+    public void tearDown() {
+        SecurityContextHolder.clearContext();
     }
 
     @Test
@@ -125,5 +139,26 @@ public class AuthControllerTest {
         mockMvc.perform(post("/api/v1/auth/logout"))
                 .andExpect(status().isNoContent())
                 .andExpect(cookie().maxAge("jwt", 0));
+    }
+
+    // MEDIUM de la re-auditoria e2e (2026-09-08): "sin revocacion de JWT" --
+    // logout ahora revoca del lado del servidor, no solo borra la cookie.
+    @Test
+    public void logout_revocaTokensPrevios_siHayUnaSesionAutenticada() throws Exception {
+        SecurityContextHolder.getContext().setAuthentication(
+                new UsernamePasswordAuthenticationToken("ana@medconnect.com", null, List.of()));
+
+        mockMvc.perform(post("/api/v1/auth/logout"))
+                .andExpect(status().isNoContent());
+
+        verify(tokenRevocationService).revocarTokensPrevios("ana@medconnect.com");
+    }
+
+    @Test
+    public void logout_noRevocaNada_siNoHaySesionAutenticada() throws Exception {
+        mockMvc.perform(post("/api/v1/auth/logout"))
+                .andExpect(status().isNoContent());
+
+        Mockito.verify(tokenRevocationService, Mockito.never()).revocarTokensPrevios(any());
     }
 }
