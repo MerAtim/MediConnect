@@ -7,13 +7,16 @@ import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.Index;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "turnos", uniqueConstraints = @UniqueConstraint(name = "uk_turnos_medico_fecha", columnNames = {"medico_id", "fecha_hora"}))
+@Table(name = "turnos",
+        uniqueConstraints = @UniqueConstraint(name = "uk_turnos_medico_fecha", columnNames = {"medico_id", "fecha_hora"}),
+        indexes = @Index(name = "idx_turnos_paciente_id", columnList = "paciente_id"))
 public class TurnoEntity {
 
     @Id
