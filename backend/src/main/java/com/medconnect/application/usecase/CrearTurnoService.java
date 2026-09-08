@@ -49,10 +49,22 @@ public class CrearTurnoService implements CrearTurnoUseCase {
 
         // Verificar solapamiento: mismo médico y misma fechaHora
         List<Turno> turnosMedico = turnoRepository.buscarPorMedico(request.getMedicoId());
-        boolean solapado = turnosMedico.stream()
+        boolean solapadoMedico = turnosMedico.stream()
                 .anyMatch(t -> t.getFechaHora() != null && t.getFechaHora().equals(request.getFechaHora()));
-        if (solapado) {
+        if (solapadoMedico) {
             throw new TurnoInvalidoException("El médico no está disponible en la fecha y hora solicitada");
+        }
+
+        // MEDIUM de la re-auditoria e2e (2026-09-08): "doble reserva de paciente
+        // sin test/decision" -- mismo criterio de deteccion que el chequeo de
+        // arriba (igualdad exacta de fechaHora), ahora tambien del lado del
+        // paciente para que no termine con dos turnos que se pisan en el mismo
+        // horario, aunque sean con medicos distintos.
+        List<Turno> turnosPaciente = turnoRepository.buscarPorPaciente(request.getPacienteId());
+        boolean solapadoPaciente = turnosPaciente.stream()
+                .anyMatch(t -> t.getFechaHora() != null && t.getFechaHora().equals(request.getFechaHora()));
+        if (solapadoPaciente) {
+            throw new TurnoInvalidoException("El paciente ya tiene otro turno en la fecha y hora solicitada");
         }
 
         Medico medico = new Medico(request.getMedicoId(), null, null, null, null, null, null);
