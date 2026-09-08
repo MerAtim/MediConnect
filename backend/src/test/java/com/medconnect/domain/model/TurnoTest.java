@@ -71,4 +71,32 @@ public class TurnoTest {
 
         assertTrue(turno.habilitaHistoriaClinica(LocalDateTime.of(2026, 8, 12, 10, 0)));
     }
+
+    @Test
+    public void esFuturoActivo_esTrue_siEsPendienteOConfirmadoYAunNoOcurrio() {
+        Turno turno = turno(TurnoEstado.PENDIENTE);
+
+        assertTrue(turno.esFuturoActivo(LocalDateTime.of(2026, 8, 12, 10, 0).minusMinutes(1)));
+    }
+
+    @Test
+    public void esFuturoActivo_esFalse_siEstaCancelado_aunqueSeaAFuturo() {
+        Turno turno = turno(TurnoEstado.CANCELADO);
+
+        assertFalse(turno.esFuturoActivo(LocalDateTime.of(2026, 8, 12, 10, 0).minusMinutes(1)));
+    }
+
+    @Test
+    public void esFuturoActivo_esFalse_siYaOcurrio() {
+        Turno turno = turno(TurnoEstado.CONFIRMADO);
+
+        assertFalse(turno.esFuturoActivo(LocalDateTime.of(2026, 8, 12, 10, 0).plusMinutes(1)));
+    }
+
+    @Test
+    public void esFuturoActivo_esFalse_enElMismoInstanteDelTurno() {
+        Turno turno = turno(TurnoEstado.PENDIENTE);
+
+        assertFalse(turno.esFuturoActivo(LocalDateTime.of(2026, 8, 12, 10, 0)));
+    }
 }
