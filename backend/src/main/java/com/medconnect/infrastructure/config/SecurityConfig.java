@@ -69,7 +69,7 @@ public class SecurityConfig {
                         // datos de pacientes, y el valor de Swagger UI (probar un endpoint
                         // sin armar curl a mano) se pierde si primero hay que autenticarse
                         // para verla.
-                        .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
+                        .requestMatchers("/v3/api-docs/**", "/v3/api-docs.yaml", "/swagger-ui/**", "/swagger-ui.html").permitAll()
                         // Liveness/readiness para un orquestador (Docker, k8s): no puede
                         // exigir auth porque quien lo pega no tiene forma de loguearse.
                         // Los demas endpoints de actuator no estan expuestos via
