@@ -12,8 +12,8 @@ export default function OtorgarTurnoSection({
       <h2 className="heading mb-4">Otorgar turno</h2>
       <form onSubmit={onBuscarPorDni} className="flex flex-wrap items-end gap-3 mb-4">
         <div>
-          <label className="label">DNI del paciente</label>
-          <input className="input-field w-40" value={dniBusqueda} onChange={e=>onDniBusquedaChange(e.target.value)} />
+          <label className="label" htmlFor="otorgar-turno-dni">DNI del paciente</label>
+          <input id="otorgar-turno-dni" className="input-field w-40" value={dniBusqueda} onChange={e=>onDniBusquedaChange(e.target.value)} />
         </div>
         <button type="submit" className="btn-primary">Buscar paciente</button>
       </form>
@@ -30,13 +30,13 @@ export default function OtorgarTurnoSection({
       {pacienteEncontrado && (
         <form onSubmit={onSubmit} className="space-y-4">
           <div>
-            <label className="label">Fecha y hora</label>
-            <input className="input-field" value={fechaHora} onChange={e=>onFechaHoraChange(e.target.value)} />
+            <label className="label" htmlFor="otorgar-turno-fecha-hora">Fecha y hora</label>
+            <input id="otorgar-turno-fecha-hora" className="input-field" value={fechaHora} onChange={e=>onFechaHoraChange(e.target.value)} />
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="label">Especialidad</label>
-              <select className="input-field" value={especialidad} onChange={e=>{clearValidity(e); onEspecialidadChange(e.target.value)}} onInvalid={handleInvalid} required>
+              <label className="label" htmlFor="otorgar-turno-especialidad">Especialidad</label>
+              <select id="otorgar-turno-especialidad" className="input-field" value={especialidad} onChange={e=>{clearValidity(e); onEspecialidadChange(e.target.value)}} onInvalid={handleInvalid} required>
                 <option value="" disabled>Seleccionar especialidad</option>
                 {especialidades.map(esp => (
                   <option key={esp} value={esp}>{esp}</option>
@@ -44,8 +44,8 @@ export default function OtorgarTurnoSection({
               </select>
             </div>
             <div>
-              <label className="label">Médico</label>
-              <select className="input-field" value={medicoId} onChange={e=>{clearValidity(e); onMedicoIdChange(e.target.value)}} onInvalid={handleInvalid} required disabled={!especialidad}>
+              <label className="label" htmlFor="otorgar-turno-medico">Médico</label>
+              <select id="otorgar-turno-medico" className="input-field" value={medicoId} onChange={e=>{clearValidity(e); onMedicoIdChange(e.target.value)}} onInvalid={handleInvalid} required disabled={!especialidad}>
                 <option value="" disabled>Seleccionar médico</option>
                 {medicosPorEspecialidad.map(m => (
                   <option key={m.id} value={m.id}>{m.nombre}</option>
@@ -54,8 +54,9 @@ export default function OtorgarTurnoSection({
             </div>
           </div>
           <div>
-            <label className="label">Preparación (opcional)</label>
+            <label className="label" htmlFor="otorgar-turno-preparacion">Preparación (opcional)</label>
             <input
+              id="otorgar-turno-preparacion"
               className="input-field"
               placeholder="Ej: asistir 15 minutos antes y pasar por recepción para dar presente"
               value={preparacion}

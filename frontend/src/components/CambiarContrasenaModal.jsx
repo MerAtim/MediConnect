@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import { apiFetch } from '../apiClient.js'
 import { USUARIOS_API } from '../config.js'
 import { readErrorMessage } from '../utils.js'
+import { useModalA11y } from '../useModalA11y.js'
 import FloatingInput from './FloatingInput.jsx'
 
 // modo 'propia': el usuario logueado cambia su contraseña sabiendo la
@@ -12,6 +13,7 @@ export default function CambiarContrasenaModal({open, modo, usuarioObjetivo, not
   const [contrasenaActual, setContrasenaActual] = useState('')
   const [contrasenaNueva, setContrasenaNueva] = useState('')
   const [loading, setLoading] = useState(false)
+  const containerRef = useModalA11y(open, onClose)
 
   if(!open) return null
 
@@ -40,8 +42,8 @@ export default function CambiarContrasenaModal({open, modo, usuarioObjetivo, not
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-neutral-900/40 px-4">
-      <div className="card max-w-sm w-full">
-        <h3 className="heading mb-4">
+      <div ref={containerRef} className="card max-w-sm w-full" role="dialog" aria-modal="true" aria-labelledby="cambiar-contrasena-modal-title">
+        <h3 id="cambiar-contrasena-modal-title" className="heading mb-4">
           {modo === 'propia' ? 'Cambiar mi contraseña' : `Resetear contraseña de ${usuarioObjetivo?.nombre}`}
         </h3>
         <form onSubmit={handleSubmit} className="space-y-4">

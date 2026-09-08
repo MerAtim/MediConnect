@@ -36,9 +36,12 @@ export default function UsuarioForm({notify, onGuardado}){
       <FloatingInput label="Nombre" value={nombre} onChange={e=>setNombre(e.target.value)} required />
       <FloatingInput label="Email" type="email" value={email} onChange={e=>setEmail(e.target.value)} required />
       <FloatingInput label="Contraseña (mín. 6 caracteres)" type="password" value={contrasena} onChange={e=>setContrasena(e.target.value)} required />
-      <select className="input-field" value={role} onChange={e=>setRole(e.target.value)}>
-        {ROLES_ADMIN.map(r => <option key={r} value={r}>{r}</option>)}
-      </select>
+      <label className="block">
+        <span className="label">Rol</span>
+        <select className="input-field" value={role} onChange={e=>setRole(e.target.value)}>
+          {ROLES_ADMIN.map(r => <option key={r} value={r}>{r}</option>)}
+        </select>
+      </label>
       <div className="sm:col-span-2">
         <button type="submit" disabled={loading} className="btn-primary sm:w-fit">
           {loading ? 'Creando cuenta…' : 'Crear cuenta'}
