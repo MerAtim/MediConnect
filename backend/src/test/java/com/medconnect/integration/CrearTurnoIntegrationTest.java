@@ -72,17 +72,17 @@ public class CrearTurnoIntegrationTest {
 
         // Sin cookie -> la cadena de seguridad real lo bloquea antes de llegar
         // al controller (no hay DataSource excluido ni addFilters=false aca).
-        mockMvc.perform(post("/api/turnos").contentType(MediaType.APPLICATION_JSON).content(body))
+        mockMvc.perform(post("/api/v1/turnos").contentType(MediaType.APPLICATION_JSON).content(body))
                 .andExpect(status().isForbidden());
 
         // POST válido como ADMINISTRADOR -> 201, y el turno realmente queda
         // persistido en Postgres via el adapter JPA real.
-        mockMvc.perform(post("/api/turnos").contentType(MediaType.APPLICATION_JSON).content(body)
+        mockMvc.perform(post("/api/v1/turnos").contentType(MediaType.APPLICATION_JSON).content(body)
                         .cookie(cookieAdmin()))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.id").exists());
 
-        mockMvc.perform(get("/api/turnos").param("medicoId", String.valueOf(medico.getId())).cookie(cookieAdmin()))
+        mockMvc.perform(get("/api/v1/turnos").param("medicoId", String.valueOf(medico.getId())).cookie(cookieAdmin()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.content.length()").value(1))
                 .andExpect(jsonPath("$.content[0].medicoId").value(medico.getId()))
@@ -95,7 +95,7 @@ public class CrearTurnoIntegrationTest {
         // nivel de Postgres real, y CrearTurnoService lo traduce al mismo 400
         // de siempre en vez de dejar pasar un 500 crudo de
         // DataIntegrityViolationException.
-        mockMvc.perform(post("/api/turnos").contentType(MediaType.APPLICATION_JSON).content(body)
+        mockMvc.perform(post("/api/v1/turnos").contentType(MediaType.APPLICATION_JSON).content(body)
                         .cookie(cookieAdmin()))
                 .andExpect(status().isBadRequest())
                 .andExpect(content().string("El médico no está disponible en la fecha y hora solicitada"));

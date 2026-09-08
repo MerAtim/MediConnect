@@ -63,7 +63,7 @@ public class UsuarioControllerTest {
         when(buscarUsuarioUseCase.buscarTodos()).thenReturn(List.of(
                 new Usuario(1L, "Ana Pérez", "ana@medconnect.com", "hash-secreto", UsuarioRole.MEDICO)));
 
-        mockMvc.perform(get("/api/usuarios"))
+        mockMvc.perform(get("/api/v1/usuarios"))
                 .andExpect(status().isOk())
                 .andExpect(content().json(
                         "[{\"id\":1,\"nombre\":\"Ana Pérez\",\"email\":\"ana@medconnect.com\",\"role\":\"MEDICO\"}]"))
@@ -76,7 +76,7 @@ public class UsuarioControllerTest {
 
         String body = "{\"nombre\":\"Ana Pérez\",\"email\":\"ana@medconnect.com\",\"contrasena\":\"secreto123\",\"role\":\"ADMINISTRADOR\"}";
 
-        mockMvc.perform(post("/api/usuarios")
+        mockMvc.perform(post("/api/v1/usuarios")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isCreated())
@@ -87,7 +87,7 @@ public class UsuarioControllerTest {
     public void crear_devuelve400_siRoleInvalido() throws Exception {
         String body = "{\"nombre\":\"Ana Pérez\",\"email\":\"ana@medconnect.com\",\"contrasena\":\"secreto123\",\"role\":\"NO_EXISTE\"}";
 
-        mockMvc.perform(post("/api/usuarios")
+        mockMvc.perform(post("/api/v1/usuarios")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isBadRequest());
@@ -100,7 +100,7 @@ public class UsuarioControllerTest {
 
         String body = "{\"nombre\":\"Ana Pérez\",\"email\":\"ana@medconnect.com\",\"contrasena\":\"secreto123\",\"role\":\"MEDICO\"}";
 
-        mockMvc.perform(post("/api/usuarios")
+        mockMvc.perform(post("/api/v1/usuarios")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isBadRequest())
@@ -113,7 +113,7 @@ public class UsuarioControllerTest {
 
         String body = "{\"contrasenaActual\":\"vieja123\",\"contrasenaNueva\":\"nueva456\"}";
 
-        mockMvc.perform(patch("/api/usuarios/me/contrasena")
+        mockMvc.perform(patch("/api/v1/usuarios/me/contrasena")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isNoContent());
@@ -129,7 +129,7 @@ public class UsuarioControllerTest {
 
         String body = "{\"contrasenaActual\":\"mala\",\"contrasenaNueva\":\"nueva456\"}";
 
-        mockMvc.perform(patch("/api/usuarios/me/contrasena")
+        mockMvc.perform(patch("/api/v1/usuarios/me/contrasena")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isBadRequest())
@@ -142,7 +142,7 @@ public class UsuarioControllerTest {
 
         String body = "{\"contrasenaNueva\":\"nueva456\"}";
 
-        mockMvc.perform(patch("/api/usuarios/1/contrasena")
+        mockMvc.perform(patch("/api/v1/usuarios/1/contrasena")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isNoContent());
@@ -154,7 +154,7 @@ public class UsuarioControllerTest {
 
         String body = "{\"contrasenaNueva\":\"nueva456\"}";
 
-        mockMvc.perform(patch("/api/usuarios/99/contrasena")
+        mockMvc.perform(patch("/api/v1/usuarios/99/contrasena")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isNotFound());

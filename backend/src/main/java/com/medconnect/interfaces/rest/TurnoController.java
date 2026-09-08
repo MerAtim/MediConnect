@@ -33,7 +33,7 @@ import java.util.Objects;
 import java.util.Optional;
 
 @RestController
-@RequestMapping("/api/turnos")
+@RequestMapping("/api/v1/turnos")
 public class TurnoController {
 
     private static final Logger log = LoggerFactory.getLogger(TurnoController.class);

@@ -457,27 +457,27 @@ con la cuenta que ya existe en la base de pruebas
 
 ```bash
 # login como admin (cuenta ya existente, ver arriba)
-TOKEN_ADMIN=$(curl -s -X POST http://localhost:8080/api/auth/login -H "Content-Type: application/json" \
+TOKEN_ADMIN=$(curl -s -X POST http://localhost:8080/api/v1/auth/login -H "Content-Type: application/json" \
   -d '{"email":"admin.rol@medconnect.com","contrasena":"secreto123"}' | grep -o '"token":"[^"]*"' | cut -d'"' -f4)
 
 # alta de médico/paciente: solo ADMINISTRADOR
-curl -X POST http://localhost:8080/api/medicos -H "Content-Type: application/json" -H "Authorization: Bearer $TOKEN_ADMIN" \
+curl -X POST http://localhost:8080/api/v1/medicos -H "Content-Type: application/json" -H "Authorization: Bearer $TOKEN_ADMIN" \
   -d '{"nombre":"Ana Perez","especialidad":"Cardiologia","matricula":"MP1234","email":"medico.rol@medconnect.com"}'
 
-curl -X POST http://localhost:8080/api/pacientes -H "Content-Type: application/json" -H "Authorization: Bearer $TOKEN_ADMIN" \
+curl -X POST http://localhost:8080/api/v1/pacientes -H "Content-Type: application/json" -H "Authorization: Bearer $TOKEN_ADMIN" \
   -d '{"nombre":"Juan Gomez","dni":"30111222"}'
 
 # crear turno: solo ADMINISTRADOR (preparacion es opcional)
-curl -X POST http://localhost:8080/api/turnos -H "Content-Type: application/json" -H "Authorization: Bearer $TOKEN_ADMIN" \
+curl -X POST http://localhost:8080/api/v1/turnos -H "Content-Type: application/json" -H "Authorization: Bearer $TOKEN_ADMIN" \
   -d '{"fechaHora":"2026-08-12T10:00:00","especialidad":"Cardiologia","medicoId":1,"pacienteId":1,"preparacion":"Ayuno de 8 horas"}'
 
-curl http://localhost:8080/api/turnos -H "Authorization: Bearer $TOKEN_ADMIN"
-curl http://localhost:8080/api/medicos -H "Authorization: Bearer $TOKEN_ADMIN"
-curl http://localhost:8080/api/pacientes -H "Authorization: Bearer $TOKEN_ADMIN"
+curl http://localhost:8080/api/v1/turnos -H "Authorization: Bearer $TOKEN_ADMIN"
+curl http://localhost:8080/api/v1/medicos -H "Authorization: Bearer $TOKEN_ADMIN"
+curl http://localhost:8080/api/v1/pacientes -H "Authorization: Bearer $TOKEN_ADMIN"
 
 # registro público: solo PACIENTE (desde PR #35 — antes tambien aceptaba
 # MEDICO, era una escalada de privilegios; ver Historial de PRs)
-curl -X POST http://localhost:8080/api/auth/registro -H "Content-Type: application/json" \
+curl -X POST http://localhost:8080/api/v1/auth/registro -H "Content-Type: application/json" \
   -d '{"nombre":"Juan Gomez","email":"juan@medconnect.com","contrasena":"secreto123","role":"PACIENTE"}'
 ```
 

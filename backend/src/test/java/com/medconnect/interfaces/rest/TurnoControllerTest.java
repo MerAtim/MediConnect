@@ -69,7 +69,7 @@ public class TurnoControllerTest {
 
         String body = "{\"fechaHora\":\"2026-08-12T10:00:00\",\"especialidad\":\"Cardiología\",\"medicoId\":2,\"pacienteId\":3}";
 
-        mockMvc.perform(post("/api/turnos")
+        mockMvc.perform(post("/api/v1/turnos")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isBadRequest())
@@ -83,7 +83,7 @@ public class TurnoControllerTest {
 
         String body = "{\"fechaHora\":\"2026-08-12T11:00:00\",\"especialidad\":\"Dermatología\",\"medicoId\":5,\"pacienteId\":7}";
 
-        mockMvc.perform(post("/api/turnos")
+        mockMvc.perform(post("/api/v1/turnos")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isCreated())
@@ -98,7 +98,7 @@ public class TurnoControllerTest {
                 TurnoEstado.PENDIENTE);
         when(buscarTurnoUseCase.buscarPorId(1L)).thenReturn(Optional.of(turno));
 
-        mockMvc.perform(get("/api/turnos/1"))
+        mockMvc.perform(get("/api/v1/turnos/1"))
                 .andExpect(status().isOk())
                 .andExpect(content().json(
                         "{\"id\":1,\"especialidad\":\"Cardiología\",\"medicoId\":2,\"pacienteId\":3,\"estado\":\"PENDIENTE\"}"));
@@ -108,7 +108,7 @@ public class TurnoControllerTest {
     public void buscarPorId_devuelve404_siNoExiste() throws Exception {
         when(buscarTurnoUseCase.buscarPorId(99L)).thenReturn(Optional.empty());
 
-        mockMvc.perform(get("/api/turnos/99"))
+        mockMvc.perform(get("/api/v1/turnos/99"))
                 .andExpect(status().isNotFound());
     }
 
@@ -121,7 +121,7 @@ public class TurnoControllerTest {
         when(buscarTurnoUseCase.buscarPorId(1L)).thenReturn(Optional.of(turno));
         when(buscarMedicoUseCase.buscarPorEmail("medico@medconnect.com")).thenReturn(Optional.of(medico));
 
-        mockMvc.perform(get("/api/turnos/1"))
+        mockMvc.perform(get("/api/v1/turnos/1"))
                 .andExpect(status().isOk());
     }
 
@@ -135,7 +135,7 @@ public class TurnoControllerTest {
         when(buscarTurnoUseCase.buscarPorId(1L)).thenReturn(Optional.of(turno));
         when(buscarMedicoUseCase.buscarPorEmail("medico@medconnect.com")).thenReturn(Optional.of(medicoLogueado));
 
-        mockMvc.perform(get("/api/turnos/1"))
+        mockMvc.perform(get("/api/v1/turnos/1"))
                 .andExpect(status().isForbidden());
     }
 
@@ -148,7 +148,7 @@ public class TurnoControllerTest {
         when(buscarTurnoUseCase.buscarPorId(1L)).thenReturn(Optional.of(turno));
         when(buscarPacienteUseCase.buscarPorEmail("paciente@medconnect.com")).thenReturn(Optional.of(paciente));
 
-        mockMvc.perform(get("/api/turnos/1"))
+        mockMvc.perform(get("/api/v1/turnos/1"))
                 .andExpect(status().isOk());
     }
 
@@ -162,7 +162,7 @@ public class TurnoControllerTest {
         when(buscarTurnoUseCase.buscarPorId(1L)).thenReturn(Optional.of(turno));
         when(buscarPacienteUseCase.buscarPorEmail("paciente@medconnect.com")).thenReturn(Optional.of(pacienteLogueado));
 
-        mockMvc.perform(get("/api/turnos/1"))
+        mockMvc.perform(get("/api/v1/turnos/1"))
                 .andExpect(status().isForbidden());
     }
 
@@ -170,7 +170,7 @@ public class TurnoControllerTest {
     public void buscar_filtraPorMedicoId_cuandoSePasaComoParametro() throws Exception {
         when(buscarTurnoUseCase.buscarPorMedico(2L)).thenReturn(List.of());
 
-        mockMvc.perform(get("/api/turnos").param("medicoId", "2"))
+        mockMvc.perform(get("/api/v1/turnos").param("medicoId", "2"))
                 .andExpect(status().isOk())
                 .andExpect(content().json("{\"content\":[],\"totalElements\":0}"));
 
@@ -182,7 +182,7 @@ public class TurnoControllerTest {
     public void buscar_devuelveTodos_siNoSePasanParametros() throws Exception {
         when(buscarTurnoUseCase.buscarTodos()).thenReturn(List.of());
 
-        mockMvc.perform(get("/api/turnos"))
+        mockMvc.perform(get("/api/v1/turnos"))
                 .andExpect(status().isOk())
                 .andExpect(content().json("{\"content\":[],\"totalElements\":0}"));
 
@@ -199,7 +199,7 @@ public class TurnoControllerTest {
         ).toList();
         when(buscarTurnoUseCase.buscarTodos()).thenReturn(turnos);
 
-        mockMvc.perform(get("/api/turnos").param("page", "1").param("size", "10"))
+        mockMvc.perform(get("/api/v1/turnos").param("page", "1").param("size", "10"))
                 .andExpect(status().isOk())
                 .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$.content.length()").value(10))
                 .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$.content[0].id").value(11))
@@ -225,7 +225,7 @@ public class TurnoControllerTest {
         when(buscarMedicoUseCase.buscarPorIds(List.of(2L, 5L))).thenReturn(java.util.Map.of(2L, medicoA, 5L, medicoB));
         when(buscarPacienteUseCase.buscarPorIds(List.of(3L))).thenReturn(java.util.Map.of(3L, paciente));
 
-        mockMvc.perform(get("/api/turnos"))
+        mockMvc.perform(get("/api/v1/turnos"))
                 .andExpect(status().isOk())
                 .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$.content[0].medicoNombre").value("Dr A"))
                 .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$.content[1].medicoNombre").value("Dr B"))
@@ -246,7 +246,7 @@ public class TurnoControllerTest {
         when(actualizarEstadoTurnoUseCase.actualizarEstado(eq(1L), eq(TurnoEstado.CONFIRMADO)))
                 .thenReturn(Optional.of(turno));
 
-        mockMvc.perform(patch("/api/turnos/1/estado")
+        mockMvc.perform(patch("/api/v1/turnos/1/estado")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"estado\":\"CONFIRMADO\"}"))
                 .andExpect(status().isOk())
@@ -258,7 +258,7 @@ public class TurnoControllerTest {
         when(actualizarEstadoTurnoUseCase.actualizarEstado(eq(99L), eq(TurnoEstado.CANCELADO)))
                 .thenReturn(Optional.empty());
 
-        mockMvc.perform(patch("/api/turnos/99/estado")
+        mockMvc.perform(patch("/api/v1/turnos/99/estado")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"estado\":\"CANCELADO\"}"))
                 .andExpect(status().isNotFound());
@@ -266,7 +266,7 @@ public class TurnoControllerTest {
 
     @Test
     public void actualizarEstado_devuelve400_siEstadoInvalido() throws Exception {
-        mockMvc.perform(patch("/api/turnos/1/estado")
+        mockMvc.perform(patch("/api/v1/turnos/1/estado")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"estado\":\"NO_EXISTE\"}"))
                 .andExpect(status().isBadRequest());
@@ -277,7 +277,7 @@ public class TurnoControllerTest {
         when(actualizarEstadoTurnoUseCase.actualizarEstado(eq(1L), eq(TurnoEstado.CONFIRMADO)))
                 .thenThrow(new TurnoInvalidoException("No se puede modificar un turno cancelado"));
 
-        mockMvc.perform(patch("/api/turnos/1/estado")
+        mockMvc.perform(patch("/api/v1/turnos/1/estado")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"estado\":\"CONFIRMADO\"}"))
                 .andExpect(status().isBadRequest())
@@ -291,7 +291,7 @@ public class TurnoControllerTest {
                 .thenReturn(Optional.of(new Medico(2L, null, null, null, null, null, null, null)));
         when(buscarTurnoUseCase.buscarPorMedico(2L)).thenReturn(List.of());
 
-        mockMvc.perform(get("/api/turnos").param("medicoId", "999").param("pacienteId", "888"))
+        mockMvc.perform(get("/api/v1/turnos").param("medicoId", "999").param("pacienteId", "888"))
                 .andExpect(status().isOk())
                 .andExpect(content().json("{\"content\":[],\"totalElements\":0}"));
 
@@ -305,7 +305,7 @@ public class TurnoControllerTest {
         loguearComo("MEDICO", "sin-vincular@medconnect.com");
         when(buscarMedicoUseCase.buscarPorEmail("sin-vincular@medconnect.com")).thenReturn(Optional.empty());
 
-        mockMvc.perform(get("/api/turnos"))
+        mockMvc.perform(get("/api/v1/turnos"))
                 .andExpect(status().isOk())
                 .andExpect(content().json("{\"content\":[],\"totalElements\":0}"));
 
@@ -319,7 +319,7 @@ public class TurnoControllerTest {
                 .thenReturn(Optional.of(new Paciente(3L, null, null, null, null, null, null, null, null)));
         when(buscarTurnoUseCase.buscarPorPaciente(3L)).thenReturn(List.of());
 
-        mockMvc.perform(get("/api/turnos"))
+        mockMvc.perform(get("/api/v1/turnos"))
                 .andExpect(status().isOk())
                 .andExpect(content().json("{\"content\":[],\"totalElements\":0}"));
 
@@ -338,7 +338,7 @@ public class TurnoControllerTest {
         when(actualizarEstadoTurnoUseCase.actualizarEstado(eq(1L), eq(TurnoEstado.CANCELADO)))
                 .thenReturn(Optional.of(turno));
 
-        mockMvc.perform(patch("/api/turnos/1/estado")
+        mockMvc.perform(patch("/api/v1/turnos/1/estado")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"estado\":\"CANCELADO\"}"))
                 .andExpect(status().isOk());
@@ -348,7 +348,7 @@ public class TurnoControllerTest {
     public void actualizarEstado_pacienteNoPuedeConfirmar() throws Exception {
         loguearComo("PACIENTE", "paciente@medconnect.com");
 
-        mockMvc.perform(patch("/api/turnos/1/estado")
+        mockMvc.perform(patch("/api/v1/turnos/1/estado")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"estado\":\"CONFIRMADO\"}"))
                 .andExpect(status().isBadRequest())
@@ -368,7 +368,7 @@ public class TurnoControllerTest {
         when(actualizarEstadoTurnoUseCase.actualizarEstado(eq(1L), eq(TurnoEstado.CONFIRMADO)))
                 .thenReturn(Optional.of(turno));
 
-        mockMvc.perform(patch("/api/turnos/1/estado")
+        mockMvc.perform(patch("/api/v1/turnos/1/estado")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"estado\":\"CONFIRMADO\"}"))
                 .andExpect(status().isOk());
@@ -386,7 +386,7 @@ public class TurnoControllerTest {
         when(buscarMedicoUseCase.buscarPorEmail("medico@medconnect.com")).thenReturn(Optional.of(medicoLogueado));
         when(buscarTurnoUseCase.buscarPorId(1L)).thenReturn(Optional.of(turno));
 
-        mockMvc.perform(patch("/api/turnos/1/estado")
+        mockMvc.perform(patch("/api/v1/turnos/1/estado")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"estado\":\"CONFIRMADO\"}"))
                 .andExpect(status().isForbidden());
@@ -404,7 +404,7 @@ public class TurnoControllerTest {
         when(buscarPacienteUseCase.buscarPorEmail("paciente@medconnect.com")).thenReturn(Optional.of(pacienteLogueado));
         when(buscarTurnoUseCase.buscarPorId(1L)).thenReturn(Optional.of(turno));
 
-        mockMvc.perform(patch("/api/turnos/1/estado")
+        mockMvc.perform(patch("/api/v1/turnos/1/estado")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"estado\":\"CANCELADO\"}"))
                 .andExpect(status().isForbidden());

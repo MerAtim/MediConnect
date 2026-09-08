@@ -64,7 +64,7 @@ public class PacienteControllerTest {
 
         String body = "{\"nombre\":\"Juan Gómez\"}";
 
-        mockMvc.perform(post("/api/pacientes")
+        mockMvc.perform(post("/api/v1/pacientes")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isBadRequest())
@@ -78,7 +78,7 @@ public class PacienteControllerTest {
 
         String body = "{\"nombre\":\"Juan Gómez\",\"dni\":\"30111222\"}";
 
-        mockMvc.perform(post("/api/pacientes")
+        mockMvc.perform(post("/api/v1/pacientes")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isCreated())
@@ -94,7 +94,7 @@ public class PacienteControllerTest {
         Paciente paciente = new Paciente(1L, "Juan Gómez", "30111222", null, null, null, null, null, "paciente@medconnect.com");
         when(buscarPacienteUseCase.buscarPorEmail("paciente@medconnect.com")).thenReturn(Optional.of(paciente));
 
-        mockMvc.perform(get("/api/pacientes/me"))
+        mockMvc.perform(get("/api/v1/pacientes/me"))
                 .andExpect(status().isOk())
                 .andExpect(content().json("{\"id\":1,\"nombre\":\"Juan Gómez\"}"));
     }
@@ -107,7 +107,7 @@ public class PacienteControllerTest {
                         List.of(new org.springframework.security.core.authority.SimpleGrantedAuthority("ROLE_PACIENTE"))));
         when(buscarPacienteUseCase.buscarPorEmail("sin-vincular@medconnect.com")).thenReturn(Optional.empty());
 
-        mockMvc.perform(get("/api/pacientes/me"))
+        mockMvc.perform(get("/api/v1/pacientes/me"))
                 .andExpect(status().isNotFound());
     }
 
@@ -116,7 +116,7 @@ public class PacienteControllerTest {
         Paciente paciente = new Paciente(1L, "Juan Gómez", "30111222", null, null, "Swiss Medical", "123456", "SMG20", null);
         when(buscarPacienteUseCase.buscarPorId(1L)).thenReturn(Optional.of(paciente));
 
-        mockMvc.perform(get("/api/pacientes/1"))
+        mockMvc.perform(get("/api/v1/pacientes/1"))
                 .andExpect(status().isOk())
                 .andExpect(content().json(
                         "{\"id\":1,\"nombre\":\"Juan Gómez\",\"dni\":\"30111222\",\"obraSocial\":\"Swiss Medical\",\"numeroAfiliado\":\"123456\",\"plan\":\"SMG20\"}"));
@@ -126,7 +126,7 @@ public class PacienteControllerTest {
     public void buscarPorId_devuelve404_siNoExiste() throws Exception {
         when(buscarPacienteUseCase.buscarPorId(99L)).thenReturn(Optional.empty());
 
-        mockMvc.perform(get("/api/pacientes/99"))
+        mockMvc.perform(get("/api/v1/pacientes/99"))
                 .andExpect(status().isNotFound());
     }
 
@@ -144,7 +144,7 @@ public class PacienteControllerTest {
         when(buscarMedicoUseCase.buscarPorEmail("medico@medconnect.com")).thenReturn(Optional.of(medico));
         when(buscarTurnoUseCase.buscarPorMedico(2L)).thenReturn(List.of(turno));
 
-        mockMvc.perform(get("/api/pacientes/3"))
+        mockMvc.perform(get("/api/v1/pacientes/3"))
                 .andExpect(status().isOk());
     }
 
@@ -160,7 +160,7 @@ public class PacienteControllerTest {
         when(buscarMedicoUseCase.buscarPorEmail("medico@medconnect.com")).thenReturn(Optional.of(medico));
         when(buscarTurnoUseCase.buscarPorMedico(2L)).thenReturn(List.of());
 
-        mockMvc.perform(get("/api/pacientes/99"))
+        mockMvc.perform(get("/api/v1/pacientes/99"))
                 .andExpect(status().isForbidden());
     }
 
@@ -168,7 +168,7 @@ public class PacienteControllerTest {
     public void buscarTodos_devuelveListadoPaginado() throws Exception {
         when(buscarPacienteUseCase.buscarTodos()).thenReturn(List.of());
 
-        mockMvc.perform(get("/api/pacientes"))
+        mockMvc.perform(get("/api/v1/pacientes"))
                 .andExpect(status().isOk())
                 .andExpect(content().json("{\"content\":[],\"totalElements\":0}"));
     }
@@ -187,7 +187,7 @@ public class PacienteControllerTest {
         when(buscarTurnoUseCase.buscarPorMedico(2L)).thenReturn(List.of(turno));
         when(buscarPacienteUseCase.buscarPorIds(List.of(3L))).thenReturn(java.util.Map.of(3L, paciente));
 
-        mockMvc.perform(get("/api/pacientes"))
+        mockMvc.perform(get("/api/v1/pacientes"))
                 .andExpect(status().isOk())
                 .andExpect(content().json("{\"content\":[{\"id\":3,\"nombre\":\"Juan Gómez\",\"dni\":\"30111222\"}],\"totalElements\":1}"));
 
@@ -202,7 +202,7 @@ public class PacienteControllerTest {
                         List.of(new org.springframework.security.core.authority.SimpleGrantedAuthority("ROLE_MEDICO"))));
         when(buscarMedicoUseCase.buscarPorEmail("sin-vincular@medconnect.com")).thenReturn(Optional.empty());
 
-        mockMvc.perform(get("/api/pacientes"))
+        mockMvc.perform(get("/api/v1/pacientes"))
                 .andExpect(status().isOk())
                 .andExpect(content().json("{\"content\":[],\"totalElements\":0}"));
 
@@ -214,7 +214,7 @@ public class PacienteControllerTest {
         Paciente paciente = new Paciente(1L, "Juan Gómez", "30111222", null, null, null, null, null, null);
         when(buscarPacienteUseCase.buscarTodos()).thenReturn(List.of(paciente));
 
-        mockMvc.perform(get("/api/pacientes/buscar-por-dni").param("dni", "30111222"))
+        mockMvc.perform(get("/api/v1/pacientes/buscar-por-dni").param("dni", "30111222"))
                 .andExpect(status().isOk())
                 .andExpect(content().json("{\"id\":1,\"nombre\":\"Juan Gómez\",\"dni\":\"30111222\"}"));
     }
@@ -223,7 +223,7 @@ public class PacienteControllerTest {
     public void buscarPorDni_devuelve404_siNoEncuentra() throws Exception {
         when(buscarPacienteUseCase.buscarTodos()).thenReturn(List.of());
 
-        mockMvc.perform(get("/api/pacientes/buscar-por-dni").param("dni", "30111222"))
+        mockMvc.perform(get("/api/v1/pacientes/buscar-por-dni").param("dni", "30111222"))
                 .andExpect(status().isNotFound());
     }
 
@@ -237,7 +237,7 @@ public class PacienteControllerTest {
         when(buscarMedicoUseCase.buscarPorEmail("medico@medconnect.com")).thenReturn(Optional.of(medico));
         when(buscarTurnoUseCase.buscarPorMedico(2L)).thenReturn(List.of());
 
-        mockMvc.perform(get("/api/pacientes/buscar-por-dni").param("dni", "40111222"))
+        mockMvc.perform(get("/api/v1/pacientes/buscar-por-dni").param("dni", "40111222"))
                 .andExpect(status().isNotFound());
 
         Mockito.verify(buscarPacienteUseCase, Mockito.never()).buscarTodos();
@@ -249,7 +249,7 @@ public class PacienteControllerTest {
         Paciente sinEmail = new Paciente(2L, "Otro", "30999888", null, null, null, null, null, null);
         when(buscarPacienteUseCase.buscarTodos()).thenReturn(List.of(conEmail, sinEmail));
 
-        mockMvc.perform(get("/api/pacientes/emails-vinculados"))
+        mockMvc.perform(get("/api/v1/pacientes/emails-vinculados"))
                 .andExpect(status().isOk())
                 .andExpect(content().json("[{\"id\":1,\"email\":\"juan@mail.com\"}]"));
     }
@@ -261,7 +261,7 @@ public class PacienteControllerTest {
 
         String body = "{\"nombre\":\"Juan Gómez\",\"dni\":\"30111222\",\"obraSocial\":\"OSDE\",\"plan\":\"310\"}";
 
-        mockMvc.perform(put("/api/pacientes/1")
+        mockMvc.perform(put("/api/v1/pacientes/1")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isOk())
@@ -274,7 +274,7 @@ public class PacienteControllerTest {
 
         String body = "{\"nombre\":\"Juan Gómez\",\"dni\":\"30111222\"}";
 
-        mockMvc.perform(put("/api/pacientes/99")
+        mockMvc.perform(put("/api/v1/pacientes/99")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isNotFound());
@@ -284,7 +284,7 @@ public class PacienteControllerTest {
     public void eliminar_devuelve204_siExiste() throws Exception {
         when(eliminarPacienteUseCase.eliminar(1L)).thenReturn(true);
 
-        mockMvc.perform(delete("/api/pacientes/1"))
+        mockMvc.perform(delete("/api/v1/pacientes/1"))
                 .andExpect(status().isNoContent());
     }
 
@@ -292,7 +292,7 @@ public class PacienteControllerTest {
     public void eliminar_devuelve404_siNoExiste() throws Exception {
         when(eliminarPacienteUseCase.eliminar(99L)).thenReturn(false);
 
-        mockMvc.perform(delete("/api/pacientes/99"))
+        mockMvc.perform(delete("/api/v1/pacientes/99"))
                 .andExpect(status().isNotFound());
     }
 }

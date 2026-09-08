@@ -33,7 +33,7 @@ import java.util.Objects;
 import java.util.Optional;
 
 @RestController
-@RequestMapping("/api/pacientes")
+@RequestMapping("/api/v1/pacientes")
 public class PacienteController {
 
     private static final Logger log = LoggerFactory.getLogger(PacienteController.class);

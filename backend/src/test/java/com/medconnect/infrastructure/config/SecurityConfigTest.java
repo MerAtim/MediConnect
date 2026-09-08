@@ -125,47 +125,47 @@ public class SecurityConfigTest {
 
     @Test
     public void login_esPublico() throws Exception {
-        mockMvc.perform(post("/api/auth/login")
+        mockMvc.perform(post("/api/v1/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"email\":\"nadie@medconnect.com\",\"contrasena\":\"x\"}"))
                 // 401 por credenciales invalidas (CredencialesInvalidasException), nunca por
-                // falta de autenticacion previa -- /api/auth/** es permitAll.
+                // falta de autenticacion previa -- /api/v1/auth/** es permitAll.
                 .andExpect(status().isUnauthorized());
     }
 
     @Test
     public void getMedicos_requiereRolAdministrador() throws Exception {
-        mockMvc.perform(get("/api/medicos"))
+        mockMvc.perform(get("/api/v1/medicos"))
                 .andExpect(status().isForbidden());
-        mockMvc.perform(get("/api/medicos").cookie(jwtCookie(UsuarioRole.MEDICO)))
+        mockMvc.perform(get("/api/v1/medicos").cookie(jwtCookie(UsuarioRole.MEDICO)))
                 .andExpect(status().isForbidden());
-        mockMvc.perform(get("/api/medicos").cookie(jwtCookie(UsuarioRole.PACIENTE)))
+        mockMvc.perform(get("/api/v1/medicos").cookie(jwtCookie(UsuarioRole.PACIENTE)))
                 .andExpect(status().isForbidden());
-        mockMvc.perform(get("/api/medicos").cookie(jwtCookie(UsuarioRole.ADMINISTRADOR)))
+        mockMvc.perform(get("/api/v1/medicos").cookie(jwtCookie(UsuarioRole.ADMINISTRADOR)))
                 .andExpect(status().isOk());
     }
 
     @Test
     public void getPacientes_permiteAdministradorYMedico_noPaciente() throws Exception {
-        mockMvc.perform(get("/api/pacientes"))
+        mockMvc.perform(get("/api/v1/pacientes"))
                 .andExpect(status().isForbidden());
-        mockMvc.perform(get("/api/pacientes").cookie(jwtCookie(UsuarioRole.PACIENTE)))
+        mockMvc.perform(get("/api/v1/pacientes").cookie(jwtCookie(UsuarioRole.PACIENTE)))
                 .andExpect(status().isForbidden());
-        mockMvc.perform(get("/api/pacientes").cookie(jwtCookie(UsuarioRole.ADMINISTRADOR)))
+        mockMvc.perform(get("/api/v1/pacientes").cookie(jwtCookie(UsuarioRole.ADMINISTRADOR)))
                 .andExpect(status().isOk());
-        mockMvc.perform(get("/api/pacientes").cookie(jwtCookie(UsuarioRole.MEDICO)))
+        mockMvc.perform(get("/api/v1/pacientes").cookie(jwtCookie(UsuarioRole.MEDICO)))
                 .andExpect(status().isOk());
     }
 
     @Test
     public void postUsuarios_requiereRolAdministrador() throws Exception {
         String body = "{\"nombre\":\"X\",\"email\":\"x@medconnect.com\",\"contrasena\":\"secreto123\",\"role\":\"PACIENTE\"}";
-        mockMvc.perform(post("/api/usuarios").contentType(MediaType.APPLICATION_JSON).content(body))
+        mockMvc.perform(post("/api/v1/usuarios").contentType(MediaType.APPLICATION_JSON).content(body))
                 .andExpect(status().isForbidden());
-        mockMvc.perform(post("/api/usuarios").contentType(MediaType.APPLICATION_JSON).content(body)
+        mockMvc.perform(post("/api/v1/usuarios").contentType(MediaType.APPLICATION_JSON).content(body)
                         .cookie(jwtCookie(UsuarioRole.MEDICO)))
                 .andExpect(status().isForbidden());
-        mockMvc.perform(post("/api/usuarios").contentType(MediaType.APPLICATION_JSON).content(body)
+        mockMvc.perform(post("/api/v1/usuarios").contentType(MediaType.APPLICATION_JSON).content(body)
                         .cookie(jwtCookie(UsuarioRole.ADMINISTRADOR)))
                 .andExpect(status().isCreated());
     }
@@ -173,12 +173,12 @@ public class SecurityConfigTest {
     @Test
     public void postTurnos_requiereRolAdministrador() throws Exception {
         String body = "{\"fechaHora\":\"2026-09-01T10:00:00\",\"especialidad\":\"Clinica\",\"medicoId\":1,\"pacienteId\":1}";
-        mockMvc.perform(post("/api/turnos").contentType(MediaType.APPLICATION_JSON).content(body))
+        mockMvc.perform(post("/api/v1/turnos").contentType(MediaType.APPLICATION_JSON).content(body))
                 .andExpect(status().isForbidden());
-        mockMvc.perform(post("/api/turnos").contentType(MediaType.APPLICATION_JSON).content(body)
+        mockMvc.perform(post("/api/v1/turnos").contentType(MediaType.APPLICATION_JSON).content(body)
                         .cookie(jwtCookie(UsuarioRole.MEDICO)))
                 .andExpect(status().isForbidden());
-        mockMvc.perform(post("/api/turnos").contentType(MediaType.APPLICATION_JSON).content(body)
+        mockMvc.perform(post("/api/v1/turnos").contentType(MediaType.APPLICATION_JSON).content(body)
                         .cookie(jwtCookie(UsuarioRole.ADMINISTRADOR)))
                 .andExpect(noRechazadoPorAutorizacion());
     }
@@ -191,7 +191,7 @@ public class SecurityConfigTest {
         Medico medico = medicoRepository.guardar(new Medico(null, "Dr Turno", "Clinica", "MTUR-1", null, null, "medico.turno.sec@medconnect.com", null));
         Paciente paciente = pacienteRepository.guardar(new Paciente(null, "Pac Turno", "1", null, null, null, null, null, "paciente.turno.sec@medconnect.com"));
         Turno turno = turnoRepository.guardar(new Turno(null, LocalDateTime.now(), "Clinica", medico, paciente, TurnoEstado.PENDIENTE));
-        String url = "/api/turnos/" + turno.getId() + "/estado";
+        String url = "/api/v1/turnos/" + turno.getId() + "/estado";
 
         mockMvc.perform(patch(url).contentType(MediaType.APPLICATION_JSON).content("{\"estado\":\"CONFIRMADO\"}"))
                 .andExpect(status().isForbidden());
@@ -217,27 +217,27 @@ public class SecurityConfigTest {
         turnoRepository.guardar(new Turno(null, LocalDateTime.now(), "Clinica", medico, paciente, TurnoEstado.PENDIENTE));
         String pacienteId = String.valueOf(paciente.getId());
 
-        mockMvc.perform(get("/api/historias-clinicas").param("pacienteId", pacienteId))
+        mockMvc.perform(get("/api/v1/historias-clinicas").param("pacienteId", pacienteId))
                 .andExpect(status().isForbidden());
-        mockMvc.perform(get("/api/historias-clinicas").param("pacienteId", pacienteId)
+        mockMvc.perform(get("/api/v1/historias-clinicas").param("pacienteId", pacienteId)
                         .cookie(jwtCookie(UsuarioRole.ADMINISTRADOR)))
                 .andExpect(status().isForbidden());
-        mockMvc.perform(get("/api/historias-clinicas").param("pacienteId", pacienteId)
+        mockMvc.perform(get("/api/v1/historias-clinicas").param("pacienteId", pacienteId)
                         .cookie(jwtCookie(UsuarioRole.PACIENTE)))
                 .andExpect(status().isForbidden());
-        mockMvc.perform(get("/api/historias-clinicas").param("pacienteId", pacienteId)
+        mockMvc.perform(get("/api/v1/historias-clinicas").param("pacienteId", pacienteId)
                         .cookie(jwtCookie(UsuarioRole.MEDICO, medico.getEmail().getValor())))
                 .andExpect(status().isOk());
     }
 
     @Test
     public void exportarHistoriaClinica_requiereRolAdministrador() throws Exception {
-        mockMvc.perform(get("/api/historias-clinicas/exportar").param("pacienteId", "1"))
+        mockMvc.perform(get("/api/v1/historias-clinicas/exportar").param("pacienteId", "1"))
                 .andExpect(status().isForbidden());
-        mockMvc.perform(get("/api/historias-clinicas/exportar").param("pacienteId", "1")
+        mockMvc.perform(get("/api/v1/historias-clinicas/exportar").param("pacienteId", "1")
                         .cookie(jwtCookie(UsuarioRole.MEDICO)))
                 .andExpect(status().isForbidden());
-        mockMvc.perform(get("/api/historias-clinicas/exportar").param("pacienteId", "1")
+        mockMvc.perform(get("/api/v1/historias-clinicas/exportar").param("pacienteId", "1")
                         .cookie(jwtCookie(UsuarioRole.ADMINISTRADOR)))
                 .andExpect(noRechazadoPorAutorizacion());
     }
