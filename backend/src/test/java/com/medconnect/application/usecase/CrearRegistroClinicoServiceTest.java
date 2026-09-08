@@ -5,6 +5,7 @@ import com.medconnect.domain.model.Medico;
 import com.medconnect.domain.model.Paciente;
 import com.medconnect.domain.model.RegistroClinico;
 import com.medconnect.domain.model.Turno;
+import com.medconnect.domain.model.TurnoEstado;
 import com.medconnect.domain.port.MedicoRepository;
 import com.medconnect.domain.port.PacienteRepository;
 import com.medconnect.domain.port.RegistroClinicoRepository;
@@ -12,6 +13,7 @@ import com.medconnect.domain.port.TurnoRepository;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -26,11 +28,17 @@ public class CrearRegistroClinicoServiceTest {
         return new CreateRegistroClinicoRequest(2L, 3L, "Fractura de tobillo", "Antibióticos por 7 días, reposo", "Control en 2 semanas");
     }
 
+    // Turno ya ocurrido y no cancelado: el caso que efectivamente habilita
+    // la historia clinica (ver Turno.habilitaHistoriaClinica).
     private static Turno turnoEntre(Long medicoId, Long pacienteId) {
-        return new Turno(1L, null, "Traumatología",
+        return turnoEntre(medicoId, pacienteId, LocalDateTime.now().minusDays(1), TurnoEstado.CONFIRMADO);
+    }
+
+    private static Turno turnoEntre(Long medicoId, Long pacienteId, LocalDateTime fechaHora, TurnoEstado estado) {
+        return new Turno(1L, fechaHora, "Traumatología",
                 new Medico(medicoId, null, null, null, null, null, null, null),
                 new Paciente(pacienteId, null, null, null, null, null, null, null, null),
-                null);
+                estado);
     }
 
     @Test
@@ -100,6 +108,42 @@ public class CrearRegistroClinicoServiceTest {
         CrearRegistroClinicoService service = new CrearRegistroClinicoService(repo, medicoRepo, pacienteRepo, turnoRepo);
 
         assertThrows(RegistroClinicoInvalidoException.class, () -> service.crear(requestValido()));
+    }
+
+    @Test
+    public void crear_lanzaExcepcion_siElUnicoTurnoConElPacienteEstaCancelado() {
+        RegistroClinicoRepository repo = Mockito.mock(RegistroClinicoRepository.class);
+        MedicoRepository medicoRepo = Mockito.mock(MedicoRepository.class);
+        PacienteRepository pacienteRepo = Mockito.mock(PacienteRepository.class);
+        TurnoRepository turnoRepo = Mockito.mock(TurnoRepository.class);
+
+        when(medicoRepo.buscarPorId(2L)).thenReturn(Optional.of(new Medico(2L, null, null, null, null, null, null, null)));
+        when(pacienteRepo.buscarPorId(3L)).thenReturn(Optional.of(new Paciente(3L, null, null, null, null, null, null, null, null)));
+        when(turnoRepo.buscarPorMedico(2L)).thenReturn(List.of(
+                turnoEntre(2L, 3L, LocalDateTime.now().minusDays(1), TurnoEstado.CANCELADO)));
+
+        CrearRegistroClinicoService service = new CrearRegistroClinicoService(repo, medicoRepo, pacienteRepo, turnoRepo);
+
+        assertThrows(RegistroClinicoInvalidoException.class, () -> service.crear(requestValido()));
+        Mockito.verify(repo, Mockito.never()).guardar(any(RegistroClinico.class));
+    }
+
+    @Test
+    public void crear_lanzaExcepcion_siElUnicoTurnoConElPacienteEsAFuturo() {
+        RegistroClinicoRepository repo = Mockito.mock(RegistroClinicoRepository.class);
+        MedicoRepository medicoRepo = Mockito.mock(MedicoRepository.class);
+        PacienteRepository pacienteRepo = Mockito.mock(PacienteRepository.class);
+        TurnoRepository turnoRepo = Mockito.mock(TurnoRepository.class);
+
+        when(medicoRepo.buscarPorId(2L)).thenReturn(Optional.of(new Medico(2L, null, null, null, null, null, null, null)));
+        when(pacienteRepo.buscarPorId(3L)).thenReturn(Optional.of(new Paciente(3L, null, null, null, null, null, null, null, null)));
+        when(turnoRepo.buscarPorMedico(2L)).thenReturn(List.of(
+                turnoEntre(2L, 3L, LocalDateTime.now().plusDays(1), TurnoEstado.CONFIRMADO)));
+
+        CrearRegistroClinicoService service = new CrearRegistroClinicoService(repo, medicoRepo, pacienteRepo, turnoRepo);
+
+        assertThrows(RegistroClinicoInvalidoException.class, () -> service.crear(requestValido()));
+        Mockito.verify(repo, Mockito.never()).guardar(any(RegistroClinico.class));
     }
 
     @Test

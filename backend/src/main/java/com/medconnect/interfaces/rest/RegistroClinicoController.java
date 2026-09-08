@@ -28,6 +28,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.nio.charset.StandardCharsets;
+import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
@@ -95,8 +96,10 @@ public class RegistroClinicoController {
     }
 
     private boolean esPacienteDeEseMedico(Authentication auth, Long pacienteId) {
+        LocalDateTime ahora = LocalDateTime.now();
         return buscarMedicoUseCase.buscarPorEmail(auth.getName())
                 .map(medico -> buscarTurnoUseCase.buscarPorMedico(medico.getId()).stream()
+                        .filter(t -> t.habilitaHistoriaClinica(ahora))
                         .map(Turno::getPaciente)
                         .filter(Objects::nonNull)
                         .map(Paciente::getId)

@@ -78,6 +78,16 @@ public class Turno {
         this.estado = nuevoEstado;
     }
 
+    // Un turno habilita el acceso a la historia clinica del paciente (crear
+    // o leer registros) solo si representa una consulta real: no cancelado,
+    // y ya ocurrida (no un turno agendado a futuro). Antes se chequeaba
+    // solo "existe algun turno con ese paciente", sin filtrar por estado ni
+    // fecha -- un medico podia cancelar un turno y seguir teniendo acceso
+    // permanente a la historia clinica de ese paciente.
+    public boolean habilitaHistoriaClinica(LocalDateTime ahora) {
+        return estado != TurnoEstado.CANCELADO && !fechaHora.isAfter(ahora);
+    }
+
     public String getPreparacion() {
         return preparacion;
     }
