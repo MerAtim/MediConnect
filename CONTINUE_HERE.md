@@ -2,11 +2,14 @@
 
 Este archivo se mantiene actualizado al final de cada sesión de trabajo para que,
 aunque pasen días sin conectarte, se pueda seguir sin releer el proyecto entero.
-Última actualización: **2026-09-08**, tras mergear PR #49
-(`feature/indices-medico-paciente`, ver punto 9 de la segunda auditoría):
-índices de DB en `paciente_id` de `turnos`/`registros_clinicos`, uno de los
-puntos pospuestos de esa auditoría. Antes, PR #48 (ver "Quinta ronda"):
-terminado el corte de las 5 secciones grandes de `App.jsx` en componentes
+Última actualización: **2026-09-08**, tras mergear PR #50
+(`feature/email-value-object`, ver punto 9 de la segunda auditoría): `Email`
+como Value Object en el dominio (Medico/Paciente/Usuario), otro de los
+puntos pospuestos de esa auditoría — cierra un gap real, antes no había
+ninguna validación de formato de email en el proyecto. Antes, PR #49:
+índices de DB en `paciente_id` de `turnos`/`registros_clinicos`. Y antes,
+PR #48 (ver "Quinta ronda"): terminado el corte de las 5 secciones grandes
+de `App.jsx` en componentes
 propios que había quedado a medias en la PR #34. Y antes de eso, PR #47
 (ver "Cuarta ronda"): Java 17 → 25 y Spring Boot 3.2.0 → 3.5.6 en todo el
 proyecto (pom, Dockerfile, CI, docs).
@@ -972,6 +975,40 @@ por punto, mismo flujo de siempre. Estado:
      `EXPLAIN` con `enable_seqscan=off` confirma que el planner los usa
      cuando se fuerza (con la tabla de dev, chica, el seq scan sigue siendo
      más barato — comportamiento correcto del planner, no un problema).
+   - ~~Value Objects~~ — resuelto (parcial, alcance acordado con el usuario:
+     **solo Email**), PR #50 (`feature/email-value-object`): `Medico`/
+     `Paciente`/`Usuario` tenían el email como `String` suelto, **sin
+     ninguna validación de formato en el dominio** — cualquier string no
+     vacío pasaba; la única validación de formato existente estaba
+     duplicada a mano como regex literal en `RegistrarUsuarioService`, sin
+     aplicarse a Medico/Paciente. `Email` (nuevo, `domain.model`): Value
+     Object inmutable, valida formato en el constructor,
+     `Email.deNullable(String)` para "sin cuenta vinculada" (Medico/
+     Paciente), `Email.esFormatoValido(String)` como chequeo sin lanzar,
+     igualdad por valor. **Diseño para minimizar blast radius**: los
+     constructores/setters de Medico/Paciente/Usuario siguen aceptando
+     `String` (cero cambios en los ~110 call-sites que ya los construían
+     así, tests incluidos) y convierten internamente a `Email`; el campo y
+     el getter pasan a ser `Email`. Los puertos de repositorio
+     (`buscarPorEmail`) siguen tomando `String` — son lookups por un
+     identificador externo (JWT, form de login), no construcción de un
+     valor nuevo. La validación de formato ocurre explícita en cada
+     servicio de escritura para poder traducirla a la excepción de negocio
+     de cada caso (400 con mensaje claro, no un 500 crudo). **Efecto
+     real**: alta/edición de Médico o Paciente con un email sin `@` o sin
+     dominio ahora rechaza con 400 "email invalido" — antes se guardaba
+     tal cual. **Bug de test encontrado al revisar** (no marcado por el
+     compilador): 3 comparaciones en los fakes de `SecurityConfigTest`
+     (`InMemoryMedico/Paciente/UsuarioRepository.buscarPorEmail`)
+     comparaban un `String` contra un `Email` sin error de compilación —
+     `email.equals(m.getEmail())` compila igual (`Object` acepta cualquier
+     tipo) pero siempre daba `false`; solo se encontraron revisando a mano
+     cada `.getEmail()` del repo, no aparecían en `test-compile`. 12 tests
+     nuevos para `Email` + 2 para el rechazo de formato inválido. Suite
+     completa: 202 tests, 201/202 en local (Testcontainers-en-Windows, ya
+     conocido), 202/202 en CI. Verificado también con curl contra Postgres
+     real. **DNI y Matrícula quedan afuera a propósito** — si se quiere
+     Value Objects para esos, es un punto aparte.
 
 ## Tercera ronda (2026-09-01): madurez operativa
 
@@ -1173,7 +1210,9 @@ threadeado por props desde `App`. Si en algún momento el archivo vuelve a
 sentirse grande, el próximo corte natural sería extraer hooks de datos
 (`useTurnos`, `useMedicos`, etc.) en vez de seguir bajando por componentes.
 Si no, el usuario está retomando por partes los puntos pospuestos de la
-segunda auditoría (punto 9, más arriba) — ya resueltos OpenAPI (PR #43) e
-índices de DB (PR #49). Quedan: Value Objects, Factory pattern, versionado
-de API, accesibilidad de los forms inline. Sin orden de prioridad fijado
-todavía para estos cuatro — preguntar antes de arrancar cuál sigue.
+segunda auditoría (punto 9, más arriba) — ya resueltos OpenAPI (PR #43),
+índices de DB (PR #49) y Value Objects de Email (PR #50, alcance acordado
+solo Email — DNI/Matrícula quedan como candidato aparte si se quiere
+después). Quedan: Factory pattern, versionado de API, accesibilidad de los
+forms inline. Sin orden de prioridad fijado todavía — preguntar antes de
+arrancar cuál sigue.
