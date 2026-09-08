@@ -2,12 +2,19 @@
 
 Este archivo se mantiene actualizado al final de cada sesión de trabajo para que,
 aunque pasen días sin conectarte, se pueda seguir sin releer el proyecto entero.
-Última actualización: **2026-09-08**, tras mergear PR #54
-(`fix/swagger-api-docs-403`, ver "Fix suelto" más abajo): `/v3/api-docs`
-devolvía 403 por una incompatibilidad binaria de `springdoc-openapi`
-2.5.0 con Spring Boot 3.5.6 (no la hipótesis de matching de rutas
-anotada en la PR #52, que resultó falsa) — bump a 2.9.1. Antes, PR #53:
-accesibilidad de los forms inline — cierra por completo la segunda
+Última actualización: **2026-09-08**, tras mergear PR #55
+(`feature/dni-value-object`, ver punto 9 de la segunda auditoría, sub-punto
+de Value Objects): `Dni` como Value Object en `Paciente`, mismo patrón que
+`Email` — cierra el candidato que había quedado aparte en la PR #50. De
+paso encontró y arregló un bug real en producción (`buscarPorDni`
+comparando `String.equals(Dni)`, siempre `false`). Matrícula se descartó
+explícitamente (formatos reales muy variados, sin regex seguro). Antes,
+PR #54 (`fix/swagger-api-docs-403`, ver "Fix suelto" más abajo):
+`/v3/api-docs` devolvía 403 por una incompatibilidad binaria de
+`springdoc-openapi` 2.5.0 con Spring Boot 3.5.6 (no la hipótesis de
+matching de rutas anotada en la PR #52, que resultó falsa) — bump a
+2.9.1. Antes, PR #53: accesibilidad de los forms inline — cierra por
+completo la segunda
 auditoría (los 6 puntos de mejoras de diseño ya resueltos). Antes, PR
 #52: toda la API de negocio pasó de `/api/**` a `/api/v1/**`. Antes, PR
 #51: `MedicoFactory`/`PacienteFactory` deduplican la construcción de
@@ -1011,6 +1018,33 @@ por punto, mismo flujo de siempre. Estado:
      conocido), 202/202 en CI. Verificado también con curl contra Postgres
      real. **DNI y Matrícula quedan afuera a propósito** — si se quiere
      Value Objects para esos, es un punto aparte.
+     - ~~DNI~~ — resuelto, PR #55 (`feature/dni-value-object`, 2026-09-08):
+       mismo patrón que Email — `Dni` (domain.model) inmutable, valida
+       formato en el constructor (solo dígitos, `^\d+$`), `Dni.deNullable`,
+       igualdad por valor. Se descartó **Matrícula** explícitamente en la
+       misma conversación: los datos reales tienen formatos demasiado
+       variados (`MP1234`, `MPEV-1`, `SPL1788824687202`, sin prefijo
+       consistente) — no hay un regex seguro que no rompa datos existentes
+       o rechace matrículas legítimas de otras jurisdicciones, y forzar un
+       VO sin invariante real sería ceremonia sin valor. A diferencia de
+       `Usuario.email` (siempre obligatorio, constructor directo),
+       `Paciente.dni` usa `deNullable()` aunque el DNI es conceptualmente
+       obligatorio — la obligatoriedad ya se exige en
+       `CreatePacienteRequest.validar()`, y el dominio tolera null porque
+       varios tests construyen `Paciente` como fixture liviano sin dni real
+       (solo les interesa el id); forzarlo en el constructor hubiera roto
+       esos tests sin relación con este cambio. **Bug real encontrado
+       revisando cada `.getDni()`** (mismo tipo que las 3 comparaciones de
+       `SecurityConfigTest` en la PR de Email, pero esta vez en código de
+       producción): `PacienteController.buscarPorDni` hacía
+       `dni.equals(p.getDni())` — compila igual (`Object` acepta cualquier
+       tipo) pero con `Dni` como tipo nuevo esa comparación daba `false`
+       siempre, rompiendo en silencio `GET /api/v1/pacientes/buscar-por-dni`
+       (el endpoint que usa "Otorgar turno" en el frontend). 13 tests
+       nuevos. Suite completa: 215 tests, 214 OK (Testcontainers-en-Windows,
+       ya conocido). Verificado con curl contra Postgres real: dni inválido
+       → 400, dni válido → 201, `buscar-por-dni` encuentra el paciente
+       (el fix crítico), exportar historia clínica muestra el DNI bien.
    - ~~Factory pattern~~ — resuelto, PR #51
      (`feature/factory-medico-paciente`): `CrearMedicoService`/
      `ActualizarMedicoService` (y lo mismo para Paciente) duplicaban
