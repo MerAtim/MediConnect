@@ -30,9 +30,11 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 // Los *ControllerTest usan standaloneSetup: nunca cargan SecurityConfig ni
@@ -149,6 +151,54 @@ public class SecurityConfigTest {
     }
 
     @Test
+    public void postMedicos_requiereRolAdministrador() throws Exception {
+        // HIGH de la re-auditoria e2e (2026-09-08): las 6 reglas de CRUD de
+        // medico/paciente (POST/PUT/DELETE x 2) solo tenian cubierto el GET.
+        String body = "{\"nombre\":\"Dr Post\",\"especialidad\":\"Clinica\",\"matricula\":\"MPOST-SEC-1\"}";
+        mockMvc.perform(post("/api/v1/medicos").contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(post("/api/v1/medicos").contentType(MediaType.APPLICATION_JSON).content(body)
+                        .cookie(jwtCookie(UsuarioRole.MEDICO)))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(post("/api/v1/medicos").contentType(MediaType.APPLICATION_JSON).content(body)
+                        .cookie(jwtCookie(UsuarioRole.PACIENTE)))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(post("/api/v1/medicos").contentType(MediaType.APPLICATION_JSON).content(body)
+                        .cookie(jwtCookie(UsuarioRole.ADMINISTRADOR)))
+                .andExpect(status().isCreated());
+    }
+
+    @Test
+    public void putMedicos_requiereRolAdministrador() throws Exception {
+        Medico medico = medicoRepository.guardar(new Medico(null, "Dr Put", "Clinica", "MPUT-SEC-1", null, null, null, null));
+        String url = "/api/v1/medicos/" + medico.getId();
+        String body = "{\"nombre\":\"Dr Put Editado\",\"especialidad\":\"Clinica\",\"matricula\":\"MPUT-SEC-1\"}";
+
+        mockMvc.perform(put(url).contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(put(url).contentType(MediaType.APPLICATION_JSON).content(body)
+                        .cookie(jwtCookie(UsuarioRole.MEDICO)))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(put(url).contentType(MediaType.APPLICATION_JSON).content(body)
+                        .cookie(jwtCookie(UsuarioRole.PACIENTE)))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(put(url).contentType(MediaType.APPLICATION_JSON).content(body)
+                        .cookie(jwtCookie(UsuarioRole.ADMINISTRADOR)))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    public void deleteMedicos_requiereRolAdministrador() throws Exception {
+        Medico medico = medicoRepository.guardar(new Medico(null, "Dr Delete", "Clinica", "MDEL-SEC-1", null, null, null, null));
+        String url = "/api/v1/medicos/" + medico.getId();
+
+        mockMvc.perform(delete(url)).andExpect(status().isForbidden());
+        mockMvc.perform(delete(url).cookie(jwtCookie(UsuarioRole.MEDICO))).andExpect(status().isForbidden());
+        mockMvc.perform(delete(url).cookie(jwtCookie(UsuarioRole.PACIENTE))).andExpect(status().isForbidden());
+        mockMvc.perform(delete(url).cookie(jwtCookie(UsuarioRole.ADMINISTRADOR))).andExpect(status().isNoContent());
+    }
+
+    @Test
     public void getPacientes_permiteAdministradorYMedico_noPaciente() throws Exception {
         mockMvc.perform(get("/api/v1/pacientes"))
                 .andExpect(status().isForbidden());
@@ -157,6 +207,103 @@ public class SecurityConfigTest {
         mockMvc.perform(get("/api/v1/pacientes").cookie(jwtCookie(UsuarioRole.ADMINISTRADOR)))
                 .andExpect(status().isOk());
         mockMvc.perform(get("/api/v1/pacientes").cookie(jwtCookie(UsuarioRole.MEDICO)))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    public void postPacientes_requiereRolAdministrador() throws Exception {
+        String body = "{\"nombre\":\"Pac Post\",\"dni\":\"40111000\"}";
+        mockMvc.perform(post("/api/v1/pacientes").contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(post("/api/v1/pacientes").contentType(MediaType.APPLICATION_JSON).content(body)
+                        .cookie(jwtCookie(UsuarioRole.MEDICO)))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(post("/api/v1/pacientes").contentType(MediaType.APPLICATION_JSON).content(body)
+                        .cookie(jwtCookie(UsuarioRole.PACIENTE)))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(post("/api/v1/pacientes").contentType(MediaType.APPLICATION_JSON).content(body)
+                        .cookie(jwtCookie(UsuarioRole.ADMINISTRADOR)))
+                .andExpect(status().isCreated());
+    }
+
+    @Test
+    public void putPacientes_requiereRolAdministrador() throws Exception {
+        Paciente paciente = pacienteRepository.guardar(new Paciente(null, "Pac Put", "40111001", null, null, null, null, null, null));
+        String url = "/api/v1/pacientes/" + paciente.getId();
+        String body = "{\"nombre\":\"Pac Put Editado\",\"dni\":\"40111001\"}";
+
+        mockMvc.perform(put(url).contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(put(url).contentType(MediaType.APPLICATION_JSON).content(body)
+                        .cookie(jwtCookie(UsuarioRole.MEDICO)))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(put(url).contentType(MediaType.APPLICATION_JSON).content(body)
+                        .cookie(jwtCookie(UsuarioRole.PACIENTE)))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(put(url).contentType(MediaType.APPLICATION_JSON).content(body)
+                        .cookie(jwtCookie(UsuarioRole.ADMINISTRADOR)))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    public void deletePacientes_requiereRolAdministrador() throws Exception {
+        Paciente paciente = pacienteRepository.guardar(new Paciente(null, "Pac Delete", "40111002", null, null, null, null, null, null));
+        String url = "/api/v1/pacientes/" + paciente.getId();
+
+        mockMvc.perform(delete(url)).andExpect(status().isForbidden());
+        mockMvc.perform(delete(url).cookie(jwtCookie(UsuarioRole.MEDICO))).andExpect(status().isForbidden());
+        mockMvc.perform(delete(url).cookie(jwtCookie(UsuarioRole.PACIENTE))).andExpect(status().isForbidden());
+        mockMvc.perform(delete(url).cookie(jwtCookie(UsuarioRole.ADMINISTRADOR))).andExpect(status().isNoContent());
+    }
+
+    @Test
+    public void getPacientesEmailsVinculados_requiereRolAdministrador() throws Exception {
+        mockMvc.perform(get("/api/v1/pacientes/emails-vinculados"))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(get("/api/v1/pacientes/emails-vinculados").cookie(jwtCookie(UsuarioRole.MEDICO)))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(get("/api/v1/pacientes/emails-vinculados").cookie(jwtCookie(UsuarioRole.PACIENTE)))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(get("/api/v1/pacientes/emails-vinculados").cookie(jwtCookie(UsuarioRole.ADMINISTRADOR)))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    public void getMedicoMe_requiereRolMedico() throws Exception {
+        mockMvc.perform(get("/api/v1/medicos/me"))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(get("/api/v1/medicos/me").cookie(jwtCookie(UsuarioRole.ADMINISTRADOR)))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(get("/api/v1/medicos/me").cookie(jwtCookie(UsuarioRole.PACIENTE)))
+                .andExpect(status().isForbidden());
+        // Cuenta MEDICO sin un Medico vinculado -> pasa la autorizacion, el
+        // controller da 404 el mismo, no 401/403. Lo que importa aca es que
+        // el rol correcto no quede bloqueado por SecurityConfig.
+        mockMvc.perform(get("/api/v1/medicos/me").cookie(jwtCookie(UsuarioRole.MEDICO)))
+                .andExpect(noRechazadoPorAutorizacion());
+    }
+
+    @Test
+    public void getPacienteMe_requiereRolPaciente() throws Exception {
+        mockMvc.perform(get("/api/v1/pacientes/me"))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(get("/api/v1/pacientes/me").cookie(jwtCookie(UsuarioRole.ADMINISTRADOR)))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(get("/api/v1/pacientes/me").cookie(jwtCookie(UsuarioRole.MEDICO)))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(get("/api/v1/pacientes/me").cookie(jwtCookie(UsuarioRole.PACIENTE)))
+                .andExpect(noRechazadoPorAutorizacion());
+    }
+
+    @Test
+    public void getUsuarios_requiereRolAdministrador() throws Exception {
+        mockMvc.perform(get("/api/v1/usuarios"))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(get("/api/v1/usuarios").cookie(jwtCookie(UsuarioRole.MEDICO)))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(get("/api/v1/usuarios").cookie(jwtCookie(UsuarioRole.PACIENTE)))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(get("/api/v1/usuarios").cookie(jwtCookie(UsuarioRole.ADMINISTRADOR)))
                 .andExpect(status().isOk());
     }
 
