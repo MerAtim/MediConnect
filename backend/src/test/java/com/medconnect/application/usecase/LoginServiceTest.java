@@ -100,6 +100,29 @@ public class LoginServiceTest {
         verify(rateLimiter, never()).registrarExito(Mockito.anyString());
     }
 
+    // MEDIUM de la re-auditoria e2e (2026-09-08): antes, si el email no
+    // existia, el && de Java cortaba en corto y passwordEncoder.matches
+    // (bcrypt, deliberadamente lento) nunca se llamaba -- esa diferencia de
+    // tiempo entre "email no existe" (rapido) y "email existe, contrasena
+    // incorrecta" (lento) permitia enumerar emails registrados solo midiendo
+    // cuanto tarda la respuesta. Ahora matches() se llama siempre, comparando
+    // contra un hash dummy si el email no existe.
+    @Test
+    public void login_llamaAPasswordEncoderMatches_aunQueElEmailNoExista() {
+        UsuarioRepository repo = Mockito.mock(UsuarioRepository.class);
+        PasswordEncoder encoder = Mockito.mock(PasswordEncoder.class);
+        TokenService tokenService = Mockito.mock(TokenService.class);
+        when(repo.buscarPorEmail("no-existe@medconnect.com")).thenReturn(Optional.empty());
+        when(encoder.encode(Mockito.anyString())).thenReturn("hash-dummy");
+
+        LoginService service = new LoginService(repo, encoder, tokenService, Mockito.mock(LoginRateLimiter.class));
+
+        assertThrows(CredencialesInvalidasException.class,
+                () -> service.login(new LoginRequest("no-existe@medconnect.com", "secreto123")));
+
+        verify(encoder).matches("secreto123", "hash-dummy");
+    }
+
     @Test
     public void login_registraExitoEnRateLimiter_siCredencialesValidas() {
         UsuarioRepository repo = Mockito.mock(UsuarioRepository.class);
