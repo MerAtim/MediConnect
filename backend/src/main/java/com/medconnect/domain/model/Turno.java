@@ -88,6 +88,14 @@ public class Turno {
         return estado != TurnoEstado.CANCELADO && !fechaHora.isAfter(ahora);
     }
 
+    // Un turno bloquea la baja del medico/paciente al que pertenece si
+    // todavia representa un compromiso real a futuro: no cancelado, y
+    // agendado despues de "ahora". Los turnos ya pasados o cancelados no
+    // bloquean nada -- el admin solo tiene que resolver los pendientes.
+    public boolean esFuturoActivo(LocalDateTime ahora) {
+        return estado != TurnoEstado.CANCELADO && fechaHora.isAfter(ahora);
+    }
+
     public String getPreparacion() {
         return preparacion;
     }
