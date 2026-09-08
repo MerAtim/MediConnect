@@ -1,6 +1,5 @@
 package com.medconnect.application.usecase;
 
-import com.medconnect.domain.exception.PacienteInvalidoException;
 import com.medconnect.domain.model.Paciente;
 import com.medconnect.domain.port.PacienteRepository;
 import org.springframework.stereotype.Service;
@@ -16,25 +15,7 @@ public class CrearPacienteService implements CrearPacienteUseCase {
 
     @Override
     public CreatePacienteResponse crear(CreatePacienteRequest request) {
-        request.validar();
-
-        String email = ValidacionEmail.normalizarOpcional(request.getEmail(),
-                () -> new PacienteInvalidoException("email invalido"));
-        ValidacionEmail.asegurarDisponible(email, pacienteRepository::buscarPorEmail, Paciente::getId, null,
-                () -> new PacienteInvalidoException("ya existe un paciente con ese email"));
-
-        Paciente paciente = new Paciente(
-                null,
-                request.getNombre(),
-                request.getDni(),
-                request.getTelefono(),
-                request.getDireccion(),
-                request.getObraSocial(),
-                request.getNumeroAfiliado(),
-                request.getPlan(),
-                email
-        );
-
+        Paciente paciente = PacienteFactory.crear(null, request, pacienteRepository::buscarPorEmail);
         Paciente guardado = pacienteRepository.guardar(paciente);
         return new CreatePacienteResponse(guardado.getId());
     }

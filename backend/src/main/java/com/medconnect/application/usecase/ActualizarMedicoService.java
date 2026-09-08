@@ -1,6 +1,5 @@
 package com.medconnect.application.usecase;
 
-import com.medconnect.domain.exception.MedicoInvalidoException;
 import com.medconnect.domain.model.Medico;
 import com.medconnect.domain.port.MedicoRepository;
 import org.springframework.stereotype.Service;
@@ -21,24 +20,8 @@ public class ActualizarMedicoService implements ActualizarMedicoUseCase {
         if (medicoRepository.buscarPorId(id).isEmpty()) {
             return Optional.empty();
         }
-        request.validar();
 
-        String email = ValidacionEmail.normalizarOpcional(request.getEmail(),
-                () -> new MedicoInvalidoException("email invalido"));
-        ValidacionEmail.asegurarDisponible(email, medicoRepository::buscarPorEmail, Medico::getId, id,
-                () -> new MedicoInvalidoException("ya existe un medico con ese email"));
-
-        Medico medico = new Medico(
-                id,
-                request.getNombre(),
-                request.getEspecialidad(),
-                request.getMatricula(),
-                request.getDireccion(),
-                request.getTelefono(),
-                email,
-                null
-        );
-
+        Medico medico = MedicoFactory.crear(id, request, medicoRepository::buscarPorEmail);
         return Optional.of(medicoRepository.guardar(medico));
     }
 }

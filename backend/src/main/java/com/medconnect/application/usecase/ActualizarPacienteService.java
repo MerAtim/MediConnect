@@ -1,6 +1,5 @@
 package com.medconnect.application.usecase;
 
-import com.medconnect.domain.exception.PacienteInvalidoException;
 import com.medconnect.domain.model.Paciente;
 import com.medconnect.domain.port.PacienteRepository;
 import org.springframework.stereotype.Service;
@@ -21,25 +20,8 @@ public class ActualizarPacienteService implements ActualizarPacienteUseCase {
         if (pacienteRepository.buscarPorId(id).isEmpty()) {
             return Optional.empty();
         }
-        request.validar();
 
-        String email = ValidacionEmail.normalizarOpcional(request.getEmail(),
-                () -> new PacienteInvalidoException("email invalido"));
-        ValidacionEmail.asegurarDisponible(email, pacienteRepository::buscarPorEmail, Paciente::getId, id,
-                () -> new PacienteInvalidoException("ya existe un paciente con ese email"));
-
-        Paciente paciente = new Paciente(
-                id,
-                request.getNombre(),
-                request.getDni(),
-                request.getTelefono(),
-                request.getDireccion(),
-                request.getObraSocial(),
-                request.getNumeroAfiliado(),
-                request.getPlan(),
-                email
-        );
-
+        Paciente paciente = PacienteFactory.crear(id, request, pacienteRepository::buscarPorEmail);
         return Optional.of(pacienteRepository.guardar(paciente));
     }
 }
