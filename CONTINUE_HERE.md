@@ -2,12 +2,14 @@
 
 Este archivo se mantiene actualizado al final de cada sesión de trabajo para que,
 aunque pasen días sin conectarte, se pueda seguir sin releer el proyecto entero.
-Última actualización: **2026-09-07**, tras mergear PR #48
-(`feature/split-app-jsx-secciones`, ver "Quinta ronda" más abajo): terminado
-el corte de las 5 secciones grandes de `App.jsx` en componentes propios que
-había quedado a medias en la PR #34. Justo antes, PR #47 (ver "Cuarta
-ronda"): Java 17 → 25 y Spring Boot 3.2.0 → 3.5.6 en todo el proyecto (pom,
-Dockerfile, CI, docs).
+Última actualización: **2026-09-08**, tras mergear PR #49
+(`feature/indices-medico-paciente`, ver punto 9 de la segunda auditoría):
+índices de DB en `paciente_id` de `turnos`/`registros_clinicos`, uno de los
+puntos pospuestos de esa auditoría. Antes, PR #48 (ver "Quinta ronda"):
+terminado el corte de las 5 secciones grandes de `App.jsx` en componentes
+propios que había quedado a medias en la PR #34. Y antes de eso, PR #47
+(ver "Cuarta ronda"): Java 17 → 25 y Spring Boot 3.2.0 → 3.5.6 en todo el
+proyecto (pom, Dockerfile, CI, docs).
 
 ## Stack y arquitectura
 
@@ -927,10 +929,10 @@ por punto, mismo flujo de siempre. Estado:
      se corrió y verificó localmente sin problema — el hueco es
      específico de esta única clase, que depende de Docker.
 9. Mejoras de diseño de menor urgencia — de las 6 sugeridas, el usuario
-   priorizó solo **OpenAPI/Swagger**; las demás (Value Objects, Factory
-   pattern, índices de DB en `medico_id`/`paciente_id`, versionado de API,
-   accesibilidad de los forms inline de `App.jsx`) quedan sin hacer, no
-   se pidieron.
+   priorizó **OpenAPI/Swagger** primero (2026-08-30) y **el resto quedó
+   pospuesto explícitamente**; retomado por partes desde el 2026-09-07
+   (ver estado de cada una abajo — solo Value Objects, Factory pattern,
+   versionado de API y accesibilidad de forms siguen sin hacer).
    - ~~OpenAPI/Swagger~~ — resuelto, PR #43 (`feature/openapi-swagger`):
      `springdoc-openapi-starter-webmvc-ui` (versión `2.5.0`, no manejada
      por el BOM de Spring Boot, hay que bumpearla a mano si se actualiza
@@ -950,6 +952,26 @@ por punto, mismo flujo de siempre. Estado:
      controllers) y con Playwright (`/swagger-ui/index.html` renderiza
      título/descripción/servers/endpoints agrupados por controller, cero
      errores de consola).
+   - ~~Índices de DB en `medico_id`/`paciente_id`~~ — resuelto, PR #49
+     (`feature/indices-medico-paciente`): revisando los repositorios reales
+     antes de tocar nada, el único filtro efectivamente usado en queries es
+     por `paciente_id` (`TurnoJpaRepository.findByPacienteId`,
+     `RegistroClinicoJpaRepository.findByPacienteIdOrderByFechaDesc`) — sin
+     índice, cada llamada hacía un seq scan completo.
+     `V3__indices_paciente_id.sql`: `idx_turnos_paciente_id` (simple) e
+     `idx_registros_clinicos_paciente_fecha` (compuesto `paciente_id, fecha
+     DESC`, cubre filtro + el `ORDER BY` del único query real en un solo
+     scan) + `@Index` en `TurnoEntity`/`RegistroClinicoEntity` (documentación
+     en código). **Decisión deliberada, no un olvido**: no se agregó índice
+     en `medico_id` de ninguna tabla — en `turnos` ya está cubierto por
+     `uk_turnos_medico_fecha` como columna líder, y en `registros_clinicos`
+     no se filtra por `medico_id` en ningún query del repo, agregar un
+     índice ahí sería especular sobre un uso que no existe. Verificado
+     contra Postgres real: migración corre limpia, `ddl-auto=validate` no
+     se queja, `\d turnos`/`\d registros_clinicos` confirman los índices, y
+     `EXPLAIN` con `enable_seqscan=off` confirma que el planner los usa
+     cuando se fuerza (con la tabla de dev, chica, el seq scan sigue siendo
+     más barato — comportamiento correcto del planner, no un problema).
 
 ## Tercera ronda (2026-09-01): madurez operativa
 
@@ -1150,7 +1172,8 @@ siendo una sola función grande por sección con bastante estado propio
 threadeado por props desde `App`. Si en algún momento el archivo vuelve a
 sentirse grande, el próximo corte natural sería extraer hooks de datos
 (`useTurnos`, `useMedicos`, etc.) en vez de seguir bajando por componentes.
-Si no, retomar alguno de los puntos ya pospuestos explícitamente en la
-segunda auditoría (punto 9, más arriba): Value Objects, Factory pattern,
-índices de DB en `medico_id`/`paciente_id`, versionado de API, accesibilidad
-de los forms inline.
+Si no, el usuario está retomando por partes los puntos pospuestos de la
+segunda auditoría (punto 9, más arriba) — ya resueltos OpenAPI (PR #43) e
+índices de DB (PR #49). Quedan: Value Objects, Factory pattern, versionado
+de API, accesibilidad de los forms inline. Sin orden de prioridad fijado
+todavía para estos cuatro — preguntar antes de arrancar cuál sigue.
