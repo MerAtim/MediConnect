@@ -2,15 +2,23 @@
 
 Este archivo se mantiene actualizado al final de cada sesión de trabajo para que,
 aunque pasen días sin conectarte, se pueda seguir sin releer el proyecto entero.
-Última actualización: **2026-09-08**, tras mergear PR #56
-(`feature/hooks-de-datos`, ver "Sexta ronda" más abajo): `App.jsx` bajó
-a 267 líneas extrayendo el estado/fetching de cada sección a 7 hooks
-(`useToasts`, `useAuth`, `useMedicos`, `usePacientes`, `useUsuarios`,
-`useTurnos`, `useOtorgarTurno`, `useHistoriaClinica`) — el corte que
-había quedado sugerido tras el split de componentes (PR #48). **Con
-esto no queda ningún punto pendiente anotado.** Antes, PR #55
-(`feature/dni-value-object`): `Dni` como Value Object en `Paciente`,
-mismo patrón que `Email` — cierra el candidato que había quedado aparte
+Última actualización: **2026-09-08**, tras mergear PR #59
+(`test/cifrado-historia-clinica-integration`, ver "Séptima ronda" más
+abajo): cierra el último de los 4 CRITICAL de la re-auditoría e2e con 4
+subagentes en paralelo — cifrado at-rest de historia clínica ahora
+verificado contra Postgres real (antes solo se probaba el encriptador
+en aislamiento). Los otros 3 CRITICAL: PR #57 (historia clínica exige
+turno vigente, no cancelado ni a futuro) y PR #58 (cobertura
+end-to-end de 2 reglas de autorización que no tenían ningún test).
+**Quedan 8 HIGH / 16 MEDIUM / 12 LOW sin arrancar**, priorizados en la
+"Séptima ronda". Antes, PR #56 (`feature/hooks-de-datos`): `App.jsx`
+bajó a 267 líneas extrayendo el estado/fetching de cada sección a 7
+hooks (`useToasts`, `useAuth`, `useMedicos`, `usePacientes`,
+`useUsuarios`, `useTurnos`, `useOtorgarTurno`, `useHistoriaClinica`) —
+el corte que había quedado sugerido tras el split de componentes
+(PR #48). Antes, PR #55 (`feature/dni-value-object`): `Dni` como Value
+Object en `Paciente`, mismo patrón que `Email` — cierra el candidato
+que había quedado aparte
 en la PR #50. De paso encontró y arregló un bug real en producción
 (`buscarPorDni` comparando `String.equals(Dni)`, siempre `false`).
 Matrícula se descartó explícitamente (formatos reales muy variados, sin
@@ -1362,19 +1370,88 @@ se descartó explícitamente (sin estándar internacional ni siquiera
 nacional — varía por colegio/provincia, ver conversación con el usuario
 del 2026-09-08).
 
+## Séptima ronda (2026-09-08): re-auditoría e2e con 4 subagentes en paralelo
+
+El usuario pidió repetir el tipo de auditoría de la "Segunda auditoría"
+(más arriba) para ver qué quedó desactualizado con todo lo hecho desde
+entonces (9+ PRs: Java 25, Spring Boot 3.5.6, split de componentes y
+hooks, Value Objects, Factory, versionado de API, accesibilidad). Mismo
+formato: 4 subagentes en paralelo, uno por área (dominio/aplicación,
+infraestructura/seguridad, tests, frontend), cada uno con instrucciones
+explícitas de no repetir hallazgos ya resueltos en rondas anteriores.
+32 hallazgos totales (4 CRITICAL, 8 HIGH, 16 MEDIUM, 12 LOW). El hallazgo
+CRITICAL más grave se verificó a mano (leyendo el código) antes de
+aceptarlo; las 2 CVE que reportó el agente de seguridad se verificaron
+contra las fuentes oficiales de Spring/GitHub Advisory antes de darlas
+por reales (ambas lo eran). El usuario pidió resolver primero los 4
+CRITICAL, un PR por punto:
+
+1. ~~Historia clínica sin chequeo de estado/fecha del turno~~ — resuelto,
+   PR #57 (`fix/historia-clinica-valida-turno`): tanto
+   `CrearRegistroClinicoService` como
+   `RegistroClinicoController.esPacienteDeEseMedico` verificaban solo
+   "existe algún turno entre este médico y este paciente", sin filtrar
+   por estado ni fecha. Un médico podía crear un turno, cancelarlo, y
+   de todas formas escribir/leer la historia clínica de ese paciente
+   para siempre. `Turno.habilitaHistoriaClinica(LocalDateTime ahora)`
+   (nuevo, `domain.model`): `estado != CANCELADO && fechaHora <= ahora`.
+   Decisión explícita del usuario: además de excluir CANCELADO, también
+   exigir que el turno ya haya ocurrido (no solo agendado a futuro).
+   `PENDIENTE` sigue habilitando (no se pidió exigir `CONFIRMADO`). 7
+   tests nuevos. Verificado contra Postgres real con el escenario exacto
+   del hallazgo (crear+leer antes de cancelar funciona, después de
+   cancelar da 400/403; un turno a futuro también rechaza).
+2. ~~Reset de contraseña de otro usuario sin test end-to-end~~ y
+   ~~Escritura de historia clínica (POST) sin test de rol end-to-end~~ —
+   resueltos juntos, PR #58 (`fix/security-config-test-coverage-critical`,
+   mismo tipo de gap): ninguna de las dos reglas (`PATCH
+   /api/v1/usuarios/{id}/contrasena` exige ADMINISTRADOR; `POST
+   /api/v1/historias-clinicas` exige MEDICO) tenía test contra la cadena
+   real de seguridad — `SecurityConfigTest` es el único test que carga
+   `SecurityConfig` + `JwtAuthenticationFilter` reales, los
+   `*ControllerTest` usan `standaloneSetup` y nunca los ejercitan. Sin
+   cambios de código de producción, solo cobertura (2 tests nuevos,
+   mismo patrón ya establecido: sin cookie → 403, rol equivocado → 403,
+   rol correcto → éxito real, no solo "no rechazado").
+3. ~~Cifrado at-rest de historia clínica nunca verificado contra Postgres
+   real~~ — resuelto, PR #59 (`test/cifrado-historia-clinica-integration`):
+   `AesGcmFieldEncryptorTest`/`EncryptedStringConverterTest` prueban el
+   encriptador y el converter en aislamiento, pero ningún test corría
+   contra Postgres real para confirmar que el converter está
+   efectivamente aplicado en la entidad — perder una anotación
+   `@Convert` no rompía ningún test existente.
+   `CrearRegistroClinicoIntegrationTest` (nuevo, mismo patrón que
+   `CrearTurnoIntegrationTest`): crea un registro real vía la API, lee
+   la columna `diagnostico` cruda por JDBC (sin pasar por el converter)
+   y confirma que no es el texto plano original, después confirma que
+   vía la API sí decifra correctamente. No se pudo correr Testcontainers
+   localmente (mismo hueco de Docker Desktop en Windows ya documentado
+   en la PR #42) — validado en CI (Ubuntu, Docker real), verde.
+
+**Los 4 CRITICAL están resueltos.** Quedan sin arrancar: 8 HIGH, 16
+MEDIUM, 12 LOW — entre los HIGH, dos son reales y ya verificados contra
+fuentes oficiales: CVE-2026-22732 (Spring Security 6.5.5, headers de
+seguridad no escritos bajo ciertas condiciones) y CVE-2026-22731 (Spring
+Boot Actuator 3.5.x antes de 3.5.11, bypass de auth bajo health groups
+— no explotable hoy porque no hay health groups configurados, pero la
+dependencia es vulnerable). Ambos se resolverían bump-eando el parent de
+Spring Boot a 3.5.12+ (o más nuevo). El resto de los HIGH: reconstrucción
+de Email/Dni desde persistencia sin red de seguridad (500 crudo en vez
+de 400 si hay un dato legacy mal formado), Usuario/Medico/Paciente
+correlacionados solo por igualdad de string de email sin invariante,
+baja de médico/paciente sin chequear turnos activos, CRUD de
+médicos/pacientes (PUT/DELETE) sin test de rol end-to-end (mismo tipo
+de gap que los puntos 2/3 de arriba, mismo fix aplicable), y en
+frontend: `buscarPacientePorDni` sin try/catch (falla en silencio) y
+una condición de carrera real en el picker de médico por especialidad
+en `useOtorgarTurno` (mismo patrón de bug ya resuelto con
+`AbortController` en otros hooks, acá no se aplicó).
+
 ## Plan sugerido para la próxima sesión
 
-Los 6 puntos del punto 9 de la segunda auditoría están todos resueltos
-— OpenAPI (PR #43), índices de DB (PR #49), Value Objects (PR #50 Email,
-PR #55 DNI — Matrícula descartada explícitamente, sin estándar posible),
-Factory pattern (PR #51, Medico/Paciente), versionado de API (PR #52,
-`/api/v1/**`) y accesibilidad de forms (PR #53) — más el hallazgo suelto
-de esa ronda (`/v3/api-docs`, PR #54) y el corte de hooks de datos
-sugerido después del split de componentes (PR #56). **No queda ningún
-punto pendiente anotado.** Sin pedido puntual del usuario, no hay un
-próximo paso obvio — preguntar qué sigue.
-
-Único hallazgo suelto sin arreglar (de la PR #52, quedó fuera de su
-alcance a propósito): `/v3/api-docs` devuelve 403 pese a que
-`SecurityConfig` lo permite explícitamente — ver detalle en el punto 9,
-más arriba. Candidato razonable si se quiere una tarea chica y acotada.
+Sin pedido puntual del usuario: seguir bajando por la lista priorizada
+de la re-auditoría (más arriba) — los 8 HIGH son el próximo escalón
+natural, mismo criterio de "un PR por punto" que se usó para los
+CRITICAL. Preguntar al usuario el orden si no lo especifica (algunos
+HIGH comparten naturaleza y podrían resolverse juntos, como se hizo con
+los puntos 2/3 de los CRITICAL).
