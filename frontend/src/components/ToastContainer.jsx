@@ -7,6 +7,8 @@ export default function ToastContainer({toasts}){
       {toasts.map(t => (
         <div
           key={t.id}
+          role={t.type === 'success' ? 'status' : 'alert'}
+          aria-live={t.type === 'success' ? 'polite' : 'assertive'}
           className={`toast ${t.type === 'success' ? 'toast-success' : 'toast-error'} ${t.leaving ? 'toast-leaving' : ''}`}
         >
           {t.message}

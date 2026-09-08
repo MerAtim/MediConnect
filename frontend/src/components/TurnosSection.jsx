@@ -25,12 +25,12 @@ export default function TurnosSection({
       {esAdmin && (
         <form onSubmit={onFiltrar} className="flex flex-wrap items-end gap-3 mb-4">
           <div>
-            <label className="label">Médico ID</label>
-            <input type="number" className="input-field w-32" value={filtroMedicoId} onChange={e=>onFiltroMedicoIdChange(e.target.value)} />
+            <label className="label" htmlFor="turnos-filtro-medico-id">Médico ID</label>
+            <input id="turnos-filtro-medico-id" type="number" className="input-field w-32" value={filtroMedicoId} onChange={e=>onFiltroMedicoIdChange(e.target.value)} />
           </div>
           <div>
-            <label className="label">Paciente ID</label>
-            <input type="number" className="input-field w-32" value={filtroPacienteId} onChange={e=>onFiltroPacienteIdChange(e.target.value)} />
+            <label className="label" htmlFor="turnos-filtro-paciente-id">Paciente ID</label>
+            <input id="turnos-filtro-paciente-id" type="number" className="input-field w-32" value={filtroPacienteId} onChange={e=>onFiltroPacienteIdChange(e.target.value)} />
           </div>
           <button type="submit" disabled={listLoading} className="btn-primary">
             {listLoading ? 'Buscando…' : 'Buscar'}
@@ -157,19 +157,25 @@ export default function TurnosSection({
                         )}
                         <div className="space-y-2 pt-2 border-t border-neutral-200">
                           <p className="text-sm font-medium text-neutral-700">Agregar registro de esta consulta</p>
+                          <label className="sr-only" htmlFor={`historia-diagnostico-${t.id}`}>Diagnóstico</label>
                           <input
+                            id={`historia-diagnostico-${t.id}`}
                             className="input-field"
                             placeholder="Diagnóstico"
                             value={diagnostico}
                             onChange={e => onDiagnosticoChange(e.target.value)}
                           />
+                          <label className="sr-only" htmlFor={`historia-tratamiento-${t.id}`}>Tratamiento</label>
                           <input
+                            id={`historia-tratamiento-${t.id}`}
                             className="input-field"
                             placeholder="Tratamiento"
                             value={tratamientoRegistro}
                             onChange={e => onTratamientoChange(e.target.value)}
                           />
+                          <label className="sr-only" htmlFor={`historia-observaciones-${t.id}`}>Observaciones (opcional)</label>
                           <input
+                            id={`historia-observaciones-${t.id}`}
                             className="input-field"
                             placeholder="Observaciones (opcional)"
                             value={observacionesRegistro}
