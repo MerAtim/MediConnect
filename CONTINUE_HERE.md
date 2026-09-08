@@ -1447,11 +1447,97 @@ una condición de carrera real en el picker de médico por especialidad
 en `useOtorgarTurno` (mismo patrón de bug ya resuelto con
 `AbortController` en otros hooks, acá no se aplicó).
 
+## Octava ronda (2026-09-08): los 8 HIGH de la re-auditoría, resueltos
+
+Orden pedido por el usuario: primero los 4 CRITICAL (arriba), después
+los 8 HIGH, después los 16 MEDIUM, y los 12 LOW quedan para otra
+sesión ("mañana"). Los 8 HIGH:
+
+5. y 6. ~~CVE-2026-22732 y CVE-2026-22731~~ — resueltos juntos, PR #60
+   (`fix/spring-boot-cve-bump`): ambos CVE verificados contra fuentes
+   oficiales (Spring/GitHub Advisory) antes de aceptarlos. Bump de
+   `spring-boot-starter-parent` **3.5.6 → 3.5.16** en el pom (cubre de
+   sobra el mínimo 3.5.12 que pedían los dos). `spring-security-web`
+   queda en 6.5.11, `spring-boot-actuator` en 3.5.16. Sin cambios de
+   código — solo versión. Suite completa verde antes y después del
+   bump.
+7. ~~Reconstrucción de Email/Dni desde persistencia sin red de
+   seguridad~~ — resuelto, PR #62 (`fix/global-exception-handler-illegal-argument`):
+   `Email`/`Dni` (Value Objects) validan su propio formato en el
+   constructor y tiran `IllegalArgumentException`. Los flujos normales
+   ya validan el formato antes de llegar ahí, pero reconstruir un
+   registro *ya persistido* con un dato corrupto (legacy, inserción
+   manual, migración) pasaba directo por el constructor sin red de
+   seguridad — un simple GET o login sobre esa fila tiraba un 500 crudo.
+   `GlobalExceptionHandler` gana un handler genérico
+   `IllegalArgumentException → 400` (después de los handlers
+   específicos, no los tapa).
+8. ~~Usuario y Médico/Paciente correlacionados solo por igualdad de
+   string de email~~ — **resuelto por diseño, sin cambio de código**.
+   Decisión explícita del usuario (`AskUserQuestion`): las cuentas
+   (`Usuario`) y los perfiles (`Medico`/`Paciente`) se desacoplan a
+   propósito para poder crearlos en cualquier orden; el banner "cuenta
+   no vinculada" que ya existe en el frontend cubre la experiencia del
+   usuario afectado en ese caso. No amerita una invariante de dominio
+   nueva.
+9. ~~Baja de médico/paciente sin chequear turnos activos~~ — resuelto,
+   PR #64 (`fix/eliminar-medico-paciente-con-turnos-activos`).
+   Decisión explícita del usuario: bloquear la baja (no
+   cancelar/reasignar automático) si hay turnos a futuro.
+   `Turno.esFuturoActivo(LocalDateTime ahora)` (nuevo, análogo a
+   `habilitaHistoriaClinica`): `estado != CANCELADO &&
+   fechaHora.isAfter(ahora)`. `EliminarMedicoService`/
+   `EliminarPacienteService` inyectan `TurnoRepository` y tiran
+   `MedicoInvalidoException`/`PacienteInvalidoException` (ya mapeadas a
+   400) si el médico/paciente tiene algún turno así. Los turnos ya
+   pasados o cancelados no bloquean. Sin cambios en los controllers —
+   el 400 ya salía del `GlobalExceptionHandler` existente. Verificado
+   contra Postgres real: crear médico+paciente+turno a futuro → DELETE
+   de ambos da 400; cancelar el turno → DELETE da 204.
+10. ~~CRUD de médicos/pacientes (PUT/DELETE) sin test de rol
+    end-to-end~~ — resuelto, PR #61
+    (`fix/security-config-test-coverage-high`): mismo tipo de gap que
+    los puntos 2/3 de los CRITICAL — `SecurityConfigTest` es el único
+    test que carga la cadena real de seguridad, y varias reglas de
+    `SecurityConfig` no tenían test contra ella. 10 tests nuevos
+    (POST/PUT/DELETE médicos y pacientes exigen ADMINISTRADOR, GET
+    `/pacientes/emails-vinculados` exige ADMINISTRADOR, GET
+    `/medicos/me` exige MEDICO, GET `/pacientes/me` exige PACIENTE, GET
+    `/usuarios` exige ADMINISTRADOR). Sin cambios de código de
+    producción, solo cobertura.
+11. y 12. ~~`buscarPacientePorDni` sin try/catch~~ y ~~condición de
+    carrera en el picker de médico por especialidad de
+    `useOtorgarTurno`~~ — resueltos juntos, PR #63
+    (`fix/otorgar-turno-error-handling-race-condition`):
+    `buscarPacientePorDni` fallaba en silencio si `apiFetch` tiraba
+    (red caída, token vencido) — ahora envuelto en try/catch con
+    `notify(err.message)`, mismo patrón que el resto del hook.
+    `handleEspecialidadChange` no tenía el `AbortController` que sí
+    tienen `useMedicos`/`usePacientes`/`useTurnos` para el mismo
+    problema — cambiar de especialidad rápido (o navegar el `<select>`
+    con flechas) podía dejar la lista de médicos mostrando la
+    respuesta que llegó última en vez de la pedida última.
+
+**Los 8 HIGH están resueltos.** Quedan: 16 MEDIUM, 12 LOW (para otra
+sesión). Los MEDIUM reportados por la re-auditoría: timing
+attack/enumeración de email en login, sin revocación de JWT,
+`InMemoryLoginRateLimiter` con crecimiento de memoria sin límite,
+`UNIQUE(email)` en `usuarios` inconsistente con el soft-delete (500 al
+reusar el email de un perfil ya eliminado), solapamiento de turnos solo
+detecta timestamp idéntico (no rango), `DataIntegrityViolationException`
+filtrándose sin traducir en `CrearTurnoService` (única violación de
+arquitectura hexagonal encontrada), campo `contrasena` muerto en
+`Medico`, doble reserva de paciente sin test/decisión, transiciones de
+estado de turno más allá de "cancelado" sin test, `setSessionExpiredHandler`
+llamado en el cuerpo del render en vez de en un `useEffect`, refoco
+espurio en modales por props `onClose`/`onCancel` inestables, botón de
+"Ver historia" sin `aria-expanded`/`aria-controls`, prop-drilling
+excesivo en `TurnosSection`, duplicación entre `useMedicos`/`usePacientes`
+y entre los 3 formularios, banner "cuenta no vinculada" sin `aria-live`.
+
 ## Plan sugerido para la próxima sesión
 
-Sin pedido puntual del usuario: seguir bajando por la lista priorizada
-de la re-auditoría (más arriba) — los 8 HIGH son el próximo escalón
-natural, mismo criterio de "un PR por punto" que se usó para los
-CRITICAL. Preguntar al usuario el orden si no lo especifica (algunos
-HIGH comparten naturaleza y podrían resolverse juntos, como se hizo con
-los puntos 2/3 de los CRITICAL).
+Sin pedido puntual del usuario: seguir con los 16 MEDIUM de la
+re-auditoría (mismo criterio de "un PR por punto", agrupando los que
+compartan naturaleza como ya se hizo antes). Los 12 LOW quedan
+después, explícitamente pospuestos por el usuario.
