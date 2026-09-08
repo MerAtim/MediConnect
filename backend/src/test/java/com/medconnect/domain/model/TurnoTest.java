@@ -6,7 +6,9 @@ import org.junit.jupiter.api.Test;
 import java.time.LocalDateTime;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class TurnoTest {
 
@@ -40,5 +42,33 @@ public class TurnoTest {
         turno.cambiarEstado(TurnoEstado.CANCELADO);
 
         assertEquals(TurnoEstado.CANCELADO, turno.getEstado());
+    }
+
+    @Test
+    public void habilitaHistoriaClinica_esTrue_siYaOcurrioYNoEstaCancelado() {
+        Turno turno = turno(TurnoEstado.CONFIRMADO);
+
+        assertTrue(turno.habilitaHistoriaClinica(LocalDateTime.of(2026, 8, 12, 10, 0).plusMinutes(1)));
+    }
+
+    @Test
+    public void habilitaHistoriaClinica_esFalse_siElTurnoEstaCancelado() {
+        Turno turno = turno(TurnoEstado.CANCELADO);
+
+        assertFalse(turno.habilitaHistoriaClinica(LocalDateTime.of(2026, 8, 12, 10, 0).plusMinutes(1)));
+    }
+
+    @Test
+    public void habilitaHistoriaClinica_esFalse_siElTurnoTodaviaNoOcurrio() {
+        Turno turno = turno(TurnoEstado.CONFIRMADO);
+
+        assertFalse(turno.habilitaHistoriaClinica(LocalDateTime.of(2026, 8, 12, 10, 0).minusMinutes(1)));
+    }
+
+    @Test
+    public void habilitaHistoriaClinica_esTrue_enElMismoInstanteDelTurno() {
+        Turno turno = turno(TurnoEstado.PENDIENTE);
+
+        assertTrue(turno.habilitaHistoriaClinica(LocalDateTime.of(2026, 8, 12, 10, 0)));
     }
 }

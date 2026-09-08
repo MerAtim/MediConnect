@@ -49,10 +49,12 @@ public class CrearRegistroClinicoService implements CrearRegistroClinicoUseCase 
             throw new RegistroClinicoInvalidoException("El paciente indicado no existe");
         }
 
+        LocalDateTime ahora = LocalDateTime.now();
         boolean tieneTurno = turnoRepository.buscarPorMedico(request.getMedicoId()).stream()
-                .anyMatch(t -> t.getPaciente() != null && request.getPacienteId().equals(t.getPaciente().getId()));
+                .anyMatch(t -> t.getPaciente() != null && request.getPacienteId().equals(t.getPaciente().getId())
+                        && t.habilitaHistoriaClinica(ahora));
         if (!tieneTurno) {
-            throw new RegistroClinicoInvalidoException("El médico no tiene ningún turno con ese paciente");
+            throw new RegistroClinicoInvalidoException("El médico no tiene ningún turno vigente con ese paciente");
         }
 
         Medico medico = new Medico(request.getMedicoId(), null, null, null, null, null, null, null);
@@ -60,7 +62,7 @@ public class CrearRegistroClinicoService implements CrearRegistroClinicoUseCase 
 
         RegistroClinico registro = new RegistroClinico(
                 null,
-                LocalDateTime.now(),
+                ahora,
                 medico,
                 paciente,
                 request.getDiagnostico(),
