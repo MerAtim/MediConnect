@@ -2,16 +2,16 @@
 
 Este archivo se mantiene actualizado al final de cada sesión de trabajo para que,
 aunque pasen días sin conectarte, se pueda seguir sin releer el proyecto entero.
-Última actualización: **2026-09-08**, tras mergear PR #52
-(`feature/versionado-api-v1`, ver punto 9 de la segunda auditoría): toda la
-API de negocio pasó de `/api/**` a `/api/v1/**` (actuator/swagger quedan
-sin versionar a propósito). Antes, PR #51: `MedicoFactory`/`PacienteFactory`
-deduplican la construcción de Medico/Paciente entre Crear y Actualizar.
-Antes, PR #50: `Email` como Value Object en el dominio. Antes, PR #49:
-índices de DB en `paciente_id` de `turnos`/`registros_clinicos`. Y antes,
-PR #48 (ver "Quinta ronda"): terminado el corte de las 5 secciones grandes
-de `App.jsx` en componentes propios que había quedado a medias en la
-PR #34.
+Última actualización: **2026-09-08**, tras mergear PR #53
+(`feature/accesibilidad-forms`, ver punto 9 de la segunda auditoría):
+accesibilidad de los forms inline — **cierra por completo la segunda
+auditoría** (los 6 puntos de mejoras de diseño ya resueltos). Antes, PR
+#52: toda la API de negocio pasó de `/api/**` a `/api/v1/**`. Antes, PR
+#51: `MedicoFactory`/`PacienteFactory` deduplican la construcción de
+Medico/Paciente. Antes, PR #50: `Email` como Value Object. Antes, PR #49:
+índices de DB en `paciente_id`. Y antes, PR #48 (ver "Quinta ronda"):
+terminado el corte de las 5 secciones grandes de `App.jsx` en componentes
+propios que había quedado a medias en la PR #34.
 
 ## Stack y arquitectura
 
@@ -1048,6 +1048,27 @@ por punto, mismo flujo de siempre. Estado:
      rutas sin segmento final al final del patrón (`/v3/api-docs/**` no
      matchea `/v3/api-docs` a secas), nadie probó Swagger específicamente
      en esa PR. `swagger-ui/index.html` carga bien igual.
+   - ~~Accesibilidad de los forms inline~~ — resuelto, PR #53
+     (`feature/accesibilidad-forms`): **último de los 6 puntos, segunda
+     auditoría cerrada por completo**. Gaps reales encontrados revisando
+     cada form (no un pase genérico de "agregar aria a todo"):
+     `UsuarioForm` (el `<select>` de Rol sin ningún label), `OtorgarTurnoSection`/
+     `TurnosSection` (labels como hermano del input, sin `htmlFor`/`id`),
+     el mini-form de historia clínica (solo `placeholder`, sin label —
+     se agregaron `sr-only` con id único por turno, se repite en un
+     `.map()`), `ConfirmModal`/`CambiarContrasenaModal` (sin
+     `role="dialog"` ni manejo de foco — nuevo hook compartido
+     `useModalA11y` en `frontend/src/useModalA11y.js`: mueve el foco al
+     abrir, atrapa Tab/Shift+Tab, Escape cierra, devuelve el foco al
+     cerrar), y `ToastContainer` (único canal de feedback de éxito/error
+     de toda la app, sin `aria-live` — ahora `role="status"`/`"alert"` +
+     `aria-live`). `LoginScreen`/`MedicoForm`/`PacienteForm` ya resolvían
+     el label vía `FloatingInput` (input envuelto en `<label>`), no
+     necesitaron cambios. Verificado con Playwright real: el modal mueve
+     el foco adentro al abrir, Escape lo cierra, el foco vuelve al botón
+     que lo abrió (las tres cosas confirmadas por `document.activeElement`,
+     antes no pasaban ninguna); screenshot de las 5 secciones sin
+     roturas de layout.
 
 ## Tercera ronda (2026-09-01): madurez operativa
 
@@ -1248,16 +1269,15 @@ siendo una sola función grande por sección con bastante estado propio
 threadeado por props desde `App`. Si en algún momento el archivo vuelve a
 sentirse grande, el próximo corte natural sería extraer hooks de datos
 (`useTurnos`, `useMedicos`, etc.) en vez de seguir bajando por componentes.
-Si no, el usuario está retomando por partes los puntos pospuestos de la
-segunda auditoría (punto 9, más arriba) — ya resueltos OpenAPI (PR #43),
-índices de DB (PR #49), Value Objects de Email (PR #50, alcance acordado
-solo Email — DNI/Matrícula quedan como candidato aparte si se quiere
-después), Factory pattern (PR #51, Medico/Paciente) y versionado de API
-(PR #52, `/api/v1/**`). Queda uno solo, ya acordado con el usuario como
-el último de la lista: **accesibilidad de los forms inline** de
-`App.jsx`/las secciones extraídas.
+Si no: **los 6 puntos del punto 9 de la segunda auditoría están todos
+resueltos** — OpenAPI (PR #43), índices de DB (PR #49), Value Objects de
+Email (PR #50, alcance acordado solo Email — DNI/Matrícula quedan como
+candidato aparte si se quiere después), Factory pattern (PR #51,
+Medico/Paciente), versionado de API (PR #52, `/api/v1/**`) y
+accesibilidad de forms (PR #53). Sin pedido pendiente puntual, no hay un
+próximo paso obvio — preguntar al usuario qué sigue.
 
-Aparte, sin arreglar (hallazgo de la PR #52, fuera de su alcance):
-`/v3/api-docs` devuelve 403 pese a que `SecurityConfig` lo permite
-explícitamente — ver detalle en el punto 9 de la segunda auditoría, más
-arriba.
+Único hallazgo suelto sin arreglar (de la PR #52, quedó fuera de su
+alcance a propósito): `/v3/api-docs` devuelve 403 pese a que
+`SecurityConfig` lo permite explícitamente — ver detalle en el punto 9,
+más arriba. Candidato razonable si se quiere una tarea chica y acotada.
