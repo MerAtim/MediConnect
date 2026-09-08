@@ -68,6 +68,28 @@ public class CrearTurnoServiceTest {
         assertThrows(RuntimeException.class, () -> service.crear(requestValido()));
     }
 
+    // MEDIUM de la re-auditoria e2e (2026-09-08): "doble reserva de
+    // paciente sin test/decision" -- mismo mecanismo de deteccion que el
+    // test de arriba, ahora del lado del paciente.
+    @Test
+    public void crearTurno_lanzaExcepcion_siPacienteYaTieneOtroTurnoEnEsaFechaHora() {
+        TurnoRepository repo = Mockito.mock(TurnoRepository.class);
+        MedicoRepository medicoRepo = Mockito.mock(MedicoRepository.class);
+        PacienteRepository pacienteRepo = Mockito.mock(PacienteRepository.class);
+
+        when(medicoRepo.buscarPorId(2L)).thenReturn(Optional.of(new Medico(2L, null, null, null, null, null, null)));
+        when(pacienteRepo.buscarPorId(3L)).thenReturn(Optional.of(new Paciente(3L, null, null, null, null, null, null, null, null)));
+        // El medico esta libre a esa hora, pero el paciente ya tiene otro
+        // turno (con un medico distinto) en esa misma fechaHora.
+        when(repo.buscarPorPaciente(3L)).thenReturn(java.util.List.of(
+                new Turno(10L, LocalDateTime.of(2026, 8, 12, 10, 0), "Dermatología", null, null, null)
+        ));
+
+        CrearTurnoService service = new CrearTurnoService(repo, medicoRepo, pacienteRepo);
+
+        assertThrows(TurnoInvalidoException.class, () -> service.crear(requestValido()));
+    }
+
     @Test
     public void crearTurno_lanzaExcepcion_siMedicoNoExiste() {
         TurnoRepository repo = Mockito.mock(TurnoRepository.class);
