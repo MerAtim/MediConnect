@@ -62,6 +62,9 @@ public class SecurityConfigTest {
     @Autowired
     private TurnoRepository turnoRepository;
 
+    @Autowired
+    private UsuarioRepository usuarioRepository;
+
     @TestConfiguration
     static class TestConfig {
         @Bean
@@ -171,6 +174,31 @@ public class SecurityConfigTest {
     }
 
     @Test
+    public void patchResetearContrasena_requiereRolAdministrador() throws Exception {
+        // CRITICAL de la re-auditoria e2e (2026-09-08): esta regla (solo
+        // ADMINISTRADOR puede resetear la contrasena de OTRO usuario, sin
+        // conocer la actual) no tenia ningun test contra la cadena real de
+        // seguridad -- si se afloja por error, cualquier autenticado podria
+        // tomar control de cualquier cuenta, incluida una de ADMINISTRADOR.
+        Usuario objetivo = usuarioRepository.guardar(
+                new Usuario(null, "Usuario Objetivo", "objetivo.reset.sec@medconnect.com", "hashViejo", UsuarioRole.MEDICO));
+        String url = "/api/v1/usuarios/" + objetivo.getId() + "/contrasena";
+        String body = "{\"contrasenaNueva\":\"nuevaClave123\"}";
+
+        mockMvc.perform(patch(url).contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(patch(url).contentType(MediaType.APPLICATION_JSON).content(body)
+                        .cookie(jwtCookie(UsuarioRole.MEDICO)))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(patch(url).contentType(MediaType.APPLICATION_JSON).content(body)
+                        .cookie(jwtCookie(UsuarioRole.PACIENTE)))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(patch(url).contentType(MediaType.APPLICATION_JSON).content(body)
+                        .cookie(jwtCookie(UsuarioRole.ADMINISTRADOR)))
+                .andExpect(status().isNoContent());
+    }
+
+    @Test
     public void postTurnos_requiereRolAdministrador() throws Exception {
         String body = "{\"fechaHora\":\"2026-09-01T10:00:00\",\"especialidad\":\"Clinica\",\"medicoId\":1,\"pacienteId\":1}";
         mockMvc.perform(post("/api/v1/turnos").contentType(MediaType.APPLICATION_JSON).content(body))
@@ -228,6 +256,30 @@ public class SecurityConfigTest {
         mockMvc.perform(get("/api/v1/historias-clinicas").param("pacienteId", pacienteId)
                         .cookie(jwtCookie(UsuarioRole.MEDICO, medico.getEmail().getValor())))
                 .andExpect(status().isOk());
+    }
+
+    @Test
+    public void postHistoriasClinicas_requiereRolMedico() throws Exception {
+        // CRITICAL de la re-auditoria e2e (2026-09-08): solo la lectura
+        // (GET) de historias clinicas tenia test contra la cadena real de
+        // seguridad; la escritura (POST, contenido de PHI) no tenia ninguno.
+        Medico medico = medicoRepository.guardar(
+                new Medico(null, "Dr Historia Post", "Clinica", "MHPOST-1", null, null, "medico.historia.post.sec@medconnect.com", null));
+        Paciente paciente = pacienteRepository.guardar(new Paciente(null, "Pac Historia Post", "3", null, null, null, null, null, null));
+        turnoRepository.guardar(new Turno(null, LocalDateTime.now(), "Clinica", medico, paciente, TurnoEstado.PENDIENTE));
+        String body = "{\"pacienteId\":" + paciente.getId() + ",\"diagnostico\":\"dx\",\"tratamiento\":\"tx\"}";
+
+        mockMvc.perform(post("/api/v1/historias-clinicas").contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(post("/api/v1/historias-clinicas").contentType(MediaType.APPLICATION_JSON).content(body)
+                        .cookie(jwtCookie(UsuarioRole.ADMINISTRADOR)))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(post("/api/v1/historias-clinicas").contentType(MediaType.APPLICATION_JSON).content(body)
+                        .cookie(jwtCookie(UsuarioRole.PACIENTE)))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(post("/api/v1/historias-clinicas").contentType(MediaType.APPLICATION_JSON).content(body)
+                        .cookie(jwtCookie(UsuarioRole.MEDICO, medico.getEmail().getValor())))
+                .andExpect(status().isCreated());
     }
 
     @Test
