@@ -2,14 +2,16 @@
 
 Este archivo se mantiene actualizado al final de cada sesión de trabajo para que,
 aunque pasen días sin conectarte, se pueda seguir sin releer el proyecto entero.
-Última actualización: **2026-09-08**, tras mergear PR #51
-(`feature/factory-medico-paciente`, ver punto 9 de la segunda auditoría):
-`MedicoFactory`/`PacienteFactory` deduplican la construcción de Medico/
-Paciente entre Crear y Actualizar. Antes, PR #50: `Email` como Value
-Object en el dominio. Antes, PR #49: índices de DB en `paciente_id` de
-`turnos`/`registros_clinicos`. Y antes, PR #48 (ver "Quinta ronda"):
-terminado el corte de las 5 secciones grandes de `App.jsx` en componentes
-propios que había quedado a medias en la PR #34.
+Última actualización: **2026-09-08**, tras mergear PR #52
+(`feature/versionado-api-v1`, ver punto 9 de la segunda auditoría): toda la
+API de negocio pasó de `/api/**` a `/api/v1/**` (actuator/swagger quedan
+sin versionar a propósito). Antes, PR #51: `MedicoFactory`/`PacienteFactory`
+deduplican la construcción de Medico/Paciente entre Crear y Actualizar.
+Antes, PR #50: `Email` como Value Object en el dominio. Antes, PR #49:
+índices de DB en `paciente_id` de `turnos`/`registros_clinicos`. Y antes,
+PR #48 (ver "Quinta ronda"): terminado el corte de las 5 secciones grandes
+de `App.jsx` en componentes propios que había quedado a medias en la
+PR #34.
 
 ## Stack y arquitectura
 
@@ -1023,6 +1025,29 @@ por punto, mismo flujo de siempre. Estado:
      "Actualizar" equivalente), una factory ahí no eliminaría duplicación
      real. Refactor puro: los 4 test files existentes de Crear/
      ActualizarMedico/Paciente pasan sin modificar ni uno.
+   - ~~Versionado de API~~ — resuelto, PR #52 (`feature/versionado-api-v1`):
+     los 6 controllers REST (auth, medicos, pacientes, turnos, usuarios,
+     historias-clinicas) pasan de `/api/**` a `/api/v1/**`, junto con todos
+     los `requestMatchers` de `SecurityConfig`. **`/actuator/**` y Swagger
+     (`/v3/api-docs`, `/swagger-ui/**`) quedan sin versionar a propósito**
+     — son infraestructura/documentación, no la API de negocio. Se
+     actualizaron los tests con rutas hardcodeadas (`*ControllerTest`,
+     `SecurityConfigTest`, `CrearTurnoIntegrationTest`) y el frontend
+     (`config.js`, `App.test.jsx`), más la descripción de `OpenApiConfig` y
+     los ejemplos de curl "vivos" de esta bitácora (no las menciones
+     históricas de `/api/*` de más arriba, que documentan decisiones ya
+     tomadas en su momento — reescribirlas falsearía cuándo se introdujo
+     el versionado). Verificado contra Postgres real: la ruta vieja sin
+     versión da 403 (Spring Security rechaza antes de llegar a "ruta no
+     encontrada" — fail closed), `/api/v1/**` funciona, actuator/swagger-ui
+     sin cambios; frontend real (Playwright) contra ese backend sin
+     errores. **Hallazgo aparte, sin arreglar (fuera de alcance de esta
+     PR)**: `/v3/api-docs` devuelve 403 pese a que `SecurityConfig` lo
+     permite explícitamente en una línea que quedó intacta — parece una
+     regresión de la suba a Spring Boot 3.5.6 (PR #47) en cómo matchea
+     rutas sin segmento final al final del patrón (`/v3/api-docs/**` no
+     matchea `/v3/api-docs` a secas), nadie probó Swagger específicamente
+     en esa PR. `swagger-ui/index.html` carga bien igual.
 
 ## Tercera ronda (2026-09-01): madurez operativa
 
@@ -1227,6 +1252,12 @@ Si no, el usuario está retomando por partes los puntos pospuestos de la
 segunda auditoría (punto 9, más arriba) — ya resueltos OpenAPI (PR #43),
 índices de DB (PR #49), Value Objects de Email (PR #50, alcance acordado
 solo Email — DNI/Matrícula quedan como candidato aparte si se quiere
-después) y Factory pattern (PR #51, Medico/Paciente). Quedan, en este
-orden ya acordado con el usuario: **versionado de API**, después
-**accesibilidad de los forms inline**.
+después), Factory pattern (PR #51, Medico/Paciente) y versionado de API
+(PR #52, `/api/v1/**`). Queda uno solo, ya acordado con el usuario como
+el último de la lista: **accesibilidad de los forms inline** de
+`App.jsx`/las secciones extraídas.
+
+Aparte, sin arreglar (hallazgo de la PR #52, fuera de su alcance):
+`/v3/api-docs` devuelve 403 pese a que `SecurityConfig` lo permite
+explícitamente — ver detalle en el punto 9 de la segunda auditoría, más
+arriba.
