@@ -52,7 +52,7 @@ public class UsuarioController {
     }
 
     private UsuarioResponse toResponse(Usuario usuario) {
-        return new UsuarioResponse(usuario.getId(), usuario.getNombre(), usuario.getEmail(), usuario.getRole().name());
+        return new UsuarioResponse(usuario.getId(), usuario.getNombre(), usuario.getEmail().getValor(), usuario.getRole().name());
     }
 
     @PostMapping

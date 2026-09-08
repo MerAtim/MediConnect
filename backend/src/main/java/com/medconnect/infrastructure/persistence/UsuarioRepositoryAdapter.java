@@ -23,7 +23,7 @@ public class UsuarioRepositoryAdapter implements UsuarioRepository {
         UsuarioEntity entity = new UsuarioEntity(
                 usuario.getId(),
                 usuario.getNombre(),
-                usuario.getEmail(),
+                usuario.getEmail().getValor(),
                 usuario.getContrasena(),
                 usuario.getRole()
         );

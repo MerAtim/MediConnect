@@ -27,7 +27,7 @@ public class MedicoRepositoryAdapter implements MedicoRepository {
                 medico.getMatricula(),
                 medico.getDireccion(),
                 medico.getTelefono(),
-                medico.getEmail()
+                medico.getEmail() != null ? medico.getEmail().getValor() : null
         );
         MedicoEntity guardado = jpaRepository.save(entity);
         medico.setId(guardado.getId());

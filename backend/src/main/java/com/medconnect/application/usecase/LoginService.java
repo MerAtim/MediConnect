@@ -47,6 +47,6 @@ public class LoginService implements LoginUseCase {
         Usuario usuario = usuarioOpt.get();
         log.info("Login exitoso: usuarioId={} email={} role={}", usuario.getId(), usuario.getEmail(), usuario.getRole());
         String token = tokenService.generar(usuario);
-        return new LoginResponse(token, usuario.getId(), usuario.getNombre(), usuario.getEmail(), usuario.getRole());
+        return new LoginResponse(token, usuario.getId(), usuario.getNombre(), usuario.getEmail().getValor(), usuario.getRole());
     }
 }

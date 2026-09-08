@@ -1,6 +1,7 @@
 package com.medconnect.application.usecase;
 
 import com.medconnect.domain.exception.UsuarioInvalidoException;
+import com.medconnect.domain.model.Email;
 import com.medconnect.domain.model.Usuario;
 import com.medconnect.domain.model.UsuarioRole;
 import com.medconnect.domain.port.UsuarioRepository;
@@ -35,7 +36,7 @@ public class RegistrarUsuarioService implements RegistrarUsuarioUseCase {
         if (request.getNombre() == null || request.getNombre().trim().isEmpty()) {
             throw new UsuarioInvalidoException("nombre es obligatorio");
         }
-        if (request.getEmail() == null || !request.getEmail().matches("^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$")) {
+        if (!Email.esFormatoValido(request.getEmail())) {
             throw new UsuarioInvalidoException("email invalido");
         }
         if (request.getContrasena() == null || request.getContrasena().length() < 6) {

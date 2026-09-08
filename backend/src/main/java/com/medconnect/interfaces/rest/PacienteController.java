@@ -117,8 +117,8 @@ public class PacienteController {
     @GetMapping("/emails-vinculados")
     public ResponseEntity<List<EmailVinculadoResponse>> emailsVinculados() {
         List<EmailVinculadoResponse> emails = buscarPacienteUseCase.buscarTodos().stream()
-                .filter(p -> p.getEmail() != null && !p.getEmail().isBlank())
-                .map(p -> new EmailVinculadoResponse(p.getId(), p.getEmail()))
+                .filter(p -> p.getEmail() != null)
+                .map(p -> new EmailVinculadoResponse(p.getId(), p.getEmail().getValor()))
                 .toList();
         return ResponseEntity.ok(emails);
     }
@@ -191,7 +191,7 @@ public class PacienteController {
                 paciente.getObraSocial(),
                 paciente.getNumeroAfiliado(),
                 paciente.getPlan(),
-                paciente.getEmail()
+                paciente.getEmail() != null ? paciente.getEmail().getValor() : null
         );
     }
 }

@@ -24,6 +24,6 @@ public class BuscarUsuarioServiceTest {
         List<Usuario> resultado = service.buscarTodos();
 
         assertEquals(1, resultado.size());
-        assertEquals("ana@medconnect.com", resultado.get(0).getEmail());
+        assertEquals("ana@medconnect.com", resultado.get(0).getEmail().getValor());
     }
 }

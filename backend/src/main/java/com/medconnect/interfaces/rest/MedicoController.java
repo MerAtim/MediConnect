@@ -83,8 +83,8 @@ public class MedicoController {
     @GetMapping("/emails-vinculados")
     public ResponseEntity<List<EmailVinculadoResponse>> emailsVinculados() {
         List<EmailVinculadoResponse> emails = buscarMedicoUseCase.buscarTodos().stream()
-                .filter(m -> m.getEmail() != null && !m.getEmail().isBlank())
-                .map(m -> new EmailVinculadoResponse(m.getId(), m.getEmail()))
+                .filter(m -> m.getEmail() != null)
+                .map(m -> new EmailVinculadoResponse(m.getId(), m.getEmail().getValor()))
                 .toList();
         return ResponseEntity.ok(emails);
     }
@@ -131,7 +131,7 @@ public class MedicoController {
                 medico.getMatricula(),
                 medico.getDireccion(),
                 medico.getTelefono(),
-                medico.getEmail()
+                medico.getEmail() != null ? medico.getEmail().getValor() : null
         );
     }
 }

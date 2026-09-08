@@ -10,7 +10,7 @@ public class Paciente {
     private String obraSocial;
     private String numeroAfiliado;
     private String plan;
-    private String email;
+    private Email email;
 
     public Paciente(Long id, String nombre, String dni, String telefono, String direccion, String obraSocial, String numeroAfiliado, String plan, String email) {
         this.id = id;
@@ -21,7 +21,7 @@ public class Paciente {
         this.obraSocial = obraSocial;
         this.numeroAfiliado = numeroAfiliado;
         this.plan = plan;
-        this.email = email;
+        this.email = Email.deNullable(email);
     }
 
     public Long getId() {
@@ -88,12 +88,12 @@ public class Paciente {
         this.plan = plan;
     }
 
-    public String getEmail() {
+    public Email getEmail() {
         return email;
     }
 
     public void setEmail(String email) {
-        this.email = email;
+        this.email = Email.deNullable(email);
     }
 
     @Override

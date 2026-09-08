@@ -95,4 +95,17 @@ public class CrearMedicoServiceTest {
         assertEquals(2L, resp.getId());
         Mockito.verify(repo, Mockito.never()).buscarPorEmail(any());
     }
+
+    @Test
+    public void crearMedico_lanzaExcepcion_siElEmailTieneFormatoInvalido() {
+        MedicoRepository repo = Mockito.mock(MedicoRepository.class);
+        CrearMedicoService service = new CrearMedicoService(repo);
+
+        CreateMedicoRequest req = new CreateMedicoRequest(
+                "Ana Pérez", "Cardiología", "MP1234", null, null, "no-es-un-email"
+        );
+
+        assertThrows(MedicoInvalidoException.class, () -> service.crear(req));
+        Mockito.verify(repo, Mockito.never()).buscarPorEmail(any());
+    }
 }
