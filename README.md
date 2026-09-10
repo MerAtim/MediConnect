@@ -11,18 +11,20 @@
 <br>
 
 ## Qué hace hoy
-- Turnos: alta (solo Administrador), listado paginado y filtrable, cambio de estado (confirmar/cancelar) con reglas por rol.
-- Médicos y Pacientes: alta/edición/baja (Administrador), directorios acotados por rol — un Médico solo ve a sus propios pacientes.
-- Historia clínica: registros por paciente (Médico) y exportación a texto descargable (Administrador).
+- Turnos: alta (solo Administrador), listado paginado y filtrable, cambio de estado (confirmar/cancelar) con reglas por rol. Sin superposición: ni el médico ni el paciente pueden tener dos turnos en la misma fecha y hora.
+- Médicos y Pacientes: alta/edición/baja (Administrador), directorios acotados por rol — un Médico solo ve a sus propios pacientes. No se puede dar de baja a quien tenga turnos futuros activos.
+- Historia clínica: registros por paciente (Médico) y exportación a texto descargable (Administrador). Solo se habilita con un turno ya ocurrido y no cancelado, y el contenido se guarda cifrado at-rest (AES-256-GCM).
 - Cuentas de acceso separadas de las fichas de Médico/Paciente, con vinculación por email (un email = un médico/paciente, forzado a nivel de base).
-- Autenticación con JWT y autorización por rol en cada endpoint.
+- Autenticación con JWT en cookie httpOnly y autorización por rol en cada endpoint. Cerrar sesión o cambiar la contraseña revoca los tokens ya emitidos.
+- API REST versionada bajo `/api/v1`, documentada con Swagger UI.
+- Health checks con Spring Boot Actuator y despliegue completo con Docker Compose.
 
 No es un proyecto terminado: es una app que se sigue construyendo de forma incremental (ver `CONTINUE_HERE.md` para el detalle de qué se implementó en cada etapa y qué queda pendiente).
 
 ## Stack
-- **Backend**: Java 25 + Spring Boot 3.2, arquitectura hexagonal (dominio / casos de uso / infraestructura / adaptadores REST), PostgreSQL vía JPA.
-- **Frontend**: React 18 + Vite, JavaScript (no TypeScript), Tailwind CSS.
-- **Tests**: JUnit + Mockito en el backend, Vitest + React Testing Library en el frontend. CI en GitHub Actions corre ambos en cada push/PR a `main`/`develop`.
+- **Backend**: Java 25 + Spring Boot 3.5, arquitectura hexagonal (dominio / casos de uso / infraestructura / adaptadores REST) con Value Objects en el dominio, PostgreSQL vía JPA con migraciones Flyway.
+- **Frontend**: React 18 + Vite, JavaScript (no TypeScript), Tailwind CSS, organizado en componentes por sección y hooks de datos.
+- **Tests**: más de 260 en el backend (JUnit + Mockito, e integración con Testcontainers contra PostgreSQL real), Vitest + React Testing Library en el frontend. CI en GitHub Actions corre ambos en cada push/PR a `main`/`develop`.
 
 ## Estructura del proyecto
 - `backend/` - dominio, casos de uso, infraestructura y adaptadores REST.
