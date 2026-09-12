@@ -12,7 +12,7 @@
 
 ## Qué hace hoy
 - Turnos: alta (solo Administrador), listado paginado y filtrable, cambio de estado (confirmar/cancelar) con reglas por rol. Sin superposición: ni el médico ni el paciente pueden tener dos turnos en la misma fecha y hora.
-- Médicos y Pacientes: alta/edición/baja (Administrador), directorios acotados por rol — un Médico solo ve a sus propios pacientes. No se puede dar de baja a quien tenga turnos futuros activos.
+- Médicos y Pacientes: alta/edición/baja (Administrador), directorios acotados por rol: un Médico solo ve a sus propios pacientes. No se puede dar de baja a quien tenga turnos futuros activos.
 - Historia clínica: registros por paciente (Médico) y exportación a texto descargable (Administrador). Solo se habilita con un turno ya ocurrido y no cancelado, y el contenido se guarda cifrado at-rest (AES-256-GCM).
 - Cuentas de acceso separadas de las fichas de Médico/Paciente, con vinculación por email (un email = un médico/paciente, forzado a nivel de base).
 - Autenticación con JWT en cookie httpOnly y autorización por rol en cada endpoint. Cerrar sesión o cambiar la contraseña revoca los tokens ya emitidos.
@@ -52,16 +52,16 @@ Ejemplos en español:
 - `refactor: separar casos de uso de dominio`
 
 ## Instalación y ejecución
-### Con Docker Compose (recomendado — levanta todo con un comando)
+### Con Docker Compose (recomendado: levanta todo con un comando)
 1. Copiar `.env.example` a `.env` y completar `DB_PASSWORD`, `JWT_SECRET` y
    `ENCRYPTION_KEY` (generar los dos últimos con `openssl rand -base64 48`
-   y `openssl rand -base64 32` respectivamente — no reutilizar ningún
+   y `openssl rand -base64 32` respectivamente; no reutilizar ningún
    valor de ejemplo).
 2. `docker compose up --build`
 3. Backend en `http://localhost:8080` (o el puerto que hayas puesto en
    `BACKEND_PORT`), frontend en `http://localhost:80`. Postgres corre
-   dentro de la red de compose, con su propio volumen (`postgres_data`) —
-   no hace falta tener Postgres instalado en el host.
+   dentro de la red de compose, con su propio volumen (`postgres_data`).
+   No hace falta tener Postgres instalado en el host.
 
 Cada servicio expone healthcheck propio (`docker compose ps` muestra
 `healthy`/`unhealthy`); el backend no arranca hasta que Postgres esté
@@ -71,14 +71,14 @@ backend responda `UP` en `/actuator/health`.
 ### Sin Docker (desarrollo día a día)
 #### Backend
 Necesita PostgreSQL corriendo (por defecto en `localhost:5432`, DB `medconnect`,
-user `postgres`) — ver `spring.datasource.*` en
+user `postgres`). Ver `spring.datasource.*` en
 `backend/src/main/resources/application.properties` para los defaults y las
 env vars que los overridean.
 1. Ir a `backend/`
 2. Ejecutar `DB_PASSWORD=<tu-password> ./mvnw spring-boot:run` (Windows:
    `./mvnw.cmd spring-boot:run`, o `$env:DB_PASSWORD='...'` en PowerShell)
 3. Documentación interactiva de la API (Swagger UI) en
-   `http://localhost:8080/swagger-ui.html` — para probar un endpoint
+   `http://localhost:8080/swagger-ui.html`. Para probar un endpoint
    protegido con "Try it out" hay que estar logueado en la app desde el
    mismo navegador (el JWT viaja en una cookie httpOnly, no hay forma de
    pegarlo a mano en Swagger).
