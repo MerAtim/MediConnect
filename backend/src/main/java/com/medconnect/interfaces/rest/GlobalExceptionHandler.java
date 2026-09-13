@@ -74,4 +74,18 @@ public class GlobalExceptionHandler {
         log.warn("Argumento invalido (posible dato corrupto en la base): {}", ex.getMessage());
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex.getMessage());
     }
+
+    // Mismo tipo de red de seguridad que el handler de arriba, pero para
+    // AesGcmFieldEncryptor.desencriptar(): un registro clinico ya persistido
+    // cuyo campo cifrado esta corrupto, truncado, o fue cifrado con una
+    // clave distinta a la actual (ENCRYPTION_KEY rotada) tira
+    // IllegalStateException. Sin este handler, un simple GET sobre esa fila
+    // devolvia un 500 crudo sin loguear; ademas no es culpa del request del
+    // cliente sino un problema de datos/configuracion del lado del
+    // servidor, por eso se loguea como ERROR (no WARN) y no como 400.
+    @ExceptionHandler(IllegalStateException.class)
+    public ResponseEntity<String> handleIllegalState(IllegalStateException ex) {
+        log.error("Estado invalido (posible dato cifrado corrupto o clave incorrecta): {}", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(ex.getMessage());
+    }
 }
