@@ -22,6 +22,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
@@ -43,12 +44,19 @@ public class UsuarioController {
         this.actualizarContrasenaUseCase = actualizarContrasenaUseCase;
     }
 
+    // LOW de la re-auditoria e2e (2026-09-08, segunda ronda): "useUsuarios
+    // sin paginacion/loading, inconsistente con el resto de secciones" --
+    // este endpoint devolvia la lista completa sin paginar, a diferencia de
+    // /medicos, /pacientes y /turnos. Mismo patron (PageResponse en memoria)
+    // que esos tres usan hoy.
     @GetMapping
-    public ResponseEntity<List<UsuarioResponse>> buscarTodos() {
+    public ResponseEntity<PageResponse<UsuarioResponse>> buscarTodos(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
         List<UsuarioResponse> usuarios = buscarUsuarioUseCase.buscarTodos().stream()
                 .map(this::toResponse)
                 .toList();
-        return ResponseEntity.ok(usuarios);
+        return ResponseEntity.ok(PageResponse.of(usuarios, page, size));
     }
 
     private UsuarioResponse toResponse(Usuario usuario) {

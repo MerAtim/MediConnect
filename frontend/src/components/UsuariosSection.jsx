@@ -1,7 +1,12 @@
 import React from 'react'
+import Paginacion from './Paginacion.jsx'
+import SkeletonRows from './SkeletonRows.jsx'
 import UsuarioForm from './UsuarioForm.jsx'
 
-export default function UsuariosSection({usuarios, notify, onGuardado, onResetearClick}){
+export default function UsuariosSection({
+  usuarios, usuariosLoading, notify, onGuardado, onResetearClick,
+  paginaUsuarios, totalPaginasUsuarios, onIrAPagina
+}){
   return (
     <section className="card">
       <h2 className="heading mb-4">Usuarios</h2>
@@ -20,28 +25,35 @@ export default function UsuariosSection({usuarios, notify, onGuardado, onResetea
             </tr>
           </thead>
           <tbody className="divide-y divide-neutral-100">
-            {usuarios.map(u => (
-              <tr key={u.id} className="hover:bg-paper-100/60">
-                <td className="px-4 py-2 text-neutral-900">{u.nombre}</td>
-                <td className="px-4 py-2 text-neutral-900">{u.email}</td>
-                <td className="px-4 py-2 text-neutral-900">{u.role}</td>
-                <td className="px-4 py-2">
-                  <button type="button" onClick={() => onResetearClick(u)} className="btn-secondary !px-2 !py-1 text-xs">
-                    Resetear contraseña
-                  </button>
-                </td>
-              </tr>
-            ))}
-            {usuarios.length === 0 && (
-              <tr>
-                <td colSpan={4} className="px-4 py-6 text-center text-neutral-400">
-                  Sin cuentas registradas.
-                </td>
-              </tr>
+            {usuariosLoading && usuarios.length === 0 ? (
+              <SkeletonRows columns={4} />
+            ) : (
+              <>
+                {usuarios.map(u => (
+                  <tr key={u.id} className="hover:bg-paper-100/60">
+                    <td className="px-4 py-2 text-neutral-900">{u.nombre}</td>
+                    <td className="px-4 py-2 text-neutral-900">{u.email}</td>
+                    <td className="px-4 py-2 text-neutral-900">{u.role}</td>
+                    <td className="px-4 py-2">
+                      <button type="button" onClick={() => onResetearClick(u)} className="btn-secondary !px-2 !py-1 text-xs">
+                        Resetear contraseña
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+                {usuarios.length === 0 && (
+                  <tr>
+                    <td colSpan={4} className="px-4 py-6 text-center text-neutral-400">
+                      Sin cuentas registradas.
+                    </td>
+                  </tr>
+                )}
+              </>
             )}
           </tbody>
         </table>
       </div>
+      <Paginacion pagina={paginaUsuarios} totalPaginas={totalPaginasUsuarios} loading={usuariosLoading} onIrAPagina={onIrAPagina} />
     </section>
   )
 }
