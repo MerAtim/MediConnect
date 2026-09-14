@@ -1,7 +1,26 @@
 import {useRef, useState} from 'react'
 import {MEDICOS_API, PACIENTES_API, TURNOS_API} from './config.js'
 import {apiFetch} from './apiClient.js'
-import {readErrorMessage} from './utils.js'
+import {formatFechaHora, readErrorMessage} from './utils.js'
+
+// LOW de la re-auditoria e2e (2026-09-08, segunda ronda): el default estaba
+// hardcodeado a una fecha fija ("2026-08-12T10:00:00", ya vencida hoy) --
+// valor en el pasado desde el primer render, que ademas CrearTurnoService
+// rechaza desde que valida fechaHora futura. "dentro de una hora" siempre
+// es un default valido sin importar cuando se abra el formulario.
+function fechaHoraPorDefecto(){
+  const enUnaHora = new Date(Date.now() + 60 * 60 * 1000)
+  const pad = n => String(n).padStart(2, '0')
+  return `${enUnaHora.getFullYear()}-${pad(enUnaHora.getMonth() + 1)}-${pad(enUnaHora.getDate())}T${pad(enUnaHora.getHours())}:${pad(enUnaHora.getMinutes())}`
+}
+
+// El valor nativo de <input type="datetime-local"> viene sin segundos
+// ("yyyy-MM-ddTHH:mm"), pero el backend deserializa fechaHora como
+// java.time.LocalDateTime vía Jackson, que exige el componente de segundos
+// explícito -- sin esto, el POST fallaba (ver nota en handleSubmit).
+function conSegundos(fechaHoraLocal){
+  return fechaHoraLocal.length === 16 ? `${fechaHoraLocal}:00` : fechaHoraLocal
+}
 
 // Flujo completo de "Otorgar turno" (solo ADMINISTRADOR): buscar paciente
 // por DNI, elegir especialidad -> médico, crear el turno. cargarTurnos
@@ -10,7 +29,7 @@ export function useOtorgarTurno(notify, cargarTurnos){
   const [dniBusqueda, setDniBusqueda] = useState('')
   const [pacienteEncontrado, setPacienteEncontrado] = useState(null)
 
-  const [fechaHora, setFechaHora] = useState('2026-08-12T10:00:00')
+  const [fechaHora, setFechaHora] = useState(fechaHoraPorDefecto)
   const [especialidad, setEspecialidad] = useState('')
   const [medicoId, setMedicoId] = useState('')
   const [preparacion, setPreparacion] = useState('')
@@ -83,12 +102,12 @@ export function useOtorgarTurno(notify, cargarTurnos){
         method: 'POST',
         headers: {'Content-Type':'application/json'},
         body: JSON.stringify({
-          fechaHora, especialidad, medicoId: Number(medicoId), pacienteId: pacienteEncontrado.id, preparacion
+          fechaHora: conSegundos(fechaHora), especialidad, medicoId: Number(medicoId), pacienteId: pacienteEncontrado.id, preparacion
         })
       })
       if(!resp.ok) throw new Error(await readErrorMessage(resp))
       await resp.json()
-      notify(`Turno creado para ${pacienteEncontrado.nombre} el ${fechaHora}.`, 'success')
+      notify(`Turno creado para ${pacienteEncontrado.nombre} el ${formatFechaHora(fechaHora)}.`, 'success')
       setEspecialidad('')
       setMedicoId('')
       setPreparacion('')
