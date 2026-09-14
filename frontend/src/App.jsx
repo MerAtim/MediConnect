@@ -1,5 +1,6 @@
 import React, {useEffect, useState} from 'react'
 import {setSessionExpiredHandler} from './apiClient.js'
+import {formatFechaHora} from './utils.js'
 import {useToasts} from './useToasts.js'
 import {useAuth} from './useAuth.js'
 import {useMedicos} from './useMedicos.js'
@@ -63,6 +64,18 @@ export default function App(){
   const [mostrarCambiarPropia, setMostrarCambiarPropia] = useState(false)
   const [usuarioAResetear, setUsuarioAResetear] = useState(null)
 
+  // LOW de la re-auditoria e2e (2026-09-08, segunda ronda): "hoy" (usado en
+  // el bloque "Turnos para hoy" del medico) se recalculaba en el cuerpo del
+  // render -- correcto mientras hay renders, pero si la sesion queda
+  // abierta sin ninguna interaccion cruzando la medianoche seguia
+  // mostrando la fecha del dia anterior. Un tick cada minuto fuerza un
+  // re-render que lo recalcula.
+  const [ahora, setAhora] = useState(() => new Date())
+  useEffect(() => {
+    const id = setInterval(() => setAhora(new Date()), 60_000)
+    return () => clearInterval(id)
+  }, [])
+
   useEffect(() => {
     if(!auth) return
     if(auth.role === 'ADMINISTRADOR') {
@@ -91,7 +104,7 @@ export default function App(){
   const esMedico = auth.role === 'MEDICO'
   const esPaciente = auth.role === 'PACIENTE'
   const puedeGestionarTurnos = esAdmin || esMedico
-  const hoy = new Date().toLocaleDateString('es-AR', {day: '2-digit', month: '2-digit', year: 'numeric'})
+  const hoy = ahora.toLocaleDateString('es-AR', {day: '2-digit', month: '2-digit', year: 'numeric'})
 
   const emailsMedicosOcupados = new Set(
     medicosHook.medicosVinculados.filter(m => m.id !== medicosHook.editingMedico?.id).map(m => m.email).filter(Boolean)
@@ -109,7 +122,7 @@ export default function App(){
       <ConfirmModal
         open={turnosHook.pasoCancelacion === 1}
         title="Cancelar turno"
-        message={turnosHook.turnoACancelar ? `¿Seguro que querés cancelar el turno del ${turnosHook.turnoACancelar.fechaHora}?` : ''}
+        message={turnosHook.turnoACancelar ? `¿Seguro que querés cancelar el turno del ${formatFechaHora(turnosHook.turnoACancelar.fechaHora)}?` : ''}
         confirmLabel="Sí, cancelar"
         cancelLabel="No, mantener el turno"
         onConfirm={turnosHook.confirmarPrimerPaso}
