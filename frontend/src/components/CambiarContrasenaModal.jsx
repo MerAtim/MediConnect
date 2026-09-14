@@ -48,9 +48,9 @@ export default function CambiarContrasenaModal({open, modo, usuarioObjetivo, not
         </h3>
         <form onSubmit={handleSubmit} className="space-y-4">
           {modo === 'propia' && (
-            <FloatingInput label="Contraseña actual" type="password" value={contrasenaActual} onChange={e=>setContrasenaActual(e.target.value)} required />
+            <FloatingInput label="Contraseña actual" type="password" value={contrasenaActual} onChange={e=>setContrasenaActual(e.target.value)} required autoComplete="current-password" />
           )}
-          <FloatingInput label="Contraseña nueva (mín. 6 caracteres)" type="password" value={contrasenaNueva} onChange={e=>setContrasenaNueva(e.target.value)} required />
+          <FloatingInput label="Contraseña nueva (mín. 6 caracteres)" type="password" value={contrasenaNueva} onChange={e=>setContrasenaNueva(e.target.value)} required autoComplete="new-password" />
           <div className="flex justify-end gap-3">
             <button type="button" onClick={onClose} className="btn-secondary">Cancelar</button>
             <button type="submit" disabled={loading} className="btn-primary">

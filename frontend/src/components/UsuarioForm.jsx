@@ -27,9 +27,9 @@ export default function UsuarioForm({notify, onGuardado}){
 
   return (
     <form onSubmit={handleSubmit} className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-      <FloatingInput label="Nombre" value={nombre} onChange={e=>setNombre(e.target.value)} required />
-      <FloatingInput label="Email" type="email" value={email} onChange={e=>setEmail(e.target.value)} required />
-      <FloatingInput label="Contraseña (mín. 6 caracteres)" type="password" value={contrasena} onChange={e=>setContrasena(e.target.value)} required />
+      <FloatingInput label="Nombre" value={nombre} onChange={e=>setNombre(e.target.value)} required autoComplete="name" />
+      <FloatingInput label="Email" type="email" value={email} onChange={e=>setEmail(e.target.value)} required autoComplete="email" />
+      <FloatingInput label="Contraseña (mín. 6 caracteres)" type="password" value={contrasena} onChange={e=>setContrasena(e.target.value)} required autoComplete="new-password" />
       <label className="block">
         <span className="label">Rol</span>
         <select className="input-field" value={role} onChange={e=>setRole(e.target.value)}>

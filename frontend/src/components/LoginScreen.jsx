@@ -64,17 +64,17 @@ export default function LoginScreen({onLoginExitoso, notify}){
 
         {modo === 'login' ? (
           <form onSubmit={handleLogin} className="space-y-4">
-            <FloatingInput label="Email" type="email" value={email} onChange={e=>setEmail(e.target.value)} required />
-            <FloatingInput label="Contraseña" type="password" value={contrasena} onChange={e=>setContrasena(e.target.value)} required />
+            <FloatingInput label="Email" type="email" value={email} onChange={e=>setEmail(e.target.value)} required autoComplete="username" />
+            <FloatingInput label="Contraseña" type="password" value={contrasena} onChange={e=>setContrasena(e.target.value)} required autoComplete="current-password" />
             <button type="submit" disabled={loading} className="btn-primary w-full">
               {loading ? 'Ingresando…' : 'Ingresar'}
             </button>
           </form>
         ) : (
           <form onSubmit={handleRegistro} className="space-y-4">
-            <FloatingInput label="Nombre" value={nombre} onChange={e=>setNombre(e.target.value)} required />
-            <FloatingInput label="Email" type="email" value={email} onChange={e=>setEmail(e.target.value)} required />
-            <FloatingInput label="Contraseña (mín. 6 caracteres)" type="password" value={contrasena} onChange={e=>setContrasena(e.target.value)} required />
+            <FloatingInput label="Nombre" value={nombre} onChange={e=>setNombre(e.target.value)} required autoComplete="name" />
+            <FloatingInput label="Email" type="email" value={email} onChange={e=>setEmail(e.target.value)} required autoComplete="email" />
+            <FloatingInput label="Contraseña (mín. 6 caracteres)" type="password" value={contrasena} onChange={e=>setContrasena(e.target.value)} required autoComplete="new-password" />
             <button type="submit" disabled={loading} className="btn-primary w-full">
               {loading ? 'Creando cuenta…' : 'Crear cuenta'}
             </button>
