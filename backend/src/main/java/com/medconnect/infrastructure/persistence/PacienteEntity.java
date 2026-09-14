@@ -15,6 +15,7 @@ public class PacienteEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(nullable = false)
     private String nombre;
     private String dni;
     private String telefono;
@@ -23,6 +24,9 @@ public class PacienteEntity {
     private String numeroAfiliado;
     private String plan;
 
+    // Nullable a proposito: un Paciente puede existir sin cuenta de acceso
+    // vinculada (decision explicita de HIGH #8 de la re-auditoria e2e --
+    // Usuario y Medico/Paciente estan desacoplados). Ver V4__not_null_nombre_y_email_obligatorios.sql.
     @Column(unique = true)
     private String email;
 

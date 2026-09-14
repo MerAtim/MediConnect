@@ -15,12 +15,16 @@ public class MedicoEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(nullable = false)
     private String nombre;
     private String especialidad;
     private String matricula;
     private String direccion;
     private String telefono;
 
+    // Nullable a proposito: un Medico puede existir sin cuenta de acceso
+    // vinculada (decision explicita de HIGH #8 de la re-auditoria e2e --
+    // Usuario y Medico/Paciente estan desacoplados). Ver V4__not_null_nombre_y_email_obligatorios.sql.
     @Column(unique = true)
     private String email;
 
