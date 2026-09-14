@@ -31,7 +31,7 @@ export default function OtorgarTurnoSection({
         <form onSubmit={onSubmit} className="space-y-4">
           <div>
             <label className="label" htmlFor="otorgar-turno-fecha-hora">Fecha y hora</label>
-            <input id="otorgar-turno-fecha-hora" className="input-field" value={fechaHora} onChange={e=>onFechaHoraChange(e.target.value)} />
+            <input id="otorgar-turno-fecha-hora" type="datetime-local" className="input-field" value={fechaHora} onChange={e=>onFechaHoraChange(e.target.value)} />
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
