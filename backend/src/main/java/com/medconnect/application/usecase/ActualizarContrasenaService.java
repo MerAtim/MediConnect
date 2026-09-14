@@ -58,8 +58,7 @@ public class ActualizarContrasenaService implements ActualizarContrasenaUseCase 
     }
 
     private void validarNueva(String contrasenaNueva) {
-        if (contrasenaNueva == null || contrasenaNueva.length() < 6) {
-            throw new UsuarioInvalidoException("contrasena debe tener al menos 6 caracteres");
-        }
+        ValidacionContrasena.validar(contrasenaNueva,
+                () -> new UsuarioInvalidoException("contrasena debe tener al menos 6 caracteres"));
     }
 }
