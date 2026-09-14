@@ -56,10 +56,16 @@ public class Usuario {
         this.role = role;
     }
 
+    // LOW de la re-auditoria e2e (2026-09-08, segunda ronda): toString()
+    // incluia el hash bcrypt de la contrasena en texto plano. Nada del
+    // codigo actual llama a Usuario.toString() en un log (se verifico con
+    // grep), pero es un riesgo latente: cualquier futuro log.debug("{}",
+    // usuario), mensaje de excepcion que interpole el objeto, o volcado en
+    // un debugger expondria el hash.
     @Override
     public String toString() {
-        return "Usuario: id: " + id + ", nombre: " + nombre + ", email: " + email + ", contrasena: " + contrasena
+        return "Usuario: id: " + id + ", nombre: " + nombre + ", email: " + email + ", contrasena: ***"
                 + ", role: " + role;
     }
-    
+
 }

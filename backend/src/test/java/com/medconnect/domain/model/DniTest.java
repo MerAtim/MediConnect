@@ -37,6 +37,24 @@ public class DniTest {
         assertThrows(IllegalArgumentException.class, () -> new Dni(null));
     }
 
+    // LOW de la re-auditoria e2e (2026-09-08, segunda ronda): el regex
+    // original aceptaba cualquier cantidad de digitos sin limite.
+    @Test
+    public void constructor_aceptaSieteDigitos() {
+        Dni dni = new Dni("3011122");
+        assertEquals("3011122", dni.getValor());
+    }
+
+    @Test
+    public void constructor_lanzaExcepcion_siTieneMenosDeSieteDigitos() {
+        assertThrows(IllegalArgumentException.class, () -> new Dni("123456"));
+    }
+
+    @Test
+    public void constructor_lanzaExcepcion_siTieneMasDeOchoDigitos() {
+        assertThrows(IllegalArgumentException.class, () -> new Dni("123456789"));
+    }
+
     @Test
     public void esFormatoValido_noLanza_soloInforma() {
         assertTrue(Dni.esFormatoValido("30111222"));

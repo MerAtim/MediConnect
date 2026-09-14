@@ -364,7 +364,7 @@ public class SecurityConfigTest {
         // sembramos un turno real para que "no rechazado por autorizacion"
         // pruebe el camino completo, no solo la regla de SecurityConfig.
         Medico medico = medicoRepository.guardar(new Medico(null, "Dr Turno", "Clinica", "MTUR-1", null, null, "medico.turno.sec@medconnect.com"));
-        Paciente paciente = pacienteRepository.guardar(new Paciente(null, "Pac Turno", "1", null, null, null, null, null, "paciente.turno.sec@medconnect.com"));
+        Paciente paciente = pacienteRepository.guardar(new Paciente(null, "Pac Turno", "40111003", null, null, null, null, null, "paciente.turno.sec@medconnect.com"));
         Turno turno = turnoRepository.guardar(new Turno(null, LocalDateTime.now(), "Clinica", medico, paciente, TurnoEstado.PENDIENTE));
         String url = "/api/v1/turnos/" + turno.getId() + "/estado";
 
@@ -388,7 +388,7 @@ public class SecurityConfigTest {
         // este test pruebe el camino completo (rol + pertenencia), no solo
         // que la regla de rol no lo bloquee.
         Medico medico = medicoRepository.guardar(new Medico(null, "Dr Historia", "Clinica", "MHIST-1", null, null, "medico.historia.sec@medconnect.com"));
-        Paciente paciente = pacienteRepository.guardar(new Paciente(null, "Pac Historia", "2", null, null, null, null, null, null));
+        Paciente paciente = pacienteRepository.guardar(new Paciente(null, "Pac Historia", "40111004", null, null, null, null, null, null));
         turnoRepository.guardar(new Turno(null, LocalDateTime.now(), "Clinica", medico, paciente, TurnoEstado.PENDIENTE));
         String pacienteId = String.valueOf(paciente.getId());
 
@@ -412,7 +412,7 @@ public class SecurityConfigTest {
         // seguridad; la escritura (POST, contenido de PHI) no tenia ninguno.
         Medico medico = medicoRepository.guardar(
                 new Medico(null, "Dr Historia Post", "Clinica", "MHPOST-1", null, null, "medico.historia.post.sec@medconnect.com"));
-        Paciente paciente = pacienteRepository.guardar(new Paciente(null, "Pac Historia Post", "3", null, null, null, null, null, null));
+        Paciente paciente = pacienteRepository.guardar(new Paciente(null, "Pac Historia Post", "40111005", null, null, null, null, null, null));
         turnoRepository.guardar(new Turno(null, LocalDateTime.now(), "Clinica", medico, paciente, TurnoEstado.PENDIENTE));
         String body = "{\"pacienteId\":" + paciente.getId() + ",\"diagnostico\":\"dx\",\"tratamiento\":\"tx\"}";
 
