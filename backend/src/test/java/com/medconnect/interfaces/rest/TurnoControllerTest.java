@@ -27,6 +27,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 public class TurnoControllerTest {
@@ -201,12 +202,12 @@ public class TurnoControllerTest {
 
         mockMvc.perform(get("/api/v1/turnos").param("page", "1").param("size", "10"))
                 .andExpect(status().isOk())
-                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$.content.length()").value(10))
-                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$.content[0].id").value(11))
-                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$.page").value(1))
-                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$.size").value(10))
-                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$.totalElements").value(25))
-                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$.totalPages").value(3));
+                .andExpect(jsonPath("$.content.length()").value(10))
+                .andExpect(jsonPath("$.content[0].id").value(11))
+                .andExpect(jsonPath("$.page").value(1))
+                .andExpect(jsonPath("$.size").value(10))
+                .andExpect(jsonPath("$.totalElements").value(25))
+                .andExpect(jsonPath("$.totalPages").value(3));
     }
 
     @Test
@@ -227,9 +228,9 @@ public class TurnoControllerTest {
 
         mockMvc.perform(get("/api/v1/turnos"))
                 .andExpect(status().isOk())
-                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$.content[0].medicoNombre").value("Dr A"))
-                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$.content[1].medicoNombre").value("Dr B"))
-                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$.content[0].pacienteNombre").value("Juan Gómez"));
+                .andExpect(jsonPath("$.content[0].medicoNombre").value("Dr A"))
+                .andExpect(jsonPath("$.content[1].medicoNombre").value("Dr B"))
+                .andExpect(jsonPath("$.content[0].pacienteNombre").value("Juan Gómez"));
 
         Mockito.verify(buscarMedicoUseCase, Mockito.times(1)).buscarPorIds(any());
         Mockito.verify(buscarPacienteUseCase, Mockito.times(1)).buscarPorIds(any());
