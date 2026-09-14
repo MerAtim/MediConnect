@@ -116,7 +116,11 @@ public class RegistroClinicoController {
                     List<RegistroClinico> registros = buscarRegistroClinicoUseCase.buscarPorPaciente(pacienteId);
                     byte[] contenido = formatearDocumento(paciente, registros).getBytes(StandardCharsets.UTF_8);
                     return ResponseEntity.ok()
-                            .contentType(MediaType.TEXT_PLAIN)
+                            // LOW de la re-auditoria e2e (2026-09-08, segunda ronda):
+                            // MediaType.TEXT_PLAIN no declara charset, pero el cuerpo se
+                            // genera con UTF_8 y contiene tildes -- sin el charset explicito
+                            // algun cliente podria asumir otra codificacion por defecto.
+                            .contentType(new MediaType(MediaType.TEXT_PLAIN, StandardCharsets.UTF_8))
                             .header(HttpHeaders.CONTENT_DISPOSITION,
                                     ContentDisposition.attachment()
                                             .filename("historia-clinica-paciente-" + pacienteId + ".txt", StandardCharsets.UTF_8)

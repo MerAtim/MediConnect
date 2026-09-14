@@ -230,6 +230,11 @@ public class RegistroClinicoControllerTest {
         mockMvc.perform(get("/api/v1/historias-clinicas/exportar").param("pacienteId", "3"))
                 .andExpect(status().isOk())
                 .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.header()
-                        .string("Content-Disposition", org.hamcrest.Matchers.containsString("attachment")));
+                        .string("Content-Disposition", org.hamcrest.Matchers.containsString("attachment")))
+                // LOW de la re-auditoria e2e (2026-09-08, segunda ronda): el cuerpo se
+                // genera en UTF-8 y contiene tildes -- el Content-Type debe declarar
+                // el charset explicitamente en vez de dejarlo implicito.
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.content()
+                        .contentType("text/plain;charset=UTF-8"));
     }
 }
