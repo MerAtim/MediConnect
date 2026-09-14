@@ -39,9 +39,8 @@ public class RegistrarUsuarioService implements RegistrarUsuarioUseCase {
         if (!Email.esFormatoValido(request.getEmail())) {
             throw new UsuarioInvalidoException("email invalido");
         }
-        if (request.getContrasena() == null || request.getContrasena().length() < 6) {
-            throw new UsuarioInvalidoException("contrasena debe tener al menos 6 caracteres");
-        }
+        ValidacionContrasena.validar(request.getContrasena(),
+                () -> new UsuarioInvalidoException("contrasena debe tener al menos 6 caracteres"));
         if (request.getRole() == null) {
             throw new UsuarioInvalidoException("role es obligatorio");
         }
