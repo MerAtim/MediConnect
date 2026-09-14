@@ -25,4 +25,19 @@ public class GlobalExceptionHandlerTest {
         assertEquals(HttpStatus.BAD_REQUEST, resp.getStatusCode());
         assertEquals("dni invalido: abc", resp.getBody());
     }
+
+    // LOW de la re-auditoria e2e (2026-09-08, segunda ronda): AesGcmFieldEncryptor.desencriptar()
+    // tira IllegalStateException ante un dato cifrado corrupto, truncado, o
+    // cifrado con una clave distinta a la actual -- sin este handler, un GET
+    // sobre un registro clinico en ese estado devolvia un 500 crudo sin
+    // loguear. No es culpa del cliente sino un problema de datos/config del
+    // servidor, por eso 500 (no 400) con log a nivel ERROR.
+    @Test
+    public void handleIllegalState_devuelve500ConElMensajeOriginal() {
+        ResponseEntity<String> resp = handler.handleIllegalState(
+                new IllegalStateException("No se pudo desencriptar el valor: dato corrupto, truncado o clave incorrecta"));
+
+        assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, resp.getStatusCode());
+        assertEquals("No se pudo desencriptar el valor: dato corrupto, truncado o clave incorrecta", resp.getBody());
+    }
 }
