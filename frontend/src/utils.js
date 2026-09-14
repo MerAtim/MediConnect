@@ -16,6 +16,18 @@ export function clearValidity(e){
   e.target.setCustomValidity('')
 }
 
+// LOW de la re-auditoria e2e (2026-09-08, segunda ronda): fechaHora se
+// mostraba tal cual llega del backend (ISO crudo, ej.
+// "2026-08-12T10:00:00") en vez de una fecha/hora legible. Si el valor no
+// es un ISO valido (null, string vacio, formato inesperado) se devuelve
+// sin tocar en vez de mostrar "Invalid Date".
+export function formatFechaHora(fechaHora){
+  if(!fechaHora) return fechaHora
+  const fecha = new Date(fechaHora)
+  if(Number.isNaN(fecha.getTime())) return fechaHora
+  return fecha.toLocaleString('es-AR', {day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'})
+}
+
 // El backend devuelve los errores como texto plano (no JSON), así que
 // resp.json() falla en silencio y perdemos el mensaje real. Leemos el body
 // como texto siempre y probamos parsearlo como JSON por si acaso.

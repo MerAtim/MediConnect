@@ -4,6 +4,7 @@ import HistoriaClinicaPanel from './HistoriaClinicaPanel.jsx'
 import Paginacion from './Paginacion.jsx'
 import SkeletonRows from './SkeletonRows.jsx'
 import TurnoFiltros from './TurnoFiltros.jsx'
+import {formatFechaHora} from '../utils.js'
 
 export default function TurnosSection({
   esAdmin, esMedico, esPaciente, puedeGestionarTurnos, hoy,
@@ -57,7 +58,7 @@ export default function TurnosSection({
               <React.Fragment key={t.id}>
                 <tr className="hover:bg-paper-100/60">
                   <td className="px-4 py-2 text-neutral-500">{t.id}</td>
-                  <td className="px-4 py-2 text-neutral-900">{t.fechaHora}</td>
+                  <td className="px-4 py-2 text-neutral-900">{formatFechaHora(t.fechaHora)}</td>
                   <td className="px-4 py-2 text-neutral-900">{t.especialidad}</td>
                   <td className="px-4 py-2 text-neutral-900">
                     {t.medicoNombre ?? `#${t.medicoId}`}{t.medicoEspecialidad ? ` (${t.medicoEspecialidad})` : ''}
