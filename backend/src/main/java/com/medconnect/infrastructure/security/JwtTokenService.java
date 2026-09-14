@@ -40,10 +40,14 @@ public class JwtTokenService implements TokenService {
     public String generar(Usuario usuario) {
         Date ahora = new Date();
         Date expira = new Date(ahora.getTime() + expirationMs);
+        // LOW de la re-auditoria e2e (2026-09-08, segunda ronda): el claim
+        // "nombre" (PII) viajaba en el JWT sin que ningun punto de
+        // autorizacion lo leyera -- JwtAuthenticationFilter solo usa "sub" y
+        // "role". Minimizacion de datos: si el frontend necesita el nombre,
+        // ya lo recibe en el body de POST /auth/login (LoginResponseBody).
         return Jwts.builder()
                 .subject(usuario.getEmail().getValor())
                 .claim("id", usuario.getId())
-                .claim("nombre", usuario.getNombre())
                 .claim("role", usuario.getRole().name())
                 .issuedAt(ahora)
                 .expiration(expira)
