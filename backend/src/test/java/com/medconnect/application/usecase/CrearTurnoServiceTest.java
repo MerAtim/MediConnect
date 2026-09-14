@@ -20,9 +20,15 @@ import static org.mockito.Mockito.when;
 
 public class CrearTurnoServiceTest {
 
+    // Fecha fija en el pasado respecto de "ahora" pero usada solo para el
+    // test que verifica el rechazo de fechas pasadas (LOW, segunda ronda de
+    // re-auditoria: crear un turno con fecha pasada). El resto de los tests
+    // usa FECHA_FUTURA para no quedar rotos con el correr del tiempo real.
+    private static final LocalDateTime FECHA_FUTURA = LocalDateTime.now().plusDays(30).withNano(0);
+
     private static CreateTurnoRequest requestValido() {
         return new CreateTurnoRequest(
-                LocalDateTime.of(2026, 8, 12, 10, 0),
+                FECHA_FUTURA,
                 "Cardiología",
                 2L,
                 3L
@@ -60,7 +66,7 @@ public class CrearTurnoServiceTest {
         when(pacienteRepo.buscarPorId(3L)).thenReturn(Optional.of(new Paciente(3L, null, null, null, null, null, null, null, null)));
         // Simular que ya existe un turno a la misma fecha para el médico
         when(repo.buscarPorMedico(2L)).thenReturn(java.util.List.of(
-                new Turno(10L, LocalDateTime.of(2026, 8, 12, 10, 0), "Cardiología", null, null, null)
+                new Turno(10L, FECHA_FUTURA, "Cardiología", null, null, null)
         ));
 
         CrearTurnoService service = new CrearTurnoService(repo, medicoRepo, pacienteRepo);
@@ -82,7 +88,7 @@ public class CrearTurnoServiceTest {
         // El medico esta libre a esa hora, pero el paciente ya tiene otro
         // turno (con un medico distinto) en esa misma fechaHora.
         when(repo.buscarPorPaciente(3L)).thenReturn(java.util.List.of(
-                new Turno(10L, LocalDateTime.of(2026, 8, 12, 10, 0), "Dermatología", null, null, null)
+                new Turno(10L, FECHA_FUTURA, "Dermatología", null, null, null)
         ));
 
         CrearTurnoService service = new CrearTurnoService(repo, medicoRepo, pacienteRepo);
@@ -115,5 +121,22 @@ public class CrearTurnoServiceTest {
         CrearTurnoService service = new CrearTurnoService(repo, medicoRepo, pacienteRepo);
 
         assertThrows(TurnoInvalidoException.class, () -> service.crear(requestValido()));
+    }
+
+    // LOW de la re-auditoria e2e (2026-09-08, segunda ronda): "CrearTurnoService
+    // no valida que fechaHora sea futura" -- un turno creado con fecha pasada
+    // satisfacia de inmediato Turno.habilitaHistoriaClinica().
+    @Test
+    public void crearTurno_lanzaExcepcion_siFechaHoraEsPasada() {
+        TurnoRepository repo = Mockito.mock(TurnoRepository.class);
+        MedicoRepository medicoRepo = Mockito.mock(MedicoRepository.class);
+        PacienteRepository pacienteRepo = Mockito.mock(PacienteRepository.class);
+
+        CreateTurnoRequest requestConFechaPasada = new CreateTurnoRequest(
+                LocalDateTime.now().minusDays(1), "Cardiología", 2L, 3L);
+
+        CrearTurnoService service = new CrearTurnoService(repo, medicoRepo, pacienteRepo);
+
+        assertThrows(TurnoInvalidoException.class, () -> service.crear(requestConFechaPasada));
     }
 }

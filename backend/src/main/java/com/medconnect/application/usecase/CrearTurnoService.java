@@ -10,6 +10,7 @@ import com.medconnect.domain.port.PacienteRepository;
 import com.medconnect.domain.port.TurnoRepository;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Service
@@ -30,6 +31,14 @@ public class CrearTurnoService implements CrearTurnoUseCase {
         // Validaciones básicas
         if (request.getFechaHora() == null) {
             throw new TurnoInvalidoException("fechaHora es obligatoria");
+        }
+        // LOW de la re-auditoria e2e (2026-09-08, segunda ronda): no se
+        // validaba que la fecha del turno fuera futura. Un turno creado con
+        // fecha pasada satisface de inmediato Turno.habilitaHistoriaClinica(),
+        // permitiendo escribir historia clinica sobre un turno que nunca
+        // representó un compromiso agendado a futuro.
+        if (request.getFechaHora().isBefore(LocalDateTime.now())) {
+            throw new TurnoInvalidoException("fechaHora debe ser una fecha futura");
         }
         if (request.getMedicoId() == null) {
             throw new TurnoInvalidoException("medicoId es obligatorio");

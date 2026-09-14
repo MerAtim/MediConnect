@@ -9,6 +9,8 @@ import com.medconnect.domain.port.MedicoRepository;
 import com.medconnect.domain.port.PacienteRepository;
 import jakarta.servlet.http.Cookie;
 import org.junit.jupiter.api.Test;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -67,7 +69,12 @@ public class CrearTurnoIntegrationTest {
         Medico medico = medicoRepository.guardar(new Medico(null, "Ana Pérez", "Cardiología", "MP-IT-1", null, null, null));
         Paciente paciente = pacienteRepository.guardar(new Paciente(null, "Juan Gómez", "30111222", null, null, null, null, null, null));
 
-        String body = "{\"fechaHora\":\"2026-08-12T12:00:00\",\"especialidad\":\"Traumatología\",\"medicoId\":"
+        // Fecha calculada relativa a "ahora" (no hardcodeada) para que este test
+        // siga siendo valido con el correr del tiempo real, ahora que
+        // CrearTurnoService rechaza fechas pasadas (LOW, segunda ronda de
+        // re-auditoria).
+        String fechaFutura = LocalDateTime.now().plusDays(30).withNano(0).format(DateTimeFormatter.ISO_LOCAL_DATE_TIME);
+        String body = "{\"fechaHora\":\"" + fechaFutura + "\",\"especialidad\":\"Traumatología\",\"medicoId\":"
                 + medico.getId() + ",\"pacienteId\":" + paciente.getId() + "}";
 
         // Sin cookie -> la cadena de seguridad real lo bloquea antes de llegar
