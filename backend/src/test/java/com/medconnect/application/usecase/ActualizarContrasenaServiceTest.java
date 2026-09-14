@@ -10,6 +10,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.util.Optional;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -34,7 +35,7 @@ public class ActualizarContrasenaServiceTest {
 
         service.cambiarPropia("ana@medconnect.com", new CambiarContrasenaRequest("vieja123", "nueva456"));
 
-        assertTrue(usuario.getContrasena().equals("hash-nuevo"));
+        assertEquals("hash-nuevo", usuario.getContrasena());
         verify(repo).guardar(usuario);
     }
 
@@ -104,7 +105,7 @@ public class ActualizarContrasenaServiceTest {
         boolean resultado = service.resetearComoAdmin(1L, new ResetearContrasenaRequest("nueva456"));
 
         assertTrue(resultado);
-        assertTrue(usuario.getContrasena().equals("hash-nuevo"));
+        assertEquals("hash-nuevo", usuario.getContrasena());
         verify(repo).guardar(usuario);
     }
 
