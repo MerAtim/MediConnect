@@ -58,15 +58,19 @@ public class UsuarioControllerTest {
                         email, null, List.of(new SimpleGrantedAuthority("ROLE_" + rol))));
     }
 
+    // LOW de la re-auditoria e2e (2026-09-08, segunda ronda): "useUsuarios
+    // sin paginacion/loading, inconsistente con el resto de secciones" --
+    // el endpoint devolvia un array crudo sin paginar; ahora usa el mismo
+    // PageResponse que /medicos, /pacientes y /turnos.
     @Test
-    public void buscarTodos_devuelveListado_sinContrasena() throws Exception {
+    public void buscarTodos_devuelvePaginado_sinContrasena() throws Exception {
         when(buscarUsuarioUseCase.buscarTodos()).thenReturn(List.of(
                 new Usuario(1L, "Ana Pérez", "ana@medconnect.com", "hash-secreto", UsuarioRole.MEDICO)));
 
         mockMvc.perform(get("/api/v1/usuarios"))
                 .andExpect(status().isOk())
                 .andExpect(content().json(
-                        "[{\"id\":1,\"nombre\":\"Ana Pérez\",\"email\":\"ana@medconnect.com\",\"role\":\"MEDICO\"}]"))
+                        "{\"content\":[{\"id\":1,\"nombre\":\"Ana Pérez\",\"email\":\"ana@medconnect.com\",\"role\":\"MEDICO\"}],\"totalElements\":1}"))
                 .andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("hash-secreto"))));
     }
 

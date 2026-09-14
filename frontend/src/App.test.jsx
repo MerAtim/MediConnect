@@ -22,7 +22,7 @@ function mockFetchPorDefecto(url) {
   if (url.includes('/api/v1/pacientes/emails-vinculados')) return jsonResponse([])
   if (url.includes('/api/v1/medicos')) return jsonResponse(PAGE_VACIA)
   if (url.includes('/api/v1/pacientes')) return jsonResponse(PAGE_VACIA)
-  if (url.includes('/api/v1/usuarios')) return jsonResponse([])
+  if (url.includes('/api/v1/usuarios')) return jsonResponse(PAGE_VACIA)
   if (url.includes('/api/v1/turnos')) return jsonResponse(PAGE_VACIA)
   return jsonResponse([])
 }

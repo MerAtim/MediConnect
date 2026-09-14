@@ -81,6 +81,7 @@ export default function App(){
     if(auth.role === 'ADMINISTRADOR') {
       medicosHook.cargarMedicos()
       usuariosHook.cargarUsuarios()
+      usuariosHook.cargarTodosLosUsuarios()
       medicosHook.cargarMedicosVinculados()
       otorgarTurnoHook.cargarEspecialidades()
     }
@@ -109,12 +110,12 @@ export default function App(){
   const emailsMedicosOcupados = new Set(
     medicosHook.medicosVinculados.filter(m => m.id !== medicosHook.editingMedico?.id).map(m => m.email).filter(Boolean)
   )
-  const cuentasMedicoDisponibles = usuariosHook.usuarios.filter(u => u.role === 'MEDICO' && !emailsMedicosOcupados.has(u.email))
+  const cuentasMedicoDisponibles = usuariosHook.todosLosUsuarios.filter(u => u.role === 'MEDICO' && !emailsMedicosOcupados.has(u.email))
 
   const emailsPacientesOcupados = new Set(
     pacientesHook.pacientesVinculados.filter(p => p.id !== pacientesHook.editingPaciente?.id).map(p => p.email).filter(Boolean)
   )
-  const cuentasPacienteDisponibles = usuariosHook.usuarios.filter(u => u.role === 'PACIENTE' && !emailsPacientesOcupados.has(u.email))
+  const cuentasPacienteDisponibles = usuariosHook.todosLosUsuarios.filter(u => u.role === 'PACIENTE' && !emailsPacientesOcupados.has(u.email))
 
   return (
     <div className="min-h-screen bg-neutral-200 font-sans">
@@ -184,8 +185,12 @@ export default function App(){
         {esAdmin && (
           <UsuariosSection
             usuarios={usuariosHook.usuarios}
+            usuariosLoading={usuariosHook.usuariosLoading}
+            paginaUsuarios={usuariosHook.paginaUsuarios}
+            totalPaginasUsuarios={usuariosHook.totalPaginasUsuarios}
+            onIrAPagina={usuariosHook.irAPaginaUsuarios}
             notify={notify}
-            onGuardado={usuariosHook.cargarUsuarios}
+            onGuardado={async () => { await usuariosHook.cargarUsuarios(); await usuariosHook.cargarTodosLosUsuarios() }}
             onResetearClick={setUsuarioAResetear}
           />
         )}
