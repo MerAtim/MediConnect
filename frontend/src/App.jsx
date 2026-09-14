@@ -40,7 +40,7 @@ export default function App(){
     return () => document.removeEventListener('mousedown', handleRipple)
   }, [])
 
-  const {toasts, notify} = useToasts()
+  const {toasts, notify, dismiss} = useToasts()
   const {auth, handleLoginExitoso, handleLogout, vinculado, chequearVinculacion} = useAuth(notify)
   const medicosHook = useMedicos(notify)
   const pacientesHook = usePacientes(notify)
@@ -95,7 +95,7 @@ export default function App(){
     return (
       <>
         <LoginScreen onLoginExitoso={handleLoginExitoso} notify={notify} />
-        <ToastContainer toasts={toasts} />
+        <ToastContainer toasts={toasts} onDismiss={dismiss} />
       </>
     )
   }
