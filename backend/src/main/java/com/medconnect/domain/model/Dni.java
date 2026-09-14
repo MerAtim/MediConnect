@@ -8,7 +8,11 @@ import java.util.regex.Pattern;
 // estuviera vacio). Inmutable, igualdad por valor.
 public final class Dni {
 
-    private static final Pattern FORMATO = Pattern.compile("^\\d+$");
+    // LOW de la re-auditoria e2e (2026-09-08, segunda ronda): el regex
+    // original ("^\d+$") aceptaba cualquier cantidad de digitos sin limite
+    // -- "1" o un DNI de 50 digitos pasaban la validacion igual que uno
+    // real. Acotado al rango real de DNI argentino (7 u 8 digitos).
+    private static final Pattern FORMATO = Pattern.compile("^\\d{7,8}$");
 
     private final String valor;
 
