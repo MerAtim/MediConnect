@@ -73,7 +73,7 @@ public class MedicoControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isBadRequest())
-                .andExpect(content().string("nombre es obligatorio"));
+                .andExpect(content().json("{\"message\":\"nombre es obligatorio\"}"));
     }
 
     @Test

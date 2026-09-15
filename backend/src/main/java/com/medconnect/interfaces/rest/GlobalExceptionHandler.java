@@ -14,51 +14,57 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 
+// LOW de la re-auditoria e2e (2026-09-08, segunda ronda): "todas las
+// respuestas de error devuelven texto plano, mientras el resto de la API
+// responde JSON" -- los 9 handlers devolvian ResponseEntity<String>
+// (Content-Type: text/plain por defecto de Spring para un String), distinto
+// del resto de los endpoints (JSON). Ahora todos devuelven ErrorResponse
+// ({"message": "..."}), serializado como JSON como cualquier otro DTO.
 @ControllerAdvice
 public class GlobalExceptionHandler {
 
     private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
     @ExceptionHandler(TurnoInvalidoException.class)
-    public ResponseEntity<String> handleTurnoInvalido(TurnoInvalidoException ex) {
+    public ResponseEntity<ErrorResponse> handleTurnoInvalido(TurnoInvalidoException ex) {
         log.warn("Turno invalido: {}", ex.getMessage());
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex.getMessage());
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(new ErrorResponse(ex.getMessage()));
     }
 
     @ExceptionHandler(MedicoInvalidoException.class)
-    public ResponseEntity<String> handleMedicoInvalido(MedicoInvalidoException ex) {
+    public ResponseEntity<ErrorResponse> handleMedicoInvalido(MedicoInvalidoException ex) {
         log.warn("Medico invalido: {}", ex.getMessage());
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex.getMessage());
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(new ErrorResponse(ex.getMessage()));
     }
 
     @ExceptionHandler(PacienteInvalidoException.class)
-    public ResponseEntity<String> handlePacienteInvalido(PacienteInvalidoException ex) {
+    public ResponseEntity<ErrorResponse> handlePacienteInvalido(PacienteInvalidoException ex) {
         log.warn("Paciente invalido: {}", ex.getMessage());
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex.getMessage());
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(new ErrorResponse(ex.getMessage()));
     }
 
     @ExceptionHandler(UsuarioInvalidoException.class)
-    public ResponseEntity<String> handleUsuarioInvalido(UsuarioInvalidoException ex) {
+    public ResponseEntity<ErrorResponse> handleUsuarioInvalido(UsuarioInvalidoException ex) {
         log.warn("Usuario invalido: {}", ex.getMessage());
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex.getMessage());
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(new ErrorResponse(ex.getMessage()));
     }
 
     @ExceptionHandler(RegistroClinicoInvalidoException.class)
-    public ResponseEntity<String> handleRegistroClinicoInvalido(RegistroClinicoInvalidoException ex) {
+    public ResponseEntity<ErrorResponse> handleRegistroClinicoInvalido(RegistroClinicoInvalidoException ex) {
         log.warn("Registro clinico invalido: {}", ex.getMessage());
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex.getMessage());
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(new ErrorResponse(ex.getMessage()));
     }
 
     @ExceptionHandler(CredencialesInvalidasException.class)
-    public ResponseEntity<String> handleCredencialesInvalidas(CredencialesInvalidasException ex) {
+    public ResponseEntity<ErrorResponse> handleCredencialesInvalidas(CredencialesInvalidasException ex) {
         log.warn("Intento de login con credenciales invalidas");
-        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(ex.getMessage());
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(new ErrorResponse(ex.getMessage()));
     }
 
     @ExceptionHandler(DemasiadosIntentosException.class)
-    public ResponseEntity<String> handleDemasiadosIntentos(DemasiadosIntentosException ex) {
+    public ResponseEntity<ErrorResponse> handleDemasiadosIntentos(DemasiadosIntentosException ex) {
         log.warn("Login bloqueado por rate limit: {}", ex.getMessage());
-        return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS).body(ex.getMessage());
+        return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS).body(new ErrorResponse(ex.getMessage()));
     }
 
     // Red de seguridad para los Value Objects del dominio (Email, Dni):
@@ -70,9 +76,9 @@ public class GlobalExceptionHandler {
     // migracion) -- sin esto, reconstruir ese registro en un simple GET o
     // login tiraba un 500 crudo en vez de un error controlado.
     @ExceptionHandler(IllegalArgumentException.class)
-    public ResponseEntity<String> handleIllegalArgument(IllegalArgumentException ex) {
+    public ResponseEntity<ErrorResponse> handleIllegalArgument(IllegalArgumentException ex) {
         log.warn("Argumento invalido (posible dato corrupto en la base): {}", ex.getMessage());
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex.getMessage());
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(new ErrorResponse(ex.getMessage()));
     }
 
     // Mismo tipo de red de seguridad que el handler de arriba, pero para
@@ -84,8 +90,8 @@ public class GlobalExceptionHandler {
     // cliente sino un problema de datos/configuracion del lado del
     // servidor, por eso se loguea como ERROR (no WARN) y no como 400.
     @ExceptionHandler(IllegalStateException.class)
-    public ResponseEntity<String> handleIllegalState(IllegalStateException ex) {
+    public ResponseEntity<ErrorResponse> handleIllegalState(IllegalStateException ex) {
         log.error("Estado invalido (posible dato cifrado corrupto o clave incorrecta): {}", ex.getMessage());
-        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(ex.getMessage());
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(new ErrorResponse(ex.getMessage()));
     }
 }

@@ -105,6 +105,6 @@ public class CrearTurnoIntegrationTest {
         mockMvc.perform(post("/api/v1/turnos").contentType(MediaType.APPLICATION_JSON).content(body)
                         .cookie(cookieAdmin()))
                 .andExpect(status().isBadRequest())
-                .andExpect(content().string("El médico no está disponible en la fecha y hora solicitada"));
+                .andExpect(content().json("{\"message\":\"El médico no está disponible en la fecha y hora solicitada\"}"));
     }
 }
