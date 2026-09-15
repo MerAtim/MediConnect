@@ -8,19 +8,21 @@ import com.medconnect.domain.model.Paciente;
 // / "new Paciente(id, null, null, null, null, null, null, null, null)" con
 // listas largas de null posicionales, repetida 60+ veces combinadas en
 // tests que solo necesitan el id (para relacionar un Turno/RegistroClinico
-// con su medico/paciente, no para probar nada de esos campos). Fragil ante
-// cambios de firma del constructor -- cualquier campo nuevo obliga a tocar
-// decenas de lineas sin relacion con lo que el test verifica.
+// con su medico/paciente, no para probar nada de esos campos). Delega en
+// Medico.conId()/Paciente.conId() (mismo patron, ahora tambien usado por el
+// codigo de produccion -- ver el comentario en Medico.java) para que exista
+// una sola fuente de verdad de "como se ve una referencia liviana", no dos
+// implementaciones independientes del mismo concepto.
 public final class TestFixtures {
 
     private TestFixtures() {
     }
 
     public static Medico medicoConId(long id) {
-        return new Medico(id, null, null, null, null, null, null);
+        return Medico.conId(id);
     }
 
     public static Paciente pacienteConId(long id) {
-        return new Paciente(id, null, null, null, null, null, null, null, null);
+        return Paciente.conId(id);
     }
 }

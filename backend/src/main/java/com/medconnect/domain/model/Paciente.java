@@ -24,6 +24,12 @@ public class Paciente {
         this.email = Email.deNullable(email);
     }
 
+    // LOW de la re-auditoria e2e (2026-09-08, segunda ronda): mismo caso que
+    // Medico.conId() -- ver el comentario ahi.
+    public static Paciente conId(Long id) {
+        return new Paciente(id, null, null, null, null, null, null, null, null);
+    }
+
     public Long getId() {
         return id;
     }

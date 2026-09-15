@@ -57,8 +57,8 @@ public class CrearRegistroClinicoService implements CrearRegistroClinicoUseCase 
             throw new RegistroClinicoInvalidoException("El médico no tiene ningún turno vigente con ese paciente");
         }
 
-        Medico medico = new Medico(request.getMedicoId(), null, null, null, null, null, null);
-        Paciente paciente = new Paciente(request.getPacienteId(), null, null, null, null, null, null, null, null);
+        Medico medico = Medico.conId(request.getMedicoId());
+        Paciente paciente = Paciente.conId(request.getPacienteId());
 
         RegistroClinico registro = new RegistroClinico(
                 null,

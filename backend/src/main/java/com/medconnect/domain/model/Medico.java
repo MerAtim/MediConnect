@@ -20,6 +20,21 @@ public class Medico {
         this.email = Email.deNullable(email);
     }
 
+    // LOW de la re-auditoria e2e (2026-09-08, segunda ronda): "entidades
+    // cascaron (new Medico(id, null, null, null, null, null, null)) como
+    // carrier de id, acoplamiento fragil" -- Turno/RegistroClinico
+    // necesitan poder referenciar un medico solo por id (sin traer la
+    // entidad completa) en varios puntos: al crear un turno/registro desde
+    // un request que solo trae el id, o al reconstruir desde persistencia
+    // sin resolver el nombre (evita el N+1 que ya se resolvio para
+    // listados via buscarPorIds -- aca el nombre ni se necesita). Antes
+    // cada uno de esos 4 sitios repetia la lista completa de null
+    // posicionales a mano; si el constructor gana un campo nuevo, hay que
+    // tocar los 4 en vez de solo este metodo.
+    public static Medico conId(Long id) {
+        return new Medico(id, null, null, null, null, null, null);
+    }
+
     public Long getId() {
         return id;
     }
