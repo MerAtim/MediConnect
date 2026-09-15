@@ -1,5 +1,6 @@
 package com.medconnect.infrastructure.persistence;
 
+import com.medconnect.TestFixtures;
 import com.medconnect.domain.exception.TurnoInvalidoException;
 import com.medconnect.domain.model.Medico;
 import com.medconnect.domain.model.Paciente;
@@ -19,8 +20,8 @@ import static org.mockito.Mockito.when;
 public class TurnoRepositoryAdapterTest {
 
     private Turno turno() {
-        Medico medico = new Medico(2L, null, null, null, null, null, null);
-        Paciente paciente = new Paciente(3L, null, null, null, null, null, null, null, null);
+        Medico medico = TestFixtures.medicoConId(2L);
+        Paciente paciente = TestFixtures.pacienteConId(3L);
         return new Turno(null, LocalDateTime.of(2026, 8, 12, 10, 0), "Cardiología", medico, paciente, TurnoEstado.PENDIENTE);
     }
 

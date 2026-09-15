@@ -1,5 +1,6 @@
 package com.medconnect.interfaces.rest;
 
+import com.medconnect.TestFixtures;
 import com.medconnect.application.usecase.BuscarMedicoUseCase;
 import com.medconnect.application.usecase.BuscarPacienteUseCase;
 import com.medconnect.application.usecase.BuscarRegistroClinicoUseCase;
@@ -74,7 +75,7 @@ public class RegistroClinicoControllerTest {
     public void crear_devuelve201_yBody_siValido() throws Exception {
         loguearComo("MEDICO", "medico@medconnect.com");
         when(buscarMedicoUseCase.buscarPorEmail("medico@medconnect.com"))
-                .thenReturn(Optional.of(new Medico(2L, null, null, null, null, null, null)));
+                .thenReturn(Optional.of(TestFixtures.medicoConId(2L)));
         when(crearRegistroClinicoUseCase.crear(any())).thenReturn(new CreateRegistroClinicoResponse(42L));
 
         String body = "{\"pacienteId\":3,\"diagnostico\":\"Fractura\",\"tratamiento\":\"Reposo\"}";
@@ -107,7 +108,7 @@ public class RegistroClinicoControllerTest {
         // nunca del JSON que manda el cliente.
         loguearComo("MEDICO", "medico@medconnect.com");
         when(buscarMedicoUseCase.buscarPorEmail("medico@medconnect.com"))
-                .thenReturn(Optional.of(new Medico(2L, null, null, null, null, null, null)));
+                .thenReturn(Optional.of(TestFixtures.medicoConId(2L)));
         when(crearRegistroClinicoUseCase.crear(any())).thenReturn(new CreateRegistroClinicoResponse(42L));
 
         String body = "{\"medicoId\":999,\"pacienteId\":3,\"diagnostico\":\"Fractura\",\"tratamiento\":\"Reposo\"}";
@@ -125,7 +126,7 @@ public class RegistroClinicoControllerTest {
     public void crear_devuelve400_siUseCaseRechaza() throws Exception {
         loguearComo("MEDICO", "medico@medconnect.com");
         when(buscarMedicoUseCase.buscarPorEmail("medico@medconnect.com"))
-                .thenReturn(Optional.of(new Medico(2L, null, null, null, null, null, null)));
+                .thenReturn(Optional.of(TestFixtures.medicoConId(2L)));
         when(crearRegistroClinicoUseCase.crear(any()))
                 .thenThrow(new RegistroClinicoInvalidoException("El médico no tiene ningún turno con ese paciente"));
 
@@ -141,15 +142,15 @@ public class RegistroClinicoControllerTest {
     @Test
     public void buscarPorPaciente_devuelveLista_siElMedicoTieneUnTurnoConEsePaciente() throws Exception {
         loguearComo("MEDICO", "medico@medconnect.com");
-        Medico medicoLogueado = new Medico(2L, null, null, null, null, null, null);
-        Paciente paciente = new Paciente(3L, null, null, null, null, null, null, null, null);
+        Medico medicoLogueado = TestFixtures.medicoConId(2L);
+        Paciente paciente = TestFixtures.pacienteConId(3L);
         Turno turno = new Turno(10L, LocalDateTime.of(2026, 8, 12, 10, 0), "Cardiología",
                 medicoLogueado, paciente, TurnoEstado.CONFIRMADO);
         when(buscarMedicoUseCase.buscarPorEmail("medico@medconnect.com")).thenReturn(Optional.of(medicoLogueado));
         when(buscarTurnoUseCase.buscarPorMedico(2L)).thenReturn(List.of(turno));
 
         RegistroClinico registro = new RegistroClinico(1L, LocalDateTime.of(2026, 8, 12, 10, 0),
-                new Medico(2L, null, null, null, null, null, null),
+                TestFixtures.medicoConId(2L),
                 paciente,
                 "Fractura", "Reposo", null);
         when(buscarRegistroClinicoUseCase.buscarPorPaciente(3L)).thenReturn(List.of(registro));
@@ -167,8 +168,8 @@ public class RegistroClinicoControllerTest {
         // prueba que el listado ahora resuelve todos los medicos en una sola
         // llamada batch, sin importar cuantos registros haya.
         loguearComo("MEDICO", "medico@medconnect.com");
-        Medico medicoLogueado = new Medico(2L, null, null, null, null, null, null);
-        Paciente paciente = new Paciente(3L, null, null, null, null, null, null, null, null);
+        Medico medicoLogueado = TestFixtures.medicoConId(2L);
+        Paciente paciente = TestFixtures.pacienteConId(3L);
         when(buscarMedicoUseCase.buscarPorEmail("medico@medconnect.com")).thenReturn(Optional.of(medicoLogueado));
         when(buscarTurnoUseCase.buscarPorMedico(2L)).thenReturn(
                 List.of(new Turno(10L, LocalDateTime.of(2026, 8, 12, 10, 0), "Cardiología", medicoLogueado, paciente, TurnoEstado.CONFIRMADO)));
@@ -194,7 +195,7 @@ public class RegistroClinicoControllerTest {
         // Este es el caso que antes permitia a cualquier MEDICO leer la historia
         // clinica de cualquier paciente sin ninguna relacion (IDOR sobre PHI).
         loguearComo("MEDICO", "medico@medconnect.com");
-        Medico medicoLogueado = new Medico(2L, null, null, null, null, null, null);
+        Medico medicoLogueado = TestFixtures.medicoConId(2L);
         when(buscarMedicoUseCase.buscarPorEmail("medico@medconnect.com")).thenReturn(Optional.of(medicoLogueado));
         when(buscarTurnoUseCase.buscarPorMedico(2L)).thenReturn(List.of());
 

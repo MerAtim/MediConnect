@@ -1,5 +1,6 @@
 package com.medconnect.interfaces.rest;
 
+import com.medconnect.TestFixtures;
 import com.medconnect.application.usecase.ActualizarEstadoTurnoUseCase;
 import com.medconnect.application.usecase.BuscarTurnoUseCase;
 import com.medconnect.application.usecase.CreateTurnoResponse;
@@ -94,8 +95,8 @@ public class TurnoControllerTest {
     @Test
     public void buscarPorId_devuelve200_siExiste() throws Exception {
         Turno turno = new Turno(1L, LocalDateTime.of(2026, 8, 12, 10, 0), "Cardiología",
-                new Medico(2L, null, null, null, null, null, null),
-                new Paciente(3L, null, null, null, null, null, null, null, null),
+                TestFixtures.medicoConId(2L),
+                TestFixtures.pacienteConId(3L),
                 TurnoEstado.PENDIENTE);
         when(buscarTurnoUseCase.buscarPorId(1L)).thenReturn(Optional.of(turno));
 
@@ -116,9 +117,9 @@ public class TurnoControllerTest {
     @Test
     public void buscarPorId_devuelve200_siMedicoPideSuPropioTurno() throws Exception {
         loguearComo("MEDICO", "medico@medconnect.com");
-        Medico medico = new Medico(2L, null, null, null, null, null, null);
+        Medico medico = TestFixtures.medicoConId(2L);
         Turno turno = new Turno(1L, LocalDateTime.of(2026, 8, 12, 10, 0), "Cardiología",
-                medico, new Paciente(3L, null, null, null, null, null, null, null, null), TurnoEstado.PENDIENTE);
+                medico, TestFixtures.pacienteConId(3L), TurnoEstado.PENDIENTE);
         when(buscarTurnoUseCase.buscarPorId(1L)).thenReturn(Optional.of(turno));
         when(buscarMedicoUseCase.buscarPorEmail("medico@medconnect.com")).thenReturn(Optional.of(medico));
 
@@ -129,10 +130,10 @@ public class TurnoControllerTest {
     @Test
     public void buscarPorId_devuelve403_siMedicoPideTurnoAjeno() throws Exception {
         loguearComo("MEDICO", "medico@medconnect.com");
-        Medico medicoLogueado = new Medico(2L, null, null, null, null, null, null);
-        Medico medicoDelTurno = new Medico(99L, null, null, null, null, null, null);
+        Medico medicoLogueado = TestFixtures.medicoConId(2L);
+        Medico medicoDelTurno = TestFixtures.medicoConId(99L);
         Turno turno = new Turno(1L, LocalDateTime.of(2026, 8, 12, 10, 0), "Cardiología",
-                medicoDelTurno, new Paciente(3L, null, null, null, null, null, null, null, null), TurnoEstado.PENDIENTE);
+                medicoDelTurno, TestFixtures.pacienteConId(3L), TurnoEstado.PENDIENTE);
         when(buscarTurnoUseCase.buscarPorId(1L)).thenReturn(Optional.of(turno));
         when(buscarMedicoUseCase.buscarPorEmail("medico@medconnect.com")).thenReturn(Optional.of(medicoLogueado));
 
@@ -143,9 +144,9 @@ public class TurnoControllerTest {
     @Test
     public void buscarPorId_devuelve200_siPacientePideSuPropioTurno() throws Exception {
         loguearComo("PACIENTE", "paciente@medconnect.com");
-        Paciente paciente = new Paciente(3L, null, null, null, null, null, null, null, null);
+        Paciente paciente = TestFixtures.pacienteConId(3L);
         Turno turno = new Turno(1L, LocalDateTime.of(2026, 8, 12, 10, 0), "Cardiología",
-                new Medico(2L, null, null, null, null, null, null), paciente, TurnoEstado.PENDIENTE);
+                TestFixtures.medicoConId(2L), paciente, TurnoEstado.PENDIENTE);
         when(buscarTurnoUseCase.buscarPorId(1L)).thenReturn(Optional.of(turno));
         when(buscarPacienteUseCase.buscarPorEmail("paciente@medconnect.com")).thenReturn(Optional.of(paciente));
 
@@ -156,10 +157,10 @@ public class TurnoControllerTest {
     @Test
     public void buscarPorId_devuelve403_siPacientePideTurnoAjeno() throws Exception {
         loguearComo("PACIENTE", "paciente@medconnect.com");
-        Paciente pacienteLogueado = new Paciente(3L, null, null, null, null, null, null, null, null);
-        Paciente pacienteDelTurno = new Paciente(99L, null, null, null, null, null, null, null, null);
+        Paciente pacienteLogueado = TestFixtures.pacienteConId(3L);
+        Paciente pacienteDelTurno = TestFixtures.pacienteConId(99L);
         Turno turno = new Turno(1L, LocalDateTime.of(2026, 8, 12, 10, 0), "Cardiología",
-                new Medico(2L, null, null, null, null, null, null), pacienteDelTurno, TurnoEstado.PENDIENTE);
+                TestFixtures.medicoConId(2L), pacienteDelTurno, TurnoEstado.PENDIENTE);
         when(buscarTurnoUseCase.buscarPorId(1L)).thenReturn(Optional.of(turno));
         when(buscarPacienteUseCase.buscarPorEmail("paciente@medconnect.com")).thenReturn(Optional.of(pacienteLogueado));
 
@@ -194,8 +195,8 @@ public class TurnoControllerTest {
     public void buscar_pagina_conPageYSize() throws Exception {
         List<Turno> turnos = java.util.stream.IntStream.rangeClosed(1, 25).mapToObj(i ->
                 new Turno((long) i, LocalDateTime.of(2026, 8, 12, 10, 0), "Cardiología",
-                        new Medico(2L, null, null, null, null, null, null),
-                        new Paciente(3L, null, null, null, null, null, null, null, null),
+                        TestFixtures.medicoConId(2L),
+                        TestFixtures.pacienteConId(3L),
                         TurnoEstado.PENDIENTE)
         ).toList();
         when(buscarTurnoUseCase.buscarTodos()).thenReturn(turnos);
@@ -241,8 +242,8 @@ public class TurnoControllerTest {
     @Test
     public void actualizarEstado_devuelve200_yBody_siExiste() throws Exception {
         Turno turno = new Turno(1L, LocalDateTime.of(2026, 8, 12, 10, 0), "Cardiología",
-                new Medico(2L, null, null, null, null, null, null),
-                new Paciente(3L, null, null, null, null, null, null, null, null),
+                TestFixtures.medicoConId(2L),
+                TestFixtures.pacienteConId(3L),
                 TurnoEstado.CONFIRMADO);
         when(actualizarEstadoTurnoUseCase.actualizarEstado(eq(1L), eq(TurnoEstado.CONFIRMADO)))
                 .thenReturn(Optional.of(turno));
@@ -289,7 +290,7 @@ public class TurnoControllerTest {
     public void buscar_ignoraParametros_yFiltraPorMedicoLogueado_siRolEsMedico() throws Exception {
         loguearComo("MEDICO", "medico@medconnect.com");
         when(buscarMedicoUseCase.buscarPorEmail("medico@medconnect.com"))
-                .thenReturn(Optional.of(new Medico(2L, null, null, null, null, null, null)));
+                .thenReturn(Optional.of(TestFixtures.medicoConId(2L)));
         when(buscarTurnoUseCase.buscarPorMedico(2L)).thenReturn(List.of());
 
         mockMvc.perform(get("/api/v1/turnos").param("medicoId", "999").param("pacienteId", "888"))
@@ -317,7 +318,7 @@ public class TurnoControllerTest {
     public void buscar_filtraPorPacienteLogueado_siRolEsPaciente() throws Exception {
         loguearComo("PACIENTE", "paciente@medconnect.com");
         when(buscarPacienteUseCase.buscarPorEmail("paciente@medconnect.com"))
-                .thenReturn(Optional.of(new Paciente(3L, null, null, null, null, null, null, null, null)));
+                .thenReturn(Optional.of(TestFixtures.pacienteConId(3L)));
         when(buscarTurnoUseCase.buscarPorPaciente(3L)).thenReturn(List.of());
 
         mockMvc.perform(get("/api/v1/turnos"))
@@ -331,9 +332,9 @@ public class TurnoControllerTest {
     @Test
     public void actualizarEstado_pacientePuedeCancelarSuPropioTurno() throws Exception {
         loguearComo("PACIENTE", "paciente@medconnect.com");
-        Paciente paciente = new Paciente(3L, null, null, null, null, null, null, null, null);
+        Paciente paciente = TestFixtures.pacienteConId(3L);
         Turno turno = new Turno(1L, LocalDateTime.of(2026, 8, 12, 10, 0), "Cardiología",
-                new Medico(2L, null, null, null, null, null, null), paciente, TurnoEstado.PENDIENTE);
+                TestFixtures.medicoConId(2L), paciente, TurnoEstado.PENDIENTE);
         when(buscarPacienteUseCase.buscarPorEmail("paciente@medconnect.com")).thenReturn(Optional.of(paciente));
         when(buscarTurnoUseCase.buscarPorId(1L)).thenReturn(Optional.of(turno));
         when(actualizarEstadoTurnoUseCase.actualizarEstado(eq(1L), eq(TurnoEstado.CANCELADO)))
@@ -361,9 +362,9 @@ public class TurnoControllerTest {
     @Test
     public void actualizarEstado_medicoPuedeCambiarEstadoDeSuPropioTurno() throws Exception {
         loguearComo("MEDICO", "medico@medconnect.com");
-        Medico medico = new Medico(2L, null, null, null, null, null, null);
+        Medico medico = TestFixtures.medicoConId(2L);
         Turno turno = new Turno(1L, LocalDateTime.of(2026, 8, 12, 10, 0), "Cardiología",
-                medico, new Paciente(3L, null, null, null, null, null, null, null, null), TurnoEstado.PENDIENTE);
+                medico, TestFixtures.pacienteConId(3L), TurnoEstado.PENDIENTE);
         when(buscarMedicoUseCase.buscarPorEmail("medico@medconnect.com")).thenReturn(Optional.of(medico));
         when(buscarTurnoUseCase.buscarPorId(1L)).thenReturn(Optional.of(turno));
         when(actualizarEstadoTurnoUseCase.actualizarEstado(eq(1L), eq(TurnoEstado.CONFIRMADO)))
@@ -380,10 +381,10 @@ public class TurnoControllerTest {
         // Antes de este fix, cualquier MEDICO podia confirmar/cancelar el turno de
         // OTRO medico con solo conocer el id.
         loguearComo("MEDICO", "medico@medconnect.com");
-        Medico medicoLogueado = new Medico(2L, null, null, null, null, null, null);
-        Medico medicoDelTurno = new Medico(99L, null, null, null, null, null, null);
+        Medico medicoLogueado = TestFixtures.medicoConId(2L);
+        Medico medicoDelTurno = TestFixtures.medicoConId(99L);
         Turno turno = new Turno(1L, LocalDateTime.of(2026, 8, 12, 10, 0), "Cardiología",
-                medicoDelTurno, new Paciente(3L, null, null, null, null, null, null, null, null), TurnoEstado.PENDIENTE);
+                medicoDelTurno, TestFixtures.pacienteConId(3L), TurnoEstado.PENDIENTE);
         when(buscarMedicoUseCase.buscarPorEmail("medico@medconnect.com")).thenReturn(Optional.of(medicoLogueado));
         when(buscarTurnoUseCase.buscarPorId(1L)).thenReturn(Optional.of(turno));
 
@@ -398,10 +399,10 @@ public class TurnoControllerTest {
     @Test
     public void actualizarEstado_pacienteNoPuedeCancelarTurnoAjeno() throws Exception {
         loguearComo("PACIENTE", "paciente@medconnect.com");
-        Paciente pacienteLogueado = new Paciente(3L, null, null, null, null, null, null, null, null);
-        Paciente pacienteDelTurno = new Paciente(99L, null, null, null, null, null, null, null, null);
+        Paciente pacienteLogueado = TestFixtures.pacienteConId(3L);
+        Paciente pacienteDelTurno = TestFixtures.pacienteConId(99L);
         Turno turno = new Turno(1L, LocalDateTime.of(2026, 8, 12, 10, 0), "Cardiología",
-                new Medico(2L, null, null, null, null, null, null), pacienteDelTurno, TurnoEstado.PENDIENTE);
+                TestFixtures.medicoConId(2L), pacienteDelTurno, TurnoEstado.PENDIENTE);
         when(buscarPacienteUseCase.buscarPorEmail("paciente@medconnect.com")).thenReturn(Optional.of(pacienteLogueado));
         when(buscarTurnoUseCase.buscarPorId(1L)).thenReturn(Optional.of(turno));
 
