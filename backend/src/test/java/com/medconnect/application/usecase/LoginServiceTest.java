@@ -5,6 +5,7 @@ import com.medconnect.domain.exception.DemasiadosIntentosException;
 import com.medconnect.domain.model.Usuario;
 import com.medconnect.domain.model.UsuarioRole;
 import com.medconnect.domain.port.UsuarioRepository;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -17,20 +18,37 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+// LOW de la re-auditoria e2e (2026-09-08, segunda ronda): los mocks se
+// reconstruian desde cero en cada @Test -- boilerplate identico por clase.
+// Movidos a campos + @BeforeEach. LoginService SI se sigue construyendo
+// dentro de cada test (no en @BeforeEach): su constructor llama a
+// encoder.encode(...) para precalcular hashDummy, y
+// login_llamaAPasswordEncoderMatches_aunQueElEmailNoExista necesita
+// configurar ese stub ANTES de construirlo -- moverlo a @BeforeEach
+// rompería ese orden y dejaria hashDummy en null.
 public class LoginServiceTest {
+
+    private UsuarioRepository repo;
+    private PasswordEncoder encoder;
+    private TokenService tokenService;
+    private LoginRateLimiter rateLimiter;
+
+    @BeforeEach
+    public void setUp() {
+        repo = Mockito.mock(UsuarioRepository.class);
+        encoder = Mockito.mock(PasswordEncoder.class);
+        tokenService = Mockito.mock(TokenService.class);
+        rateLimiter = Mockito.mock(LoginRateLimiter.class);
+    }
 
     @Test
     public void login_devuelveTokenYDatos_siCredencialesValidas() {
-        UsuarioRepository repo = Mockito.mock(UsuarioRepository.class);
-        PasswordEncoder encoder = Mockito.mock(PasswordEncoder.class);
-        TokenService tokenService = Mockito.mock(TokenService.class);
-
         Usuario usuario = new Usuario(1L, "Ana Pérez", "ana@medconnect.com", "hash", UsuarioRole.PACIENTE);
         when(repo.buscarPorEmail("ana@medconnect.com")).thenReturn(Optional.of(usuario));
         when(encoder.matches("secreto123", "hash")).thenReturn(true);
         when(tokenService.generar(usuario)).thenReturn("token-simulado");
 
-        LoginService service = new LoginService(repo, encoder, tokenService, Mockito.mock(LoginRateLimiter.class));
+        LoginService service = new LoginService(repo, encoder, tokenService, rateLimiter);
 
         LoginResponse resp = service.login(new LoginRequest("ana@medconnect.com", "secreto123"));
 
@@ -41,12 +59,9 @@ public class LoginServiceTest {
 
     @Test
     public void login_lanzaExcepcion_siEmailNoExiste() {
-        UsuarioRepository repo = Mockito.mock(UsuarioRepository.class);
-        PasswordEncoder encoder = Mockito.mock(PasswordEncoder.class);
-        TokenService tokenService = Mockito.mock(TokenService.class);
         when(repo.buscarPorEmail("no-existe@medconnect.com")).thenReturn(Optional.empty());
 
-        LoginService service = new LoginService(repo, encoder, tokenService, Mockito.mock(LoginRateLimiter.class));
+        LoginService service = new LoginService(repo, encoder, tokenService, rateLimiter);
 
         assertThrows(CredencialesInvalidasException.class,
                 () -> service.login(new LoginRequest("no-existe@medconnect.com", "secreto123")));
@@ -54,15 +69,11 @@ public class LoginServiceTest {
 
     @Test
     public void login_lanzaExcepcion_siContrasenaIncorrecta() {
-        UsuarioRepository repo = Mockito.mock(UsuarioRepository.class);
-        PasswordEncoder encoder = Mockito.mock(PasswordEncoder.class);
-        TokenService tokenService = Mockito.mock(TokenService.class);
-
         Usuario usuario = new Usuario(1L, "Ana Pérez", "ana@medconnect.com", "hash", UsuarioRole.PACIENTE);
         when(repo.buscarPorEmail("ana@medconnect.com")).thenReturn(Optional.of(usuario));
         when(encoder.matches("incorrecta", "hash")).thenReturn(false);
 
-        LoginService service = new LoginService(repo, encoder, tokenService, Mockito.mock(LoginRateLimiter.class));
+        LoginService service = new LoginService(repo, encoder, tokenService, rateLimiter);
 
         assertThrows(CredencialesInvalidasException.class,
                 () -> service.login(new LoginRequest("ana@medconnect.com", "incorrecta")));
@@ -70,10 +81,6 @@ public class LoginServiceTest {
 
     @Test
     public void login_lanzaExcepcion_siRateLimiterBloquea() {
-        UsuarioRepository repo = Mockito.mock(UsuarioRepository.class);
-        PasswordEncoder encoder = Mockito.mock(PasswordEncoder.class);
-        TokenService tokenService = Mockito.mock(TokenService.class);
-        LoginRateLimiter rateLimiter = Mockito.mock(LoginRateLimiter.class);
         Mockito.doThrow(new DemasiadosIntentosException("Demasiados intentos fallidos."))
                 .when(rateLimiter).verificarPermitido("ana@medconnect.com");
 
@@ -86,10 +93,6 @@ public class LoginServiceTest {
 
     @Test
     public void login_registraFalloEnRateLimiter_siCredencialesInvalidas() {
-        UsuarioRepository repo = Mockito.mock(UsuarioRepository.class);
-        PasswordEncoder encoder = Mockito.mock(PasswordEncoder.class);
-        TokenService tokenService = Mockito.mock(TokenService.class);
-        LoginRateLimiter rateLimiter = Mockito.mock(LoginRateLimiter.class);
         when(repo.buscarPorEmail("ana@medconnect.com")).thenReturn(Optional.empty());
 
         LoginService service = new LoginService(repo, encoder, tokenService, rateLimiter);
@@ -109,13 +112,10 @@ public class LoginServiceTest {
     // contra un hash dummy si el email no existe.
     @Test
     public void login_llamaAPasswordEncoderMatches_aunQueElEmailNoExista() {
-        UsuarioRepository repo = Mockito.mock(UsuarioRepository.class);
-        PasswordEncoder encoder = Mockito.mock(PasswordEncoder.class);
-        TokenService tokenService = Mockito.mock(TokenService.class);
         when(repo.buscarPorEmail("no-existe@medconnect.com")).thenReturn(Optional.empty());
         when(encoder.encode(Mockito.anyString())).thenReturn("hash-dummy");
 
-        LoginService service = new LoginService(repo, encoder, tokenService, Mockito.mock(LoginRateLimiter.class));
+        LoginService service = new LoginService(repo, encoder, tokenService, rateLimiter);
 
         assertThrows(CredencialesInvalidasException.class,
                 () -> service.login(new LoginRequest("no-existe@medconnect.com", "secreto123")));
@@ -125,11 +125,6 @@ public class LoginServiceTest {
 
     @Test
     public void login_registraExitoEnRateLimiter_siCredencialesValidas() {
-        UsuarioRepository repo = Mockito.mock(UsuarioRepository.class);
-        PasswordEncoder encoder = Mockito.mock(PasswordEncoder.class);
-        TokenService tokenService = Mockito.mock(TokenService.class);
-        LoginRateLimiter rateLimiter = Mockito.mock(LoginRateLimiter.class);
-
         Usuario usuario = new Usuario(1L, "Ana Pérez", "ana@medconnect.com", "hash", UsuarioRole.PACIENTE);
         when(repo.buscarPorEmail("ana@medconnect.com")).thenReturn(Optional.of(usuario));
         when(encoder.matches("secreto123", "hash")).thenReturn(true);

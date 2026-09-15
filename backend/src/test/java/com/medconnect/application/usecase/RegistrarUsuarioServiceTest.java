@@ -4,6 +4,7 @@ import com.medconnect.domain.exception.UsuarioInvalidoException;
 import com.medconnect.domain.model.Usuario;
 import com.medconnect.domain.model.UsuarioRole;
 import com.medconnect.domain.port.UsuarioRepository;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -15,7 +16,21 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
+// LOW de la re-auditoria e2e (2026-09-08, segunda ronda): los mocks y el
+// service se reconstruian desde cero en cada @Test -- boilerplate identico
+// por clase. Movidos a campos + @BeforeEach.
 public class RegistrarUsuarioServiceTest {
+
+    private UsuarioRepository repo;
+    private PasswordEncoder encoder;
+    private RegistrarUsuarioService service;
+
+    @BeforeEach
+    public void setUp() {
+        repo = Mockito.mock(UsuarioRepository.class);
+        encoder = Mockito.mock(PasswordEncoder.class);
+        service = new RegistrarUsuarioService(repo, encoder);
+    }
 
     private static RegistrarUsuarioRequest requestValido() {
         return new RegistrarUsuarioRequest("Ana Pérez", "ana@medconnect.com", "secreto123", UsuarioRole.PACIENTE);
@@ -23,9 +38,6 @@ public class RegistrarUsuarioServiceTest {
 
     @Test
     public void registrar_hasheaContrasenaYGuarda() {
-        UsuarioRepository repo = Mockito.mock(UsuarioRepository.class);
-        PasswordEncoder encoder = Mockito.mock(PasswordEncoder.class);
-
         when(repo.buscarPorEmail("ana@medconnect.com")).thenReturn(Optional.empty());
         when(encoder.encode("secreto123")).thenReturn("hash-simulado");
         when(repo.guardar(any(Usuario.class))).thenAnswer(invocation -> {
@@ -33,8 +45,6 @@ public class RegistrarUsuarioServiceTest {
             u.setId(1L);
             return u;
         });
-
-        RegistrarUsuarioService service = new RegistrarUsuarioService(repo, encoder);
 
         RegistrarUsuarioResponse resp = service.registrar(requestValido());
 
@@ -44,22 +54,14 @@ public class RegistrarUsuarioServiceTest {
 
     @Test
     public void registrar_lanzaExcepcion_siEmailYaExiste() {
-        UsuarioRepository repo = Mockito.mock(UsuarioRepository.class);
-        PasswordEncoder encoder = Mockito.mock(PasswordEncoder.class);
         when(repo.buscarPorEmail("ana@medconnect.com")).thenReturn(Optional.of(
                 new Usuario(1L, "Ana", "ana@medconnect.com", "hash", UsuarioRole.PACIENTE)));
-
-        RegistrarUsuarioService service = new RegistrarUsuarioService(repo, encoder);
 
         assertThrows(UsuarioInvalidoException.class, () -> service.registrar(requestValido()));
     }
 
     @Test
     public void registrar_lanzaExcepcion_siEmailInvalido() {
-        UsuarioRepository repo = Mockito.mock(UsuarioRepository.class);
-        PasswordEncoder encoder = Mockito.mock(PasswordEncoder.class);
-        RegistrarUsuarioService service = new RegistrarUsuarioService(repo, encoder);
-
         RegistrarUsuarioRequest req = new RegistrarUsuarioRequest("Ana", "no-es-un-email", "secreto123", UsuarioRole.PACIENTE);
 
         assertThrows(UsuarioInvalidoException.class, () -> service.registrar(req));
@@ -67,10 +69,6 @@ public class RegistrarUsuarioServiceTest {
 
     @Test
     public void registrar_lanzaExcepcion_siContrasenaMuyCorta() {
-        UsuarioRepository repo = Mockito.mock(UsuarioRepository.class);
-        PasswordEncoder encoder = Mockito.mock(PasswordEncoder.class);
-        RegistrarUsuarioService service = new RegistrarUsuarioService(repo, encoder);
-
         RegistrarUsuarioRequest req = new RegistrarUsuarioRequest("Ana", "ana@medconnect.com", "123", UsuarioRole.PACIENTE);
 
         assertThrows(UsuarioInvalidoException.class, () -> service.registrar(req));
@@ -78,10 +76,6 @@ public class RegistrarUsuarioServiceTest {
 
     @Test
     public void registrar_lanzaExcepcion_siFaltaRole() {
-        UsuarioRepository repo = Mockito.mock(UsuarioRepository.class);
-        PasswordEncoder encoder = Mockito.mock(PasswordEncoder.class);
-        RegistrarUsuarioService service = new RegistrarUsuarioService(repo, encoder);
-
         RegistrarUsuarioRequest req = new RegistrarUsuarioRequest("Ana", "ana@medconnect.com", "secreto123", null);
 
         assertThrows(UsuarioInvalidoException.class, () -> service.registrar(req));
@@ -89,10 +83,6 @@ public class RegistrarUsuarioServiceTest {
 
     @Test
     public void registrar_lanzaExcepcion_siRoleEsAdministrador() {
-        UsuarioRepository repo = Mockito.mock(UsuarioRepository.class);
-        PasswordEncoder encoder = Mockito.mock(PasswordEncoder.class);
-        RegistrarUsuarioService service = new RegistrarUsuarioService(repo, encoder);
-
         RegistrarUsuarioRequest req = new RegistrarUsuarioRequest("Ana", "ana@medconnect.com", "secreto123", UsuarioRole.ADMINISTRADOR);
 
         assertThrows(UsuarioInvalidoException.class, () -> service.registrar(req));
@@ -104,10 +94,6 @@ public class RegistrarUsuarioServiceTest {
         // El autoregistro publico solo puede crear cuentas PACIENTE: una cuenta MEDICO
         // sin vinculacion ni aprobacion de un admin podria leer/escribir historias
         // clinicas de cualquier paciente con solo registrarse.
-        UsuarioRepository repo = Mockito.mock(UsuarioRepository.class);
-        PasswordEncoder encoder = Mockito.mock(PasswordEncoder.class);
-        RegistrarUsuarioService service = new RegistrarUsuarioService(repo, encoder);
-
         RegistrarUsuarioRequest req = new RegistrarUsuarioRequest("Ana", "ana@medconnect.com", "secreto123", UsuarioRole.MEDICO);
 
         assertThrows(UsuarioInvalidoException.class, () -> service.registrar(req));
@@ -116,9 +102,6 @@ public class RegistrarUsuarioServiceTest {
 
     @Test
     public void registrarComoAdmin_permiteRoleAdministrador() {
-        UsuarioRepository repo = Mockito.mock(UsuarioRepository.class);
-        PasswordEncoder encoder = Mockito.mock(PasswordEncoder.class);
-
         when(repo.buscarPorEmail("ana@medconnect.com")).thenReturn(Optional.empty());
         when(encoder.encode("secreto123")).thenReturn("hash-simulado");
         when(repo.guardar(any(Usuario.class))).thenAnswer(invocation -> {
@@ -127,7 +110,6 @@ public class RegistrarUsuarioServiceTest {
             return u;
         });
 
-        RegistrarUsuarioService service = new RegistrarUsuarioService(repo, encoder);
         RegistrarUsuarioRequest req = new RegistrarUsuarioRequest("Ana", "ana@medconnect.com", "secreto123", UsuarioRole.ADMINISTRADOR);
 
         RegistrarUsuarioResponse resp = service.registrarComoAdmin(req);

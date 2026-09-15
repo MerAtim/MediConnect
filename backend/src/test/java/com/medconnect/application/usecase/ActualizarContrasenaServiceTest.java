@@ -4,6 +4,7 @@ import com.medconnect.domain.exception.UsuarioInvalidoException;
 import com.medconnect.domain.model.Usuario;
 import com.medconnect.domain.model.UsuarioRole;
 import com.medconnect.domain.port.UsuarioRepository;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -19,19 +20,33 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+// LOW de la re-auditoria e2e (2026-09-08, segunda ronda): los mocks
+// (repo/encoder/tokenRevocationService) y el service se reconstruian desde
+// cero en cada @Test -- 15-30 lineas de boilerplate identico por clase que
+// ocultaba cual mock era realmente relevante en cada caso puntual. Movidos
+// a campos + @BeforeEach, dejando en el cuerpo de cada test solo el
+// when(...) especifico del caso.
 public class ActualizarContrasenaServiceTest {
+
+    private UsuarioRepository repo;
+    private PasswordEncoder encoder;
+    private TokenRevocationService tokenRevocationService;
+    private ActualizarContrasenaService service;
+
+    @BeforeEach
+    public void setUp() {
+        repo = Mockito.mock(UsuarioRepository.class);
+        encoder = Mockito.mock(PasswordEncoder.class);
+        tokenRevocationService = Mockito.mock(TokenRevocationService.class);
+        service = new ActualizarContrasenaService(repo, encoder, tokenRevocationService);
+    }
 
     @Test
     public void cambiarPropia_actualizaHash_siContrasenaActualEsCorrecta() {
-        UsuarioRepository repo = Mockito.mock(UsuarioRepository.class);
-        PasswordEncoder encoder = Mockito.mock(PasswordEncoder.class);
-        TokenRevocationService tokenRevocationService = Mockito.mock(TokenRevocationService.class);
         Usuario usuario = new Usuario(1L, "Ana Pérez", "ana@medconnect.com", "hash-viejo", UsuarioRole.MEDICO);
         when(repo.buscarPorEmail("ana@medconnect.com")).thenReturn(Optional.of(usuario));
         when(encoder.matches("vieja123", "hash-viejo")).thenReturn(true);
         when(encoder.encode("nueva456")).thenReturn("hash-nuevo");
-
-        ActualizarContrasenaService service = new ActualizarContrasenaService(repo, encoder, tokenRevocationService);
 
         service.cambiarPropia("ana@medconnect.com", new CambiarContrasenaRequest("vieja123", "nueva456"));
 
@@ -44,15 +59,10 @@ public class ActualizarContrasenaServiceTest {
     // servir despues, no solo hasta que expire solo.
     @Test
     public void cambiarPropia_revocaTokensPreviosDelUsuario() {
-        UsuarioRepository repo = Mockito.mock(UsuarioRepository.class);
-        PasswordEncoder encoder = Mockito.mock(PasswordEncoder.class);
-        TokenRevocationService tokenRevocationService = Mockito.mock(TokenRevocationService.class);
         Usuario usuario = new Usuario(1L, "Ana Pérez", "ana@medconnect.com", "hash-viejo", UsuarioRole.MEDICO);
         when(repo.buscarPorEmail("ana@medconnect.com")).thenReturn(Optional.of(usuario));
         when(encoder.matches("vieja123", "hash-viejo")).thenReturn(true);
         when(encoder.encode("nueva456")).thenReturn("hash-nuevo");
-
-        ActualizarContrasenaService service = new ActualizarContrasenaService(repo, encoder, tokenRevocationService);
 
         service.cambiarPropia("ana@medconnect.com", new CambiarContrasenaRequest("vieja123", "nueva456"));
 
@@ -61,14 +71,9 @@ public class ActualizarContrasenaServiceTest {
 
     @Test
     public void cambiarPropia_lanzaExcepcion_siActualEsIncorrecta() {
-        UsuarioRepository repo = Mockito.mock(UsuarioRepository.class);
-        PasswordEncoder encoder = Mockito.mock(PasswordEncoder.class);
-        TokenRevocationService tokenRevocationService = Mockito.mock(TokenRevocationService.class);
         Usuario usuario = new Usuario(1L, "Ana Pérez", "ana@medconnect.com", "hash-viejo", UsuarioRole.MEDICO);
         when(repo.buscarPorEmail("ana@medconnect.com")).thenReturn(Optional.of(usuario));
         when(encoder.matches("mala", "hash-viejo")).thenReturn(false);
-
-        ActualizarContrasenaService service = new ActualizarContrasenaService(repo, encoder, tokenRevocationService);
 
         assertThrows(UsuarioInvalidoException.class,
                 () -> service.cambiarPropia("ana@medconnect.com", new CambiarContrasenaRequest("mala", "nueva456")));
@@ -77,14 +82,9 @@ public class ActualizarContrasenaServiceTest {
 
     @Test
     public void cambiarPropia_lanzaExcepcion_siNuevaEsMuyCorta() {
-        UsuarioRepository repo = Mockito.mock(UsuarioRepository.class);
-        PasswordEncoder encoder = Mockito.mock(PasswordEncoder.class);
-        TokenRevocationService tokenRevocationService = Mockito.mock(TokenRevocationService.class);
         Usuario usuario = new Usuario(1L, "Ana Pérez", "ana@medconnect.com", "hash-viejo", UsuarioRole.MEDICO);
         when(repo.buscarPorEmail("ana@medconnect.com")).thenReturn(Optional.of(usuario));
         when(encoder.matches("vieja123", "hash-viejo")).thenReturn(true);
-
-        ActualizarContrasenaService service = new ActualizarContrasenaService(repo, encoder, tokenRevocationService);
 
         assertThrows(UsuarioInvalidoException.class,
                 () -> service.cambiarPropia("ana@medconnect.com", new CambiarContrasenaRequest("vieja123", "123")));
@@ -93,14 +93,9 @@ public class ActualizarContrasenaServiceTest {
 
     @Test
     public void resetearComoAdmin_devuelveTrue_yActualizaHash_siExiste() {
-        UsuarioRepository repo = Mockito.mock(UsuarioRepository.class);
-        PasswordEncoder encoder = Mockito.mock(PasswordEncoder.class);
-        TokenRevocationService tokenRevocationService = Mockito.mock(TokenRevocationService.class);
         Usuario usuario = new Usuario(1L, "Ana Pérez", "ana@medconnect.com", "hash-viejo", UsuarioRole.MEDICO);
         when(repo.buscarPorId(1L)).thenReturn(Optional.of(usuario));
         when(encoder.encode("nueva456")).thenReturn("hash-nuevo");
-
-        ActualizarContrasenaService service = new ActualizarContrasenaService(repo, encoder, tokenRevocationService);
 
         boolean resultado = service.resetearComoAdmin(1L, new ResetearContrasenaRequest("nueva456"));
 
@@ -111,14 +106,9 @@ public class ActualizarContrasenaServiceTest {
 
     @Test
     public void resetearComoAdmin_revocaTokensPreviosDelUsuario() {
-        UsuarioRepository repo = Mockito.mock(UsuarioRepository.class);
-        PasswordEncoder encoder = Mockito.mock(PasswordEncoder.class);
-        TokenRevocationService tokenRevocationService = Mockito.mock(TokenRevocationService.class);
         Usuario usuario = new Usuario(1L, "Ana Pérez", "ana@medconnect.com", "hash-viejo", UsuarioRole.MEDICO);
         when(repo.buscarPorId(1L)).thenReturn(Optional.of(usuario));
         when(encoder.encode("nueva456")).thenReturn("hash-nuevo");
-
-        ActualizarContrasenaService service = new ActualizarContrasenaService(repo, encoder, tokenRevocationService);
 
         service.resetearComoAdmin(1L, new ResetearContrasenaRequest("nueva456"));
 
@@ -127,12 +117,7 @@ public class ActualizarContrasenaServiceTest {
 
     @Test
     public void resetearComoAdmin_devuelveFalse_siNoExiste() {
-        UsuarioRepository repo = Mockito.mock(UsuarioRepository.class);
-        PasswordEncoder encoder = Mockito.mock(PasswordEncoder.class);
-        TokenRevocationService tokenRevocationService = Mockito.mock(TokenRevocationService.class);
         when(repo.buscarPorId(99L)).thenReturn(Optional.empty());
-
-        ActualizarContrasenaService service = new ActualizarContrasenaService(repo, encoder, tokenRevocationService);
 
         boolean resultado = service.resetearComoAdmin(99L, new ResetearContrasenaRequest("nueva456"));
 
@@ -142,13 +127,8 @@ public class ActualizarContrasenaServiceTest {
 
     @Test
     public void resetearComoAdmin_lanzaExcepcion_siNuevaEsMuyCorta() {
-        UsuarioRepository repo = Mockito.mock(UsuarioRepository.class);
-        PasswordEncoder encoder = Mockito.mock(PasswordEncoder.class);
-        TokenRevocationService tokenRevocationService = Mockito.mock(TokenRevocationService.class);
         Usuario usuario = new Usuario(1L, "Ana Pérez", "ana@medconnect.com", "hash-viejo", UsuarioRole.MEDICO);
         when(repo.buscarPorId(1L)).thenReturn(Optional.of(usuario));
-
-        ActualizarContrasenaService service = new ActualizarContrasenaService(repo, encoder, tokenRevocationService);
 
         assertThrows(UsuarioInvalidoException.class,
                 () -> service.resetearComoAdmin(1L, new ResetearContrasenaRequest("123")));
