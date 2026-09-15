@@ -1,5 +1,6 @@
 package com.medconnect.application.usecase;
 
+import com.medconnect.TestFixtures;
 import com.medconnect.domain.exception.TurnoInvalidoException;
 import com.medconnect.domain.model.Medico;
 import com.medconnect.domain.model.Paciente;
@@ -41,8 +42,8 @@ public class CrearTurnoServiceTest {
         MedicoRepository medicoRepo = Mockito.mock(MedicoRepository.class);
         PacienteRepository pacienteRepo = Mockito.mock(PacienteRepository.class);
 
-        when(medicoRepo.buscarPorId(2L)).thenReturn(Optional.of(new Medico(2L, null, null, null, null, null, null)));
-        when(pacienteRepo.buscarPorId(3L)).thenReturn(Optional.of(new Paciente(3L, null, null, null, null, null, null, null, null)));
+        when(medicoRepo.buscarPorId(2L)).thenReturn(Optional.of(TestFixtures.medicoConId(2L)));
+        when(pacienteRepo.buscarPorId(3L)).thenReturn(Optional.of(TestFixtures.pacienteConId(3L)));
         when(repo.guardar(any(Turno.class))).thenAnswer(invocation -> {
             Turno t = invocation.getArgument(0);
             t.setId(1L);
@@ -62,8 +63,8 @@ public class CrearTurnoServiceTest {
         MedicoRepository medicoRepo = Mockito.mock(MedicoRepository.class);
         PacienteRepository pacienteRepo = Mockito.mock(PacienteRepository.class);
 
-        when(medicoRepo.buscarPorId(2L)).thenReturn(Optional.of(new Medico(2L, null, null, null, null, null, null)));
-        when(pacienteRepo.buscarPorId(3L)).thenReturn(Optional.of(new Paciente(3L, null, null, null, null, null, null, null, null)));
+        when(medicoRepo.buscarPorId(2L)).thenReturn(Optional.of(TestFixtures.medicoConId(2L)));
+        when(pacienteRepo.buscarPorId(3L)).thenReturn(Optional.of(TestFixtures.pacienteConId(3L)));
         // Simular que ya existe un turno a la misma fecha para el médico
         when(repo.buscarPorMedico(2L)).thenReturn(java.util.List.of(
                 new Turno(10L, FECHA_FUTURA, "Cardiología", null, null, null)
@@ -83,8 +84,8 @@ public class CrearTurnoServiceTest {
         MedicoRepository medicoRepo = Mockito.mock(MedicoRepository.class);
         PacienteRepository pacienteRepo = Mockito.mock(PacienteRepository.class);
 
-        when(medicoRepo.buscarPorId(2L)).thenReturn(Optional.of(new Medico(2L, null, null, null, null, null, null)));
-        when(pacienteRepo.buscarPorId(3L)).thenReturn(Optional.of(new Paciente(3L, null, null, null, null, null, null, null, null)));
+        when(medicoRepo.buscarPorId(2L)).thenReturn(Optional.of(TestFixtures.medicoConId(2L)));
+        when(pacienteRepo.buscarPorId(3L)).thenReturn(Optional.of(TestFixtures.pacienteConId(3L)));
         // El medico esta libre a esa hora, pero el paciente ya tiene otro
         // turno (con un medico distinto) en esa misma fechaHora.
         when(repo.buscarPorPaciente(3L)).thenReturn(java.util.List.of(
@@ -115,7 +116,7 @@ public class CrearTurnoServiceTest {
         MedicoRepository medicoRepo = Mockito.mock(MedicoRepository.class);
         PacienteRepository pacienteRepo = Mockito.mock(PacienteRepository.class);
 
-        when(medicoRepo.buscarPorId(2L)).thenReturn(Optional.of(new Medico(2L, null, null, null, null, null, null)));
+        when(medicoRepo.buscarPorId(2L)).thenReturn(Optional.of(TestFixtures.medicoConId(2L)));
         when(pacienteRepo.buscarPorId(3L)).thenReturn(Optional.empty());
 
         CrearTurnoService service = new CrearTurnoService(repo, medicoRepo, pacienteRepo);
