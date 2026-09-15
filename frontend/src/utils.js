@@ -28,9 +28,12 @@ export function formatFechaHora(fechaHora){
   return fecha.toLocaleString('es-AR', {day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'})
 }
 
-// El backend devuelve los errores como texto plano (no JSON), así que
-// resp.json() falla en silencio y perdemos el mensaje real. Leemos el body
-// como texto siempre y probamos parsearlo como JSON por si acaso.
+// El backend devuelve los errores como JSON ({"message": "..."}), pero un
+// 403 bloqueado por Spring Security (antes de llegar a GlobalExceptionHandler)
+// puede venir con el body vacío. Leemos siempre como texto y probamos
+// parsearlo como JSON, con el texto crudo como último fallback -- así cubrimos
+// ambos casos sin que resp.json() explote en silencio sobre un body vacío o
+// no-JSON.
 export async function readErrorMessage(resp){
   const text = await resp.text().catch(() => '')
   try{

@@ -75,7 +75,7 @@ public class TurnoControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isBadRequest())
-                .andExpect(content().string("El médico no está disponible"));
+                .andExpect(content().json("{\"message\":\"El médico no está disponible\"}"));
     }
 
     @Test
@@ -295,7 +295,7 @@ public class TurnoControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"estado\":\"CONFIRMADO\"}"))
                 .andExpect(status().isBadRequest())
-                .andExpect(content().string("No se puede modificar un turno cancelado"));
+                .andExpect(content().json("{\"message\":\"No se puede modificar un turno cancelado\"}"));
     }
 
     @Test
@@ -368,7 +368,7 @@ public class TurnoControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"estado\":\"CONFIRMADO\"}"))
                 .andExpect(status().isBadRequest())
-                .andExpect(content().string("Un paciente solo puede cancelar su turno"));
+                .andExpect(content().json("{\"message\":\"Un paciente solo puede cancelar su turno\"}"));
 
         Mockito.verify(actualizarEstadoTurnoUseCase, Mockito.never()).actualizarEstado(any(), any());
     }

@@ -136,7 +136,7 @@ public class RegistroClinicoControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isBadRequest())
-                .andExpect(content().string("El médico no tiene ningún turno con ese paciente"));
+                .andExpect(content().json("{\"message\":\"El médico no tiene ningún turno con ese paciente\"}"));
     }
 
     @Test

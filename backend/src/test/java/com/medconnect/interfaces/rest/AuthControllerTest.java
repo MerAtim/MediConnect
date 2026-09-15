@@ -86,7 +86,7 @@ public class AuthControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isBadRequest())
-                .andExpect(content().string("ya existe un usuario con ese email"));
+                .andExpect(content().json("{\"message\":\"ya existe un usuario con ese email\"}"));
     }
 
     @Test
@@ -117,7 +117,7 @@ public class AuthControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isUnauthorized())
-                .andExpect(content().string("email o contraseña incorrectos"));
+                .andExpect(content().json("{\"message\":\"email o contraseña incorrectos\"}"));
     }
 
     @Test
@@ -131,7 +131,7 @@ public class AuthControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isTooManyRequests())
-                .andExpect(content().string("Demasiados intentos fallidos. Probá de nuevo en unos minutos."));
+                .andExpect(content().json("{\"message\":\"Demasiados intentos fallidos. Probá de nuevo en unos minutos.\"}"));
     }
 
     @Test

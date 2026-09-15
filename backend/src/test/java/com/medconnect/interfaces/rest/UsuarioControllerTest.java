@@ -110,7 +110,7 @@ public class UsuarioControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isBadRequest())
-                .andExpect(content().string("ya existe un usuario con ese email"));
+                .andExpect(content().json("{\"message\":\"ya existe un usuario con ese email\"}"));
     }
 
     @Test
@@ -139,7 +139,7 @@ public class UsuarioControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isBadRequest())
-                .andExpect(content().string("la contrasena actual es incorrecta"));
+                .andExpect(content().json("{\"message\":\"la contrasena actual es incorrecta\"}"));
     }
 
     @Test

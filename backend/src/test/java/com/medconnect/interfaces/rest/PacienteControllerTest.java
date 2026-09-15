@@ -69,7 +69,7 @@ public class PacienteControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isBadRequest())
-                .andExpect(content().string("dni es obligatorio"));
+                .andExpect(content().json("{\"message\":\"dni es obligatorio\"}"));
     }
 
     @Test
