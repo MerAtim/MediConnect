@@ -112,12 +112,8 @@ public class TurnoRepositoryAdapter implements TurnoRepository {
     }
 
     private Turno toDomain(TurnoEntity entity) {
-        Medico medico = entity.getMedicoId() != null
-                ? new Medico(entity.getMedicoId(), null, null, null, null, null, null)
-                : null;
-        Paciente paciente = entity.getPacienteId() != null
-                ? new Paciente(entity.getPacienteId(), null, null, null, null, null, null, null, null)
-                : null;
+        Medico medico = entity.getMedicoId() != null ? Medico.conId(entity.getMedicoId()) : null;
+        Paciente paciente = entity.getPacienteId() != null ? Paciente.conId(entity.getPacienteId()) : null;
         Turno turno = new Turno(entity.getId(), entity.getFechaHora(), entity.getEspecialidad(), medico, paciente, entity.getEstado());
         turno.setPreparacion(entity.getPreparacion());
         return turno;

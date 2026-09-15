@@ -41,12 +41,8 @@ public class RegistroClinicoRepositoryAdapter implements RegistroClinicoReposito
     }
 
     private RegistroClinico toDomain(RegistroClinicoEntity entity) {
-        Medico medico = entity.getMedicoId() != null
-                ? new Medico(entity.getMedicoId(), null, null, null, null, null, null)
-                : null;
-        Paciente paciente = entity.getPacienteId() != null
-                ? new Paciente(entity.getPacienteId(), null, null, null, null, null, null, null, null)
-                : null;
+        Medico medico = entity.getMedicoId() != null ? Medico.conId(entity.getMedicoId()) : null;
+        Paciente paciente = entity.getPacienteId() != null ? Paciente.conId(entity.getPacienteId()) : null;
         return new RegistroClinico(entity.getId(), entity.getFecha(), medico, paciente,
                 entity.getDiagnostico(), entity.getTratamiento(), entity.getObservaciones());
     }
