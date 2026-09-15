@@ -2,16 +2,23 @@
 
 Este archivo se mantiene actualizado al final de cada sesión de trabajo para que,
 aunque pasen días sin conectarte, se pueda seguir sin releer el proyecto entero.
-Última actualización: **2026-09-08**, tras mergear PR #59
-(`test/cifrado-historia-clinica-integration`, ver "Séptima ronda" más
-abajo): cierra el último de los 4 CRITICAL de la re-auditoría e2e con 4
-subagentes en paralelo — cifrado at-rest de historia clínica ahora
-verificado contra Postgres real (antes solo se probaba el encriptador
-en aislamiento). Los otros 3 CRITICAL: PR #57 (historia clínica exige
-turno vigente, no cancelado ni a futuro) y PR #58 (cobertura
-end-to-end de 2 reglas de autorización que no tenían ningún test).
-**Quedan 8 HIGH / 16 MEDIUM / 12 LOW sin arrancar**, priorizados en la
-"Séptima ronda". Antes, PR #56 (`feature/hooks-de-datos`): `App.jsx`
+Última actualización: **2026-09-15**, tras mergear PR #94
+(`refactor/medico-paciente-ref-liviano`, ver "Décima ronda" más abajo):
+cierra el último de los 12 LOW de la re-auditoría e2e. **Con esto se
+cierra por completo el ciclo de la re-auditoría e2e del 2026-09-08**
+(4 CRITICAL + 8 HIGH + 16 MEDIUM + 12 LOW, 32 hallazgos en total,
+resueltos con 19 PRs entre el 2026-09-08 y el 2026-09-15). No queda
+ningún pedido puntual pendiente del usuario — ver "Plan sugerido para
+la próxima sesión" al final de este archivo.
+
+Antes, PR #59 (`test/cifrado-historia-clinica-integration`, ver
+"Séptima ronda" más abajo): cierra el último de los 4 CRITICAL de la
+re-auditoría e2e con 4 subagentes en paralelo — cifrado at-rest de
+historia clínica ahora verificado contra Postgres real (antes solo se
+probaba el encriptador en aislamiento). Los otros 3 CRITICAL: PR #57
+(historia clínica exige turno vigente, no cancelado ni a futuro) y PR
+#58 (cobertura end-to-end de 2 reglas de autorización que no tenían
+ningún test). Antes, PR #56 (`feature/hooks-de-datos`): `App.jsx`
 bajó a 267 líneas extrayendo el estado/fetching de cada sección a 7
 hooks (`useToasts`, `useAuth`, `useMedicos`, `usePacientes`,
 `useUsuarios`, `useTurnos`, `useOtorgarTurno`, `useHistoriaClinica`) —
@@ -1629,8 +1636,158 @@ HIGH #8/#9.
 decisión explícita del usuario). Quedan los 12 LOW, explícitamente
 pospuestos para otra sesión.
 
+## Décima ronda (2026-09-14/15): los 12 LOW de la re-auditoría, resueltos
+
+Mismo criterio que las rondas anteriores: un PR por punto, agrupando
+los que compartan naturaleza. La lista original de los 12 hallazgos
+LOW (a diferencia de CRITICAL/HIGH/MEDIUM) nunca se había guardado
+textual en este archivo y se perdió al compactar la sesión anterior —
+se volvió a derivar relanzando los mismos 4 subagentes en paralelo
+(dominio/aplicación, infraestructura/seguridad, tests, frontend), cada
+uno con la lista completa de lo ya resuelto para no repetir nada. Esta
+segunda derivación dio **24 hallazgos** en vez de 12 (6 por área). El
+usuario, ante la pregunta de cómo encarar la diferencia, eligió
+"todos, priorizados" en vez de triage o descarte — así que la "ronda
+de 12 LOW" terminó siendo 19 PRs cubriendo los 24 hallazgos
+re-derivados, de más impacto real a más cosmético:
+
+1. ~~`IllegalStateException` sin manejar al desencriptar datos
+   corruptos~~ — resuelto, PR #76 (`fix/handler-illegalstateexception-desencriptado-corrupto`):
+   mismo patrón que el handler de `IllegalArgumentException` (HIGH #7,
+   PR #62), pero para `AesGcmFieldEncryptor.desencriptar()`. 500 (no
+   400, no es culpa del cliente) con log a nivel ERROR.
+2. ~~`CrearTurnoService` no validaba que `fechaHora` fuera futura~~ —
+   resuelto, PR #77 (`fix/crear-turno-valida-fecha-futura`): un turno
+   con fecha pasada satisfacía de inmediato
+   `Turno.habilitaHistoriaClinica()`. Los tests que usaban una fecha
+   hardcodeada (ya vencida respecto de la fecha real) pasaron a
+   calcularla dinámicamente.
+3. ~~Bundle de tests triviales~~ — resuelto, PR #78
+   (`test/mejoras-triviales-de-tests`): `assertTrue(x.equals(y))` →
+   `assertEquals`, test de cifrado que no verificaba que el ciphertext
+   difiriera del original, imports de `jsonPath` sin unificar.
+4. ~~`Thread.sleep` en `InMemoryTokenRevocationServiceTest`~~ —
+   resuelto, PR #79 (`test/revocation-service-sin-thread-sleep`):
+   timestamps explícitos en vez de dormir el hilo.
+5. ~~JWT con claim `nombre` innecesario~~ y ~~export de historia
+   clínica sin charset UTF-8~~ — resueltos juntos, PR #80
+   (`fix/jwt-sin-nombre-y-export-charset-utf8`).
+6. ~~`Usuario.toString()` exponía el hash de la contraseña~~ y ~~regex
+   de `Dni` sin límite de longitud~~ — resueltos juntos, PR #81
+   (`fix/usuario-tostring-hash-y-dni-regex`): `Dni` acotado a 7-8
+   dígitos (rango real argentino) rompió 3 filas de datos de prueba
+   viejos en la base de dev con DNIs de 10-11 dígitos — corregidos a
+   mano, no era código de producción.
+7. ~~"Contraseña mínimo 6 caracteres" duplicada~~ — resuelto, PR #82
+   (`refactor/validacion-contrasena-compartida`): nueva
+   `ValidacionContrasena`, mismo patrón que `ValidacionEmail` (MEDIUM,
+   PR #40).
+8. ~~7 excepciones de dominio idénticas sin clase base~~ — resuelto,
+   PR #83 (`refactor/domainexception-clase-base`): nueva
+   `DomainException` abstracta.
+9. ~~`email`/`nombre` sin `NOT NULL` a nivel de esquema~~ — resuelto,
+   PR #84 (`fix/not-null-email-nombre`): migración `V4`. Importante:
+   `medicos.email`/`pacientes.email` quedan **deliberadamente
+   nullable** (HIGH #8 — cuentas desacopladas a propósito), solo se
+   endureció lo que ya era obligatorio en todos los flujos reales.
+10. ~~`fechaHora` se mostraba como ISO crudo~~ y ~~"hoy" no se
+    recalculaba a medianoche~~ — resueltos juntos, PR #85
+    (`fix/formatear-fecha-hora-y-hoy-medianoche`): nuevo
+    `formatFechaHora()` en `utils.js`.
+11. ~~`FloatingInput` sin `autoComplete`~~ — resuelto, PR #86
+    (`fix/floatinginput-autocomplete`).
+12. ~~Timers de toasts sin limpiar, sin descarte manual~~ — resuelto,
+    PR #87 (`fix/toasts-cleanup-y-descarte-manual`): nuevo botón "×".
+13. ~~Selector de fecha/hora en "Otorgar turno" era texto libre~~ —
+    resuelto, PR #88 (`fix/otorgar-turno-datetime-local`): `input
+    type="datetime-local"`. La verificación en vivo encontró un bug
+    real que este mismo cambio hubiera introducido: el valor nativo de
+    `datetime-local` no incluye segundos, pero el backend
+    (`LocalDateTime` vía Jackson) los exige — sin normalizar, el
+    submit fallaba con un **403 confuso** (no 400) por una interacción
+    con la configuración de seguridad no cubierta en ese PR. Se agregó
+    `conSegundos()` en el frontend antes de enviar.
+14. ~~`useUsuarios` sin paginación/loading~~ — resuelto, PR #89
+    (`fix/usuarios-paginacion-y-loading`): requirió tocar el backend
+    también (`GET /usuarios` no paginaba en absoluto). Cuidado
+    particular: `App.jsx` usaba la lista completa de usuarios para el
+    pool de "cuenta vinculada" — se separó en `todosLosUsuarios`
+    (carga aparte, `size=1000`) para no romper ese dropdown al paginar
+    la tabla visible.
+15. ~~Construcción repetida de `Medico`/`Paciente` en tests~~ —
+    resuelto, PR #90 (`test/fixtures-medico-paciente`): nueva
+    `TestFixtures.medicoConId()`/`pacienteConId()`. Nota operativa: el
+    usuario confirmó merge dos veces para este PR porque la primera
+    vez había *cerrado* el PR sin mergear (`gh pr view --json
+    mergedAt` daba `null`); como `git branch -d` puede borrar una
+    rama local sin quejarse si coincide con su propio remoto ya
+    pusheado (aunque ese remoto nunca se mergeó a `develop`), hay que
+    verificar `mergedAt` antes de dar por buena una confirmación
+    ambigua del usuario, no alcanza con que el branch delete no tire
+    error. El commit se recuperó del historial local (`git log` seguía
+    teniendo el SHA) y se reabrió el mismo PR sin perder nada.
+16. ~~Mocks reconstruidos en cada `@Test`~~ — resuelto, PR #91
+    (`test/mocks-en-beforeeach`): movidos a campos + `@BeforeEach` en
+    las 4 clases señaladas. Excepción deliberada en
+    `LoginServiceTest`: `LoginService` sigue construyéndose dentro de
+    cada test (no en `@BeforeEach`) porque su constructor llama a
+    `encoder.encode(...)` para precalcular `hashDummy`, y un test
+    necesita controlar ese stub antes de construirlo.
+17. ~~Paginación falsa (trae la tabla entera a memoria)~~ — resuelto,
+    PR #92 (`fix/paginacion-real-con-pageable`), **el más grande de la
+    ronda**. Decisión explícita del usuario: refactor completo, las 4
+    entidades (médicos, pacientes, turnos, usuarios) y todas las ramas
+    de cada endpoint (no solo el caso sin filtro) — las 5 ramas de `GET
+    /turnos` se reducen a 3 consultas subyacentes (por médico, por
+    paciente, todos), las 3 ahora con `Pageable`/`Page` real de Spring
+    Data (LIMIT/OFFSET + COUNT en el motor de base). `buscarTodos()`
+    sigue existiendo en los 4 puertos para los usos que genuinamente
+    necesitan la lista completa (especialidades, emails-vinculados,
+    pool de cuenta vinculada). Excepción deliberada y documentada en
+    el código: la vista de MEDICO en `GET /pacientes` ("mis
+    pacientes", derivada de sus propios turnos vía join) queda en
+    memoria — no es un listado de tabla sino un join acotado por los
+    turnos de ESE médico (chico por naturaleza), paginarlo a nivel SQL
+    es un cambio de forma mayor (COUNT DISTINCT + JOIN) para un caso
+    ya chico. `PageResponse` gana `ofPagina(content, page, size,
+    totalElements)` para el caso real, `of()` sigue existiendo para
+    los casos que se dejaron en memoria.
+18. ~~Todas las respuestas de error son texto plano~~ — resuelto, PR
+    #93 (`fix/globalexceptionhandler-json`): nueva `ErrorResponse`
+    (`{"message": "..."}`) en los 9 handlers. El campo se llama
+    `message` a propósito: `readErrorMessage` (frontend, `utils.js`)
+    **ya** intentaba parsear el body como JSON y leer `json?.message`
+    como fallback desde antes de este cambio — código defensivo
+    escrito anticipando esta migración, cero cambios de comportamiento
+    en el frontend.
+19. ~~Entidades "cascarón" (`new Medico(id, null, null, null, null,
+    null, null)`) como carrier de id~~ — resuelto, PR #94
+    (`refactor/medico-paciente-ref-liviano`), el último. Nuevos
+    `Medico.conId(Long)`/`Paciente.conId(Long)` (mismo patrón que
+    `Email.deNullable()`/`Dni.deNullable()`), reemplazan los 4 sitios
+    de producción que construían la referencia a mano.
+    `TestFixtures` (punto 15) pasa a delegar en estos factories.
+
+**Los 12 LOW están resueltos** (24 hallazgos re-derivados, todos con
+código salvo ninguno documentado-sin-cambio esta vez). Con esto se
+cierra por completo el ciclo de la re-auditoría e2e del 2026-09-08:
+4 CRITICAL + 8 HIGH + 16 MEDIUM + 12 LOW, 32 hallazgos totales, 19+15
+= 34 PRs entre el 2026-09-08 y el 2026-09-15.
+
 ## Plan sugerido para la próxima sesión
 
-Sin pedido puntual del usuario: seguir con los 12 LOW de la
-re-auditoría (mismo criterio de "un PR por punto"). Con esto se cierra
-por completo el ciclo de la re-auditoría e2e del 2026-09-08.
+Sin pedido puntual del usuario: no queda ningún punto abierto de la
+re-auditoría e2e del 2026-09-08 — el ciclo completo (CRITICAL, HIGH,
+MEDIUM, LOW) está cerrado. Si no hay un pedido puntual al arrancar la
+próxima sesión, buenas opciones de continuación natural:
+- Repetir el ciclo de re-auditoría e2e con los 4 subagentes en
+  paralelo una vez más, para ver qué quedó desactualizado con todo lo
+  hecho en esta ronda (mismo patrón que ya se uso dos veces antes,
+  2026-08-30 y 2026-09-08).
+- Alguno de los dos excepciones documentadas-sin-cambio que siguen
+  abiertas por decisión explícita del usuario: solapamiento de turnos
+  que solo detecta timestamp idéntico (no rango, MEDIUM #12), y la
+  vista de "mis pacientes" del médico en `GET /pacientes` que quedó
+  deliberadamente en memoria (LOW #17/PR #92) — ninguna es un bug,
+  ambas son candidatas a feature futura si el usuario las quiere
+  revisitar.
