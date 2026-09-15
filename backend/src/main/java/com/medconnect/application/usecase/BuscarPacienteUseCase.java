@@ -17,4 +17,8 @@ public interface BuscarPacienteUseCase {
     Optional<Paciente> buscarPorEmail(String email);
 
     List<Paciente> buscarTodos();
+
+    List<Paciente> buscarPagina(int page, int size);
+
+    long contar();
 }

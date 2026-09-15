@@ -42,4 +42,14 @@ public class BuscarMedicoService implements BuscarMedicoUseCase {
     public List<Medico> buscarTodos() {
         return medicoRepository.buscarTodos();
     }
+
+    @Override
+    public List<Medico> buscarPagina(String especialidad, int page, int size) {
+        return medicoRepository.buscarPagina(especialidad, page, size);
+    }
+
+    @Override
+    public long contar(String especialidad) {
+        return medicoRepository.contar(especialidad);
+    }
 }

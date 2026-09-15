@@ -95,6 +95,14 @@ public class TurnoController {
         return true;
     }
 
+    // LOW de la re-auditoria e2e (2026-09-08, segunda ronda): "paginacion
+    // falsa" -- antes las 5 ramas de este endpoint (medico ve los suyos,
+    // paciente ve los suyos, admin filtra por medicoId/pacienteId, admin ve
+    // todos) traian la lista completa de cada caso y recortaban en memoria.
+    // Las 5 ramas se reducen a 3 consultas subyacentes (por medico, por
+    // paciente, o todos) -- las 3 ahora bajan hasta una consulta SQL con
+    // LIMIT/OFFSET real (buscarPagina.../contar...), sin cambiar a quien ve
+    // que (esa logica de autorizacion no se toco).
     @GetMapping
     public ResponseEntity<PageResponse<TurnoResponse>> buscar(
             @RequestParam(required = false) Long medicoId,
@@ -103,22 +111,26 @@ public class TurnoController {
             @RequestParam(defaultValue = "20") int size) {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         List<Turno> turnos;
+        long total;
         if (tieneRol(auth, "MEDICO")) {
-            turnos = buscarMedicoUseCase.buscarPorEmail(auth.getName())
-                    .map(medico -> buscarTurnoUseCase.buscarPorMedico(medico.getId()))
-                    .orElseGet(List::of);
+            Optional<Medico> medico = buscarMedicoUseCase.buscarPorEmail(auth.getName());
+            turnos = medico.map(m -> buscarTurnoUseCase.buscarPaginaPorMedico(m.getId(), page, size)).orElseGet(List::of);
+            total = medico.map(m -> buscarTurnoUseCase.contarPorMedico(m.getId())).orElse(0L);
         } else if (tieneRol(auth, "PACIENTE")) {
-            turnos = buscarPacienteUseCase.buscarPorEmail(auth.getName())
-                    .map(paciente -> buscarTurnoUseCase.buscarPorPaciente(paciente.getId()))
-                    .orElseGet(List::of);
+            Optional<Paciente> paciente = buscarPacienteUseCase.buscarPorEmail(auth.getName());
+            turnos = paciente.map(p -> buscarTurnoUseCase.buscarPaginaPorPaciente(p.getId(), page, size)).orElseGet(List::of);
+            total = paciente.map(p -> buscarTurnoUseCase.contarPorPaciente(p.getId())).orElse(0L);
         } else if (medicoId != null) {
-            turnos = buscarTurnoUseCase.buscarPorMedico(medicoId);
+            turnos = buscarTurnoUseCase.buscarPaginaPorMedico(medicoId, page, size);
+            total = buscarTurnoUseCase.contarPorMedico(medicoId);
         } else if (pacienteId != null) {
-            turnos = buscarTurnoUseCase.buscarPorPaciente(pacienteId);
+            turnos = buscarTurnoUseCase.buscarPaginaPorPaciente(pacienteId, page, size);
+            total = buscarTurnoUseCase.contarPorPaciente(pacienteId);
         } else {
-            turnos = buscarTurnoUseCase.buscarTodos();
+            turnos = buscarTurnoUseCase.buscarPagina(page, size);
+            total = buscarTurnoUseCase.contar();
         }
-        return ResponseEntity.ok(PageResponse.of(toResponseList(turnos), page, size));
+        return ResponseEntity.ok(PageResponse.ofPagina(toResponseList(turnos), page, size, total));
     }
 
     @PatchMapping("/{id}/estado")

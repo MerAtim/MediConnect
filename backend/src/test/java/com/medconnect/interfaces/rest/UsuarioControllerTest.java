@@ -59,13 +59,15 @@ public class UsuarioControllerTest {
     }
 
     // LOW de la re-auditoria e2e (2026-09-08, segunda ronda): "useUsuarios
-    // sin paginacion/loading, inconsistente con el resto de secciones" --
-    // el endpoint devolvia un array crudo sin paginar; ahora usa el mismo
-    // PageResponse que /medicos, /pacientes y /turnos.
+    // sin paginacion/loading" (resuelto) y "paginacion falsa" (resuelto) --
+    // el endpoint devolvia un array crudo sin paginar, despues un
+    // PageResponse en memoria; ahora baja hasta buscarPagina/contar
+    // (consulta SQL con LIMIT/OFFSET en el adapter real).
     @Test
     public void buscarTodos_devuelvePaginado_sinContrasena() throws Exception {
-        when(buscarUsuarioUseCase.buscarTodos()).thenReturn(List.of(
+        when(buscarUsuarioUseCase.buscarPagina(0, 20)).thenReturn(List.of(
                 new Usuario(1L, "Ana Pérez", "ana@medconnect.com", "hash-secreto", UsuarioRole.MEDICO)));
+        when(buscarUsuarioUseCase.contar()).thenReturn(1L);
 
         mockMvc.perform(get("/api/v1/usuarios"))
                 .andExpect(status().isOk())

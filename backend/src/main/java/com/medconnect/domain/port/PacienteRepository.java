@@ -23,5 +23,15 @@ public interface PacienteRepository {
 
     List<Paciente> buscarTodos();
 
+    // LOW de la re-auditoria e2e (2026-09-08, segunda ronda): "paginacion
+    // falsa" -- buscarTodos() de arriba sigue existiendo para los usos que
+    // genuinamente necesitan la lista completa (emails-vinculados, la vista
+    // de un medico de "sus" pacientes via turnos). buscarPagina/contar son
+    // para el listado paginado real de ADMINISTRADOR: una consulta SQL con
+    // LIMIT/OFFSET, no un subList en memoria de la tabla entera.
+    List<Paciente> buscarPagina(int page, int size);
+
+    long contar();
+
     void eliminar(Long id);
 }

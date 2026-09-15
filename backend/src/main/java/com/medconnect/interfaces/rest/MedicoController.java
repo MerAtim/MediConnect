@@ -89,17 +89,19 @@ public class MedicoController {
         return ResponseEntity.ok(emails);
     }
 
+    // LOW de la re-auditoria e2e (2026-09-08, segunda ronda): "paginacion
+    // falsa" -- antes traia toda la tabla (buscarTodos()) y filtraba/recortaba
+    // en memoria. Ahora buscarPagina/contar bajan hasta una consulta SQL con
+    // LIMIT/OFFSET (y el filtro de especialidad en la misma consulta).
     @GetMapping
     public ResponseEntity<PageResponse<MedicoResponse>> buscarTodos(
             @RequestParam(required = false) String especialidad,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
-        List<Medico> medicos = buscarMedicoUseCase.buscarTodos();
-        if (especialidad != null && !especialidad.isBlank()) {
-            medicos = medicos.stream().filter(m -> especialidad.equals(m.getEspecialidad())).toList();
-        }
-        List<MedicoResponse> todos = medicos.stream().map(this::toResponse).toList();
-        return ResponseEntity.ok(PageResponse.of(todos, page, size));
+        List<MedicoResponse> pagina = buscarMedicoUseCase.buscarPagina(especialidad, page, size).stream()
+                .map(this::toResponse).toList();
+        long total = buscarMedicoUseCase.contar(especialidad);
+        return ResponseEntity.ok(PageResponse.ofPagina(pagina, page, size, total));
     }
 
     @PutMapping("/{id}")

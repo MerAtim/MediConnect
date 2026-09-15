@@ -19,4 +19,14 @@ public class BuscarUsuarioService implements BuscarUsuarioUseCase {
     public List<Usuario> buscarTodos() {
         return usuarioRepository.buscarTodos();
     }
+
+    @Override
+    public List<Usuario> buscarPagina(int page, int size) {
+        return usuarioRepository.buscarPagina(page, size);
+    }
+
+    @Override
+    public long contar() {
+        return usuarioRepository.contar();
+    }
 }

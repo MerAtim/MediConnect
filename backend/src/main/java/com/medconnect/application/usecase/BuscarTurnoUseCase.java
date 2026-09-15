@@ -14,4 +14,16 @@ public interface BuscarTurnoUseCase {
     List<Turno> buscarPorPaciente(Long pacienteId);
 
     List<Turno> buscarTodos();
+
+    List<Turno> buscarPaginaPorMedico(Long medicoId, int page, int size);
+
+    long contarPorMedico(Long medicoId);
+
+    List<Turno> buscarPaginaPorPaciente(Long pacienteId, int page, int size);
+
+    long contarPorPaciente(Long pacienteId);
+
+    List<Turno> buscarPagina(int page, int size);
+
+    long contar();
 }

@@ -7,6 +7,7 @@ import com.medconnect.domain.model.Turno;
 import com.medconnect.domain.port.TurnoRepository;
 import org.springframework.context.annotation.Profile;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -69,6 +70,45 @@ public class TurnoRepositoryAdapter implements TurnoRepository {
     @Override
     public List<Turno> buscarTodos() {
         return jpaRepository.findAll().stream().map(this::toDomain).toList();
+    }
+
+    @Override
+    public List<Turno> buscarPaginaPorMedico(Long medicoId, int page, int size) {
+        int paginaSegura = Math.max(page, 0);
+        int tamanioSeguro = Math.max(size, 1);
+        return jpaRepository.findByMedicoId(medicoId, PageRequest.of(paginaSegura, tamanioSeguro))
+                .getContent().stream().map(this::toDomain).toList();
+    }
+
+    @Override
+    public long contarPorMedico(Long medicoId) {
+        return jpaRepository.countByMedicoId(medicoId);
+    }
+
+    @Override
+    public List<Turno> buscarPaginaPorPaciente(Long pacienteId, int page, int size) {
+        int paginaSegura = Math.max(page, 0);
+        int tamanioSeguro = Math.max(size, 1);
+        return jpaRepository.findByPacienteId(pacienteId, PageRequest.of(paginaSegura, tamanioSeguro))
+                .getContent().stream().map(this::toDomain).toList();
+    }
+
+    @Override
+    public long contarPorPaciente(Long pacienteId) {
+        return jpaRepository.countByPacienteId(pacienteId);
+    }
+
+    @Override
+    public List<Turno> buscarPagina(int page, int size) {
+        int paginaSegura = Math.max(page, 0);
+        int tamanioSeguro = Math.max(size, 1);
+        return jpaRepository.findAll(PageRequest.of(paginaSegura, tamanioSeguro))
+                .getContent().stream().map(this::toDomain).toList();
+    }
+
+    @Override
+    public long contar() {
+        return jpaRepository.count();
     }
 
     private Turno toDomain(TurnoEntity entity) {

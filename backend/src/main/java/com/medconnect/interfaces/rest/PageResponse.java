@@ -29,6 +29,19 @@ public class PageResponse<T> {
         return new PageResponse<>(items.subList(desde, hasta), paginaSegura, tamanioSeguro, items.size(), totalPages);
     }
 
+    // LOW de la re-auditoria e2e (2026-09-08, segunda ronda): "paginacion
+    // falsa" -- of() de arriba asume que "items" es la tabla ENTERA y hace
+    // el subList en memoria. Este factory es para el caso real: "content" ya
+    // viene paginado desde una consulta SQL con LIMIT/OFFSET (Pageable de
+    // Spring Data), y "totalElements" viene de una consulta COUNT aparte --
+    // solo arma el sobre de respuesta, sin volver a recortar nada.
+    public static <T> PageResponse<T> ofPagina(List<T> content, int page, int size, long totalElements) {
+        int paginaSegura = Math.max(page, 0);
+        int tamanioSeguro = Math.max(size, 1);
+        int totalPages = (int) Math.ceil((double) totalElements / tamanioSeguro);
+        return new PageResponse<>(content, paginaSegura, tamanioSeguro, totalElements, totalPages);
+    }
+
     public List<T> getContent() {
         return content;
     }

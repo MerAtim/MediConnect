@@ -123,13 +123,29 @@ public class PacienteController {
         return ResponseEntity.ok(emails);
     }
 
+    // LOW de la re-auditoria e2e (2026-09-08, segunda ronda): "paginacion
+    // falsa" -- para ADMINISTRADOR (la rama que realmente puede tener una
+    // tabla grande) ahora baja hasta una consulta SQL con LIMIT/OFFSET via
+    // buscarPagina/contar. La vista de MEDICO ("mis pacientes", derivada de
+    // sus propios turnos via pacientesVisibles/pacientesDeEseMedico) sigue
+    // en memoria a proposito: no es un listado de tabla, es un JOIN
+    // turnos->pacientes acotado por los turnos de ESE medico -- de por si
+    // chico (no tiene miles de turnos propios), y paginar ese join a nivel
+    // SQL es un cambio de forma mucho mayor (COUNT DISTINCT + JOIN) para un
+    // caso que ya es chico por naturaleza.
     @GetMapping
     public ResponseEntity<PageResponse<PacienteResponse>> buscarTodos(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        List<PacienteResponse> todos = pacientesVisibles(auth).stream().map(this::toResponse).toList();
-        return ResponseEntity.ok(PageResponse.of(todos, page, size));
+        if (tieneRolMedico(auth)) {
+            List<PacienteResponse> propios = pacientesVisibles(auth).stream().map(this::toResponse).toList();
+            return ResponseEntity.ok(PageResponse.of(propios, page, size));
+        }
+        List<PacienteResponse> pagina = buscarPacienteUseCase.buscarPagina(page, size).stream()
+                .map(this::toResponse).toList();
+        long total = buscarPacienteUseCase.contar();
+        return ResponseEntity.ok(PageResponse.ofPagina(pagina, page, size, total));
     }
 
     private List<Paciente> pacientesVisibles(Authentication auth) {
