@@ -35,4 +35,34 @@ public class BuscarTurnoService implements BuscarTurnoUseCase {
     public List<Turno> buscarTodos() {
         return turnoRepository.buscarTodos();
     }
+
+    @Override
+    public List<Turno> buscarPaginaPorMedico(Long medicoId, int page, int size) {
+        return turnoRepository.buscarPaginaPorMedico(medicoId, page, size);
+    }
+
+    @Override
+    public long contarPorMedico(Long medicoId) {
+        return turnoRepository.contarPorMedico(medicoId);
+    }
+
+    @Override
+    public List<Turno> buscarPaginaPorPaciente(Long pacienteId, int page, int size) {
+        return turnoRepository.buscarPaginaPorPaciente(pacienteId, page, size);
+    }
+
+    @Override
+    public long contarPorPaciente(Long pacienteId) {
+        return turnoRepository.contarPorPaciente(pacienteId);
+    }
+
+    @Override
+    public List<Turno> buscarPagina(int page, int size) {
+        return turnoRepository.buscarPagina(page, size);
+    }
+
+    @Override
+    public long contar() {
+        return turnoRepository.contar();
+    }
 }

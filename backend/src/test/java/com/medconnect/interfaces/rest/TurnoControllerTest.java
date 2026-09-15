@@ -168,38 +168,49 @@ public class TurnoControllerTest {
                 .andExpect(status().isForbidden());
     }
 
+    // LOW de la re-auditoria e2e (2026-09-08, segunda ronda): "paginacion
+    // falsa" -- las 3 consultas subyacentes (por medico, por paciente, todos)
+    // ahora bajan hasta buscarPagina.../contar... (consulta SQL con
+    // LIMIT/OFFSET en el adapter real), no buscarPorX/buscarTodos() +
+    // recorte en memoria.
     @Test
     public void buscar_filtraPorMedicoId_cuandoSePasaComoParametro() throws Exception {
-        when(buscarTurnoUseCase.buscarPorMedico(2L)).thenReturn(List.of());
+        when(buscarTurnoUseCase.buscarPaginaPorMedico(2L, 0, 20)).thenReturn(List.of());
+        when(buscarTurnoUseCase.contarPorMedico(2L)).thenReturn(0L);
 
         mockMvc.perform(get("/api/v1/turnos").param("medicoId", "2"))
                 .andExpect(status().isOk())
                 .andExpect(content().json("{\"content\":[],\"totalElements\":0}"));
 
-        Mockito.verify(buscarTurnoUseCase).buscarPorMedico(2L);
+        Mockito.verify(buscarTurnoUseCase).buscarPaginaPorMedico(2L, 0, 20);
         Mockito.verify(buscarTurnoUseCase, Mockito.never()).buscarTodos();
     }
 
     @Test
     public void buscar_devuelveTodos_siNoSePasanParametros() throws Exception {
-        when(buscarTurnoUseCase.buscarTodos()).thenReturn(List.of());
+        when(buscarTurnoUseCase.buscarPagina(0, 20)).thenReturn(List.of());
+        when(buscarTurnoUseCase.contar()).thenReturn(0L);
 
         mockMvc.perform(get("/api/v1/turnos"))
                 .andExpect(status().isOk())
                 .andExpect(content().json("{\"content\":[],\"totalElements\":0}"));
 
-        Mockito.verify(buscarTurnoUseCase).buscarTodos();
+        Mockito.verify(buscarTurnoUseCase).buscarPagina(0, 20);
     }
 
     @Test
     public void buscar_pagina_conPageYSize() throws Exception {
-        List<Turno> turnos = java.util.stream.IntStream.rangeClosed(1, 25).mapToObj(i ->
+        // buscarPagina ya devuelve solo la porcion pedida (page=1,size=10 ->
+        // items 11-20 de un total de 25) -- el recorte lo hace la consulta
+        // SQL, no PageResponse.
+        List<Turno> paginaDos = java.util.stream.IntStream.rangeClosed(11, 20).mapToObj(i ->
                 new Turno((long) i, LocalDateTime.of(2026, 8, 12, 10, 0), "Cardiología",
                         TestFixtures.medicoConId(2L),
                         TestFixtures.pacienteConId(3L),
                         TurnoEstado.PENDIENTE)
         ).toList();
-        when(buscarTurnoUseCase.buscarTodos()).thenReturn(turnos);
+        when(buscarTurnoUseCase.buscarPagina(1, 10)).thenReturn(paginaDos);
+        when(buscarTurnoUseCase.contar()).thenReturn(25L);
 
         mockMvc.perform(get("/api/v1/turnos").param("page", "1").param("size", "10"))
                 .andExpect(status().isOk())
@@ -223,7 +234,8 @@ public class TurnoControllerTest {
                 new Turno(1L, LocalDateTime.of(2026, 8, 12, 10, 0), "Cardiología", medicoA, paciente, TurnoEstado.PENDIENTE),
                 new Turno(2L, LocalDateTime.of(2026, 8, 12, 11, 0), "Dermatología", medicoB, paciente, TurnoEstado.PENDIENTE)
         );
-        when(buscarTurnoUseCase.buscarTodos()).thenReturn(turnos);
+        when(buscarTurnoUseCase.buscarPagina(0, 20)).thenReturn(turnos);
+        when(buscarTurnoUseCase.contar()).thenReturn(2L);
         when(buscarMedicoUseCase.buscarPorIds(List.of(2L, 5L))).thenReturn(java.util.Map.of(2L, medicoA, 5L, medicoB));
         when(buscarPacienteUseCase.buscarPorIds(List.of(3L))).thenReturn(java.util.Map.of(3L, paciente));
 
@@ -291,14 +303,15 @@ public class TurnoControllerTest {
         loguearComo("MEDICO", "medico@medconnect.com");
         when(buscarMedicoUseCase.buscarPorEmail("medico@medconnect.com"))
                 .thenReturn(Optional.of(TestFixtures.medicoConId(2L)));
-        when(buscarTurnoUseCase.buscarPorMedico(2L)).thenReturn(List.of());
+        when(buscarTurnoUseCase.buscarPaginaPorMedico(2L, 0, 20)).thenReturn(List.of());
+        when(buscarTurnoUseCase.contarPorMedico(2L)).thenReturn(0L);
 
         mockMvc.perform(get("/api/v1/turnos").param("medicoId", "999").param("pacienteId", "888"))
                 .andExpect(status().isOk())
                 .andExpect(content().json("{\"content\":[],\"totalElements\":0}"));
 
-        Mockito.verify(buscarTurnoUseCase).buscarPorMedico(2L);
-        Mockito.verify(buscarTurnoUseCase, Mockito.never()).buscarPorMedico(999L);
+        Mockito.verify(buscarTurnoUseCase).buscarPaginaPorMedico(2L, 0, 20);
+        Mockito.verify(buscarTurnoUseCase, Mockito.never()).buscarPaginaPorMedico(999L, 0, 20);
         Mockito.verify(buscarTurnoUseCase, Mockito.never()).buscarTodos();
     }
 
@@ -319,13 +332,14 @@ public class TurnoControllerTest {
         loguearComo("PACIENTE", "paciente@medconnect.com");
         when(buscarPacienteUseCase.buscarPorEmail("paciente@medconnect.com"))
                 .thenReturn(Optional.of(TestFixtures.pacienteConId(3L)));
-        when(buscarTurnoUseCase.buscarPorPaciente(3L)).thenReturn(List.of());
+        when(buscarTurnoUseCase.buscarPaginaPorPaciente(3L, 0, 20)).thenReturn(List.of());
+        when(buscarTurnoUseCase.contarPorPaciente(3L)).thenReturn(0L);
 
         mockMvc.perform(get("/api/v1/turnos"))
                 .andExpect(status().isOk())
                 .andExpect(content().json("{\"content\":[],\"totalElements\":0}"));
 
-        Mockito.verify(buscarTurnoUseCase).buscarPorPaciente(3L);
+        Mockito.verify(buscarTurnoUseCase).buscarPaginaPorPaciente(3L, 0, 20);
         Mockito.verify(buscarTurnoUseCase, Mockito.never()).buscarTodos();
     }
 

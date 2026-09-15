@@ -3,6 +3,7 @@ package com.medconnect.infrastructure.persistence;
 import com.medconnect.domain.model.Paciente;
 import com.medconnect.domain.port.PacienteRepository;
 import org.springframework.context.annotation.Profile;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -62,6 +63,19 @@ public class PacienteRepositoryAdapter implements PacienteRepository {
     @Override
     public List<Paciente> buscarTodos() {
         return jpaRepository.findAllActivos().stream().map(this::toDomain).toList();
+    }
+
+    @Override
+    public List<Paciente> buscarPagina(int page, int size) {
+        int paginaSegura = Math.max(page, 0);
+        int tamanioSeguro = Math.max(size, 1);
+        return jpaRepository.findAllActivos(PageRequest.of(paginaSegura, tamanioSeguro))
+                .getContent().stream().map(this::toDomain).toList();
+    }
+
+    @Override
+    public long contar() {
+        return jpaRepository.countActivos();
     }
 
     @Override

@@ -23,5 +23,17 @@ public interface MedicoRepository {
 
     List<Medico> buscarTodos();
 
+    // LOW de la re-auditoria e2e (2026-09-08, segunda ronda): "paginacion
+    // falsa" -- buscarTodos() de arriba sigue existiendo para los usos que
+    // genuinamente necesitan la lista completa (especialidades,
+    // emails-vinculados, el pool de "cuenta vinculada" del frontend).
+    // buscarPagina/contar son para el listado paginado real: una consulta
+    // SQL con LIMIT/OFFSET (Pageable de Spring Data en el adapter), no un
+    // subList en memoria de la tabla entera. especialidad puede ser
+    // null/blank para "sin filtro".
+    List<Medico> buscarPagina(String especialidad, int page, int size);
+
+    long contar(String especialidad);
+
     void eliminar(Long id);
 }

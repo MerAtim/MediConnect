@@ -441,6 +441,19 @@ public class SecurityConfigTest {
                 .andExpect(noRechazadoPorAutorizacion());
     }
 
+    // LOW de la re-auditoria e2e (2026-09-08, segunda ronda): "paginacion
+    // falsa" -- estos fakes en memoria implementan los mismos puertos que
+    // los adapters JPA reales, asi que tambien necesitan buscarPagina/contar.
+    // Como son fakes (no hay SQL real detras), la paginacion es un simple
+    // subList compartido por los 4.
+    private static <T> List<T> pagina(List<T> items, int page, int size) {
+        int paginaSegura = Math.max(page, 0);
+        int tamanioSeguro = Math.max(size, 1);
+        int desde = Math.min(paginaSegura * tamanioSeguro, items.size());
+        int hasta = Math.min(desde + tamanioSeguro, items.size());
+        return new ArrayList<>(items.subList(desde, hasta));
+    }
+
     static class InMemoryMedicoRepository implements MedicoRepository {
         private final List<Medico> store = new ArrayList<>();
         private long seq = 1;
@@ -477,6 +490,22 @@ public class SecurityConfigTest {
         @Override
         public List<Medico> buscarTodos() {
             return new ArrayList<>(store);
+        }
+
+        @Override
+        public List<Medico> buscarPagina(String especialidad, int page, int size) {
+            List<Medico> filtrados = (especialidad == null || especialidad.isBlank())
+                    ? store
+                    : store.stream().filter(m -> especialidad.equals(m.getEspecialidad())).toList();
+            return pagina(filtrados, page, size);
+        }
+
+        @Override
+        public long contar(String especialidad) {
+            if (especialidad == null || especialidad.isBlank()) {
+                return store.size();
+            }
+            return store.stream().filter(m -> especialidad.equals(m.getEspecialidad())).count();
         }
 
         @Override
@@ -524,6 +553,16 @@ public class SecurityConfigTest {
         }
 
         @Override
+        public List<Paciente> buscarPagina(int page, int size) {
+            return pagina(store, page, size);
+        }
+
+        @Override
+        public long contar() {
+            return store.size();
+        }
+
+        @Override
         public void eliminar(Long id) {
             store.removeIf(p -> p.getId().equals(id));
         }
@@ -567,6 +606,36 @@ public class SecurityConfigTest {
         public List<Turno> buscarTodos() {
             return new ArrayList<>(store);
         }
+
+        @Override
+        public List<Turno> buscarPaginaPorMedico(Long medicoId, int page, int size) {
+            return pagina(buscarPorMedico(medicoId), page, size);
+        }
+
+        @Override
+        public long contarPorMedico(Long medicoId) {
+            return buscarPorMedico(medicoId).size();
+        }
+
+        @Override
+        public List<Turno> buscarPaginaPorPaciente(Long pacienteId, int page, int size) {
+            return pagina(buscarPorPaciente(pacienteId), page, size);
+        }
+
+        @Override
+        public long contarPorPaciente(Long pacienteId) {
+            return buscarPorPaciente(pacienteId).size();
+        }
+
+        @Override
+        public List<Turno> buscarPagina(int page, int size) {
+            return pagina(store, page, size);
+        }
+
+        @Override
+        public long contar() {
+            return store.size();
+        }
     }
 
     static class InMemoryUsuarioRepository implements UsuarioRepository {
@@ -593,6 +662,16 @@ public class SecurityConfigTest {
         @Override
         public List<Usuario> buscarTodos() {
             return new ArrayList<>(store);
+        }
+
+        @Override
+        public List<Usuario> buscarPagina(int page, int size) {
+            return pagina(store, page, size);
+        }
+
+        @Override
+        public long contar() {
+            return store.size();
         }
     }
 

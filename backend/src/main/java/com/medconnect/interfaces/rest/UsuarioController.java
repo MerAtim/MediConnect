@@ -45,18 +45,19 @@ public class UsuarioController {
     }
 
     // LOW de la re-auditoria e2e (2026-09-08, segunda ronda): "useUsuarios
-    // sin paginacion/loading, inconsistente con el resto de secciones" --
-    // este endpoint devolvia la lista completa sin paginar, a diferencia de
-    // /medicos, /pacientes y /turnos. Mismo patron (PageResponse en memoria)
-    // que esos tres usan hoy.
+    // sin paginacion/loading" (resuelto con PageResponse en memoria) +
+    // "paginacion falsa" (resuelto aca): ahora baja hasta una consulta SQL
+    // con LIMIT/OFFSET real via buscarPagina/contar, mismo patron que
+    // /medicos, /pacientes y /turnos.
     @GetMapping
     public ResponseEntity<PageResponse<UsuarioResponse>> buscarTodos(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
-        List<UsuarioResponse> usuarios = buscarUsuarioUseCase.buscarTodos().stream()
+        List<UsuarioResponse> pagina = buscarUsuarioUseCase.buscarPagina(page, size).stream()
                 .map(this::toResponse)
                 .toList();
-        return ResponseEntity.ok(PageResponse.of(usuarios, page, size));
+        long total = buscarUsuarioUseCase.contar();
+        return ResponseEntity.ok(PageResponse.ofPagina(pagina, page, size, total));
     }
 
     private UsuarioResponse toResponse(Usuario usuario) {

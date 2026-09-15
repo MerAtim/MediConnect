@@ -1,5 +1,7 @@
 package com.medconnect.infrastructure.persistence;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -22,4 +24,17 @@ public interface MedicoJpaRepository extends JpaRepository<MedicoEntity, Long> {
     Optional<MedicoEntity> findActivoByEmail(@Param("email") String email);
 
     boolean existsByEmailAndActivoFalse(String email);
+
+    // LOW de la re-auditoria e2e (2026-09-08, segunda ronda): "paginacion
+    // falsa" -- estas dos reemplazan el patron findAllActivos() + subList en
+    // memoria por una consulta SQL real con LIMIT/OFFSET (Pageable) y su
+    // COUNT correspondiente. especialidad nullable: "(:especialidad IS NULL
+    // OR ...)" cubre listar con y sin filtro en la misma consulta.
+    @Query("SELECT m FROM MedicoEntity m WHERE (m.activo = true OR m.activo IS NULL) "
+            + "AND (:especialidad IS NULL OR m.especialidad = :especialidad)")
+    Page<MedicoEntity> findAllActivos(@Param("especialidad") String especialidad, Pageable pageable);
+
+    @Query("SELECT COUNT(m) FROM MedicoEntity m WHERE (m.activo = true OR m.activo IS NULL) "
+            + "AND (:especialidad IS NULL OR m.especialidad = :especialidad)")
+    long countActivos(@Param("especialidad") String especialidad);
 }

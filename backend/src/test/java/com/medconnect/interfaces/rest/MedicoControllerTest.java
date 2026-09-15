@@ -129,9 +129,14 @@ public class MedicoControllerTest {
                 .andExpect(status().isNotFound());
     }
 
+    // LOW de la re-auditoria e2e (2026-09-08, segunda ronda): "paginacion
+    // falsa" -- el listado ahora baja hasta buscarPagina/contar (consulta
+    // SQL con LIMIT/OFFSET en el adapter real), no buscarTodos() + recorte
+    // en memoria.
     @Test
     public void buscarTodos_devuelveListadoPaginado() throws Exception {
-        when(buscarMedicoUseCase.buscarTodos()).thenReturn(List.of());
+        when(buscarMedicoUseCase.buscarPagina(null, 0, 20)).thenReturn(List.of());
+        when(buscarMedicoUseCase.contar(null)).thenReturn(0L);
 
         mockMvc.perform(get("/api/v1/medicos"))
                 .andExpect(status().isOk())
@@ -141,8 +146,8 @@ public class MedicoControllerTest {
     @Test
     public void buscarTodos_filtraPorEspecialidad() throws Exception {
         Medico cardiologa = new Medico(1L, "Ana Pérez", "Cardiología", "MP1234", null, null, null);
-        Medico clinico = new Medico(2L, "Luis Gómez", "Clínica Médica", "MP5678", null, null, null);
-        when(buscarMedicoUseCase.buscarTodos()).thenReturn(List.of(cardiologa, clinico));
+        when(buscarMedicoUseCase.buscarPagina("Cardiología", 0, 20)).thenReturn(List.of(cardiologa));
+        when(buscarMedicoUseCase.contar("Cardiología")).thenReturn(1L);
 
         mockMvc.perform(get("/api/v1/medicos").param("especialidad", "Cardiología"))
                 .andExpect(status().isOk())

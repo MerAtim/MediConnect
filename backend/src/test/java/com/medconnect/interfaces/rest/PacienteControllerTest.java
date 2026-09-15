@@ -165,13 +165,20 @@ public class PacienteControllerTest {
                 .andExpect(status().isForbidden());
     }
 
+    // LOW de la re-auditoria e2e (2026-09-08, segunda ronda): "paginacion
+    // falsa" -- para ADMINISTRADOR (esta rama) ahora baja hasta
+    // buscarPagina/contar (consulta SQL con LIMIT/OFFSET en el adapter
+    // real), no buscarTodos() + recorte en memoria.
     @Test
     public void buscarTodos_devuelveListadoPaginado() throws Exception {
-        when(buscarPacienteUseCase.buscarTodos()).thenReturn(List.of());
+        when(buscarPacienteUseCase.buscarPagina(0, 20)).thenReturn(List.of());
+        when(buscarPacienteUseCase.contar()).thenReturn(0L);
 
         mockMvc.perform(get("/api/v1/pacientes"))
                 .andExpect(status().isOk())
                 .andExpect(content().json("{\"content\":[],\"totalElements\":0}"));
+
+        Mockito.verify(buscarPacienteUseCase, Mockito.never()).buscarTodos();
     }
 
     @Test

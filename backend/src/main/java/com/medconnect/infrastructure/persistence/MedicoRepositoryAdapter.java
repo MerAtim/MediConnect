@@ -3,6 +3,7 @@ package com.medconnect.infrastructure.persistence;
 import com.medconnect.domain.model.Medico;
 import com.medconnect.domain.port.MedicoRepository;
 import org.springframework.context.annotation.Profile;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -60,6 +61,21 @@ public class MedicoRepositoryAdapter implements MedicoRepository {
     @Override
     public List<Medico> buscarTodos() {
         return jpaRepository.findAllActivos().stream().map(this::toDomain).toList();
+    }
+
+    @Override
+    public List<Medico> buscarPagina(String especialidad, int page, int size) {
+        String filtro = (especialidad == null || especialidad.isBlank()) ? null : especialidad;
+        int paginaSegura = Math.max(page, 0);
+        int tamanioSeguro = Math.max(size, 1);
+        return jpaRepository.findAllActivos(filtro, PageRequest.of(paginaSegura, tamanioSeguro))
+                .getContent().stream().map(this::toDomain).toList();
+    }
+
+    @Override
+    public long contar(String especialidad) {
+        String filtro = (especialidad == null || especialidad.isBlank()) ? null : especialidad;
+        return jpaRepository.countActivos(filtro);
     }
 
     @Override
