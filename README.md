@@ -16,7 +16,6 @@
 - Historia clínica: registros por paciente (Médico) y exportación a texto descargable (Administrador). Solo se habilita con un turno ya ocurrido y no cancelado, y el contenido se guarda cifrado at-rest (AES-256-GCM).
 - Cuentas de acceso separadas de las fichas de Médico/Paciente, con vinculación por email (un email = un médico/paciente, forzado a nivel de base).
 - Autenticación con JWT en cookie httpOnly y autorización por rol en cada endpoint. Cerrar sesión o cambiar la contraseña revoca los tokens ya emitidos.
-- API REST versionada bajo `/api/v1`, documentada con Swagger UI.
 - Health checks con Spring Boot Actuator y despliegue completo con Docker Compose.
 
 No es un proyecto terminado: es una app que se sigue construyendo de forma incremental (ver `CONTINUE_HERE.md` para el detalle de qué se implementó en cada etapa y qué queda pendiente).
