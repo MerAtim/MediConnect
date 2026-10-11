@@ -8,8 +8,10 @@ import com.medconnect.domain.exception.RegistroClinicoInvalidoException;
 import com.medconnect.domain.exception.TurnoInvalidoException;
 import com.medconnect.domain.exception.UsuarioInvalidoException;
 import org.junit.jupiter.api.Test;
+import org.springframework.http.HttpInputMessage;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
@@ -108,5 +110,25 @@ public class GlobalExceptionHandlerTest {
 
         assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, resp.getStatusCode());
         assertEquals("No se pudo desencriptar el valor: dato corrupto, truncado o clave incorrecta", resp.getBody().getMessage());
+    }
+
+    // Encontrado en un pase de verificacion posterior al cierre de la
+    // re-auditoria e2e (2026-10-11): un body JSON malformado (ej. un
+    // LocalDateTime sin segundos) no tenia handler propio -- caia en el
+    // DefaultHandlerExceptionResolver de Spring, que resuelve la excepcion
+    // con response.sendError(400) y dispara un forward interno a /error
+    // bloqueado por la cadena de seguridad, asi que el cliente veia un 403
+    // vacio en vez de un 400 claro. El mensaje de Jackson es verboso y
+    // expone nombres de clases internas -- no se lo manda al cliente, se
+    // devuelve un mensaje generico fijo.
+    @Test
+    public void handleHttpMessageNotReadable_devuelve400ConMensajeGenerico() {
+        HttpMessageNotReadableException ex = new HttpMessageNotReadableException(
+                "JSON parse error: Cannot deserialize value of type `java.time.LocalDateTime`", (HttpInputMessage) null);
+
+        ResponseEntity<ErrorResponse> resp = handler.handleHttpMessageNotReadable(ex);
+
+        assertEquals(HttpStatus.BAD_REQUEST, resp.getStatusCode());
+        assertEquals("El cuerpo de la solicitud es invalido o esta mal formado", resp.getBody().getMessage());
     }
 }
