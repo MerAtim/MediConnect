@@ -2,7 +2,12 @@
 
 Este archivo se mantiene actualizado al final de cada sesión de trabajo para que,
 aunque pasen días sin conectarte, se pueda seguir sin releer el proyecto entero.
-Última actualización: **2026-09-15**, tras mergear PR #94
+Última actualización: **2026-10-11**, tras mergear PR #95
+(`fix/httpmessagenotreadable-400-en-vez-de-403`, ver "Pase de
+verificación" más abajo): un body JSON malformado daba un 403 vacío en
+vez de un 400 claro, hallado al verificar los dos cambios más
+riesgosos de la ronda anterior (paginación real y contrato JSON de
+errores). Antes, PR #94
 (`refactor/medico-paciente-ref-liviano`, ver "Décima ronda" más abajo):
 cierra el último de los 12 LOW de la re-auditoría e2e. **Con esto se
 cierra por completo el ciclo de la re-auditoría e2e del 2026-09-08**
@@ -1774,12 +1779,39 @@ cierra por completo el ciclo de la re-auditoría e2e del 2026-09-08:
 4 CRITICAL + 8 HIGH + 16 MEDIUM + 12 LOW, 32 hallazgos totales, 19+15
 = 34 PRs entre el 2026-09-08 y el 2026-09-15.
 
+## Pase de verificación (2026-10-11): paginación real y contrato JSON de errores
+
+Con el ciclo completo de la re-auditoría cerrado, el usuario pidió un
+pase de verificación liviano sobre los dos cambios de más riesgo de la
+última ronda (LOW #17 paginación real con `Pageable`, PR #92; LOW #18
+contrato JSON de errores, PR #93) antes de sumar trabajo nuevo encima.
+
+- **Paginación**: se probaron a mano contra Postgres real los bordes
+  que no se habían probado en el PR original — `page` negativo,
+  `size=0`, `page` mucho más allá del total, `size` enorme (100000), y
+  filtros no numéricos (`medicoId=abc`). Los primeros cuatro se
+  comportaron bien (clamping correcto, `content` vacío sin error en
+  vez de romper). El filtro no numérico da 400 limpio porque
+  `NumberFormatException` es subclase de `IllegalArgumentException` y
+  cae en el handler que ya existía (HIGH #7, PR #62) — sin cambios
+  necesarios.
+- **Contrato JSON de errores**: acá sí había un hallazgo real — ver PR
+  #95 (`fix/httpmessagenotreadable-400-en-vez-de-403`) más arriba. Un
+  body JSON malformado (`LocalDateTime` sin segundos, JSON
+  sintácticamente inválido, tipo de dato incorrecto, body vacío)
+  devolvía un 403 vacío en vez de un 400 con `{"message": "..."}`,
+  por una interacción entre `DefaultHandlerExceptionResolver`
+  (`response.sendError()` → forward interno a `/error`) y la cadena de
+  seguridad (`/error` no está en la lista de rutas permitidas de
+  `SecurityConfig`). Resuelto con un `@ExceptionHandler` dedicado,
+  mismo patrón que los otros 10 handlers — evita el camino de
+  `sendError()`/forward por completo.
+
 ## Plan sugerido para la próxima sesión
 
 Sin pedido puntual del usuario: no queda ningún punto abierto de la
-re-auditoría e2e del 2026-09-08 — el ciclo completo (CRITICAL, HIGH,
-MEDIUM, LOW) está cerrado. Si no hay un pedido puntual al arrancar la
-próxima sesión, buenas opciones de continuación natural:
+re-auditoría e2e del 2026-09-08 ni del pase de verificación posterior.
+Buenas opciones de continuación natural:
 - Repetir el ciclo de re-auditoría e2e con los 4 subagentes en
   paralelo una vez más, para ver qué quedó desactualizado con todo lo
   hecho en esta ronda (mismo patrón que ya se uso dos veces antes,
@@ -1791,3 +1823,7 @@ próxima sesión, buenas opciones de continuación natural:
   deliberadamente en memoria (LOW #17/PR #92) — ninguna es un bug,
   ambas son candidatas a feature futura si el usuario las quiere
   revisitar.
+- Empezar a definir qué funcionalidad de producto le falta a la app
+  más allá de CRUD + turnos (notificaciones, búsqueda, dashboard para
+  médico/paciente) — hoy no hay ningún roadmap de producto, solo esta
+  bitácora reactiva sesión a sesión.
