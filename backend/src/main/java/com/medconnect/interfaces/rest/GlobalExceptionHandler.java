@@ -11,6 +11,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 
@@ -93,5 +94,28 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErrorResponse> handleIllegalState(IllegalStateException ex) {
         log.error("Estado invalido (posible dato cifrado corrupto o clave incorrecta): {}", ex.getMessage());
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(new ErrorResponse(ex.getMessage()));
+    }
+
+    // Encontrado en un pase de verificacion posterior al cierre de la
+    // re-auditoria e2e (2026-10-11): un body JSON malformado (ej. un
+    // LocalDateTime sin segundos, o JSON invalido) no tenia handler propio
+    // aca -- caia en el DefaultHandlerExceptionResolver de Spring, que
+    // resuelve esta excepcion llamando a response.sendError(400), lo cual
+    // dispara un forward interno a /error. Ese forward termina bloqueado
+    // por la cadena de seguridad (SecurityConfig no tiene /error en su
+    // lista de rutas permitidas) y el cliente veia un 403 vacio en vez de
+    // un 400 claro -- la MISMA inconsistencia de contrato de errores que
+    // este archivo existe para resolver, solo que en un caso que no se
+    // habia probado todavia. Declarar el handler aca evita el camino de
+    // sendError()/forward por completo (ExceptionHandlerExceptionResolver
+    // escribe la respuesta directo, antes de llegar al resolver default).
+    // El mensaje de Jackson (ex.getMessage()) es verboso y expone nombres
+    // de clases internas (java.time.LocalDateTime, etc.) -- se logea para
+    // diagnostico pero no se lo manda al cliente.
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<ErrorResponse> handleHttpMessageNotReadable(HttpMessageNotReadableException ex) {
+        log.warn("Body de la solicitud invalido o mal formado: {}", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(new ErrorResponse("El cuerpo de la solicitud es invalido o esta mal formado"));
     }
 }
