@@ -354,6 +354,35 @@ public class SecurityConfigTest {
     }
 
     @Test
+    public void getEspecialidadesDuraciones_requiereRolAdministrador() throws Exception {
+        mockMvc.perform(get("/api/v1/especialidades/duraciones"))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(get("/api/v1/especialidades/duraciones").cookie(jwtCookie(UsuarioRole.MEDICO)))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(get("/api/v1/especialidades/duraciones").cookie(jwtCookie(UsuarioRole.PACIENTE)))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(get("/api/v1/especialidades/duraciones").cookie(jwtCookie(UsuarioRole.ADMINISTRADOR)))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    public void putEspecialidadDuracion_requiereRolAdministrador() throws Exception {
+        String body = "{\"duracionMinutos\":45}";
+        String url = "/api/v1/especialidades/Cardiologia/duracion";
+        mockMvc.perform(put(url).contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(put(url).contentType(MediaType.APPLICATION_JSON).content(body)
+                        .cookie(jwtCookie(UsuarioRole.MEDICO)))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(put(url).contentType(MediaType.APPLICATION_JSON).content(body)
+                        .cookie(jwtCookie(UsuarioRole.PACIENTE)))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(put(url).contentType(MediaType.APPLICATION_JSON).content(body)
+                        .cookie(jwtCookie(UsuarioRole.ADMINISTRADOR)))
+                .andExpect(status().isOk());
+    }
+
+    @Test
     public void postTurnos_requiereRolAdministrador() throws Exception {
         String body = "{\"fechaHora\":\"2026-09-01T10:00:00\",\"especialidad\":\"Clinica\",\"medicoId\":1,\"pacienteId\":1}";
         mockMvc.perform(post("/api/v1/turnos").contentType(MediaType.APPLICATION_JSON).content(body))
