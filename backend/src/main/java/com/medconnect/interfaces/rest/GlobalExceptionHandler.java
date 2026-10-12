@@ -2,6 +2,7 @@ package com.medconnect.interfaces.rest;
 
 import com.medconnect.domain.exception.CredencialesInvalidasException;
 import com.medconnect.domain.exception.DemasiadosIntentosException;
+import com.medconnect.domain.exception.EspecialidadDuracionInvalidaException;
 import com.medconnect.domain.exception.MedicoInvalidoException;
 import com.medconnect.domain.exception.PacienteInvalidoException;
 import com.medconnect.domain.exception.RegistroClinicoInvalidoException;
@@ -29,6 +30,12 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(TurnoInvalidoException.class)
     public ResponseEntity<ErrorResponse> handleTurnoInvalido(TurnoInvalidoException ex) {
         log.warn("Turno invalido: {}", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(new ErrorResponse(ex.getMessage()));
+    }
+
+    @ExceptionHandler(EspecialidadDuracionInvalidaException.class)
+    public ResponseEntity<ErrorResponse> handleEspecialidadDuracionInvalida(EspecialidadDuracionInvalidaException ex) {
+        log.warn("Duracion de especialidad invalida: {}", ex.getMessage());
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(new ErrorResponse(ex.getMessage()));
     }
 

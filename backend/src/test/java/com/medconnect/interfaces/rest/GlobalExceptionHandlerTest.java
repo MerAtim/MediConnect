@@ -2,6 +2,7 @@ package com.medconnect.interfaces.rest;
 
 import com.medconnect.domain.exception.CredencialesInvalidasException;
 import com.medconnect.domain.exception.DemasiadosIntentosException;
+import com.medconnect.domain.exception.EspecialidadDuracionInvalidaException;
 import com.medconnect.domain.exception.MedicoInvalidoException;
 import com.medconnect.domain.exception.PacienteInvalidoException;
 import com.medconnect.domain.exception.RegistroClinicoInvalidoException;
@@ -31,6 +32,15 @@ public class GlobalExceptionHandlerTest {
 
         assertEquals(HttpStatus.BAD_REQUEST, resp.getStatusCode());
         assertEquals("fechaHora debe ser una fecha futura", resp.getBody().getMessage());
+    }
+
+    @Test
+    public void handleEspecialidadDuracionInvalida_devuelve400ConElMensajeOriginal() {
+        ResponseEntity<ErrorResponse> resp = handler.handleEspecialidadDuracionInvalida(
+                new EspecialidadDuracionInvalidaException("duracionMinutos debe ser mayor a cero"));
+
+        assertEquals(HttpStatus.BAD_REQUEST, resp.getStatusCode());
+        assertEquals("duracionMinutos debe ser mayor a cero", resp.getBody().getMessage());
     }
 
     @Test
