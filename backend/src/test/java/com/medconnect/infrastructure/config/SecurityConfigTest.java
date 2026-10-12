@@ -8,6 +8,7 @@ import com.medconnect.domain.model.Turno;
 import com.medconnect.domain.model.TurnoEstado;
 import com.medconnect.domain.model.Usuario;
 import com.medconnect.domain.model.UsuarioRole;
+import com.medconnect.domain.port.EspecialidadDuracionRepository;
 import com.medconnect.domain.port.MedicoRepository;
 import com.medconnect.domain.port.PacienteRepository;
 import com.medconnect.domain.port.RegistroClinicoRepository;
@@ -27,7 +28,9 @@ import org.springframework.test.web.servlet.ResultMatcher;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
@@ -92,6 +95,11 @@ public class SecurityConfigTest {
         @Bean
         RegistroClinicoRepository registroClinicoRepository() {
             return new InMemoryRegistroClinicoRepository();
+        }
+
+        @Bean
+        EspecialidadDuracionRepository especialidadDuracionRepository() {
+            return new InMemoryEspecialidadDuracionRepository();
         }
     }
 
@@ -689,6 +697,25 @@ public class SecurityConfigTest {
         @Override
         public List<RegistroClinico> buscarPorPaciente(Long pacienteId) {
             return store.stream().filter(r -> r.getPaciente() != null && r.getPaciente().getId().equals(pacienteId)).toList();
+        }
+    }
+
+    static class InMemoryEspecialidadDuracionRepository implements EspecialidadDuracionRepository {
+        private final Map<String, Integer> store = new HashMap<>();
+
+        @Override
+        public Map<String, Integer> buscarTodas() {
+            return new HashMap<>(store);
+        }
+
+        @Override
+        public int buscarDuracion(String especialidad) {
+            return store.getOrDefault(especialidad, DURACION_DEFAULT_MINUTOS);
+        }
+
+        @Override
+        public void establecer(String especialidad, int minutos) {
+            store.put(especialidad, minutos);
         }
     }
 }
