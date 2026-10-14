@@ -9,6 +9,7 @@ import {useUsuarios} from './useUsuarios.js'
 import {useEspecialidadDuraciones} from './useEspecialidadDuraciones.js'
 import {useTurnos} from './useTurnos.js'
 import {useOtorgarTurno} from './useOtorgarTurno.js'
+import {useReservarTurno} from './useReservarTurno.js'
 import {useHistoriaClinica} from './useHistoriaClinica.js'
 import CambiarContrasenaModal from './components/CambiarContrasenaModal.jsx'
 import ConfirmModal from './components/ConfirmModal.jsx'
@@ -19,6 +20,7 @@ import MedicosSection from './components/MedicosSection.jsx'
 import EspecialidadDuracionesSection from './components/EspecialidadDuracionesSection.jsx'
 import PacientesSection from './components/PacientesSection.jsx'
 import OtorgarTurnoSection from './components/OtorgarTurnoSection.jsx'
+import ReservarTurnoSection from './components/ReservarTurnoSection.jsx'
 import TurnosSection from './components/TurnosSection.jsx'
 
 export default function App(){
@@ -50,6 +52,7 @@ export default function App(){
   const especialidadDuracionesHook = useEspecialidadDuraciones(notify)
   const turnosHook = useTurnos(notify)
   const otorgarTurnoHook = useOtorgarTurno(notify, turnosHook.cargarTurnos)
+  const reservarTurnoHook = useReservarTurno(notify, turnosHook.cargarTurnos)
   const historiaHook = useHistoriaClinica(notify)
 
   // apiFetch vive en apiClient.js para que los forms/modals también lo usen
@@ -91,6 +94,7 @@ export default function App(){
     }
     if(auth.role === 'ADMINISTRADOR' || auth.role === 'MEDICO') pacientesHook.cargarPacientes()
     if(auth.role === 'ADMINISTRADOR') pacientesHook.cargarPacientesVinculados()
+    if(auth.role === 'PACIENTE') reservarTurnoHook.cargarEspecialidades()
     if(auth.role === 'MEDICO' || auth.role === 'PACIENTE') chequearVinculacion()
     turnosHook.cargarTurnos()
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -262,6 +266,23 @@ export default function App(){
             onPreparacionChange={otorgarTurnoHook.setPreparacion}
             loading={otorgarTurnoHook.loading}
             onSubmit={otorgarTurnoHook.handleSubmit}
+          />
+        )}
+
+        {esPaciente && vinculado && (
+          <ReservarTurnoSection
+            fechaHora={reservarTurnoHook.fechaHora}
+            onFechaHoraChange={reservarTurnoHook.setFechaHora}
+            especialidad={reservarTurnoHook.especialidad}
+            onEspecialidadChange={reservarTurnoHook.handleEspecialidadChange}
+            especialidades={reservarTurnoHook.especialidades}
+            medicoId={reservarTurnoHook.medicoId}
+            onMedicoIdChange={reservarTurnoHook.setMedicoId}
+            medicosPorEspecialidad={reservarTurnoHook.medicosPorEspecialidad}
+            preparacion={reservarTurnoHook.preparacion}
+            onPreparacionChange={reservarTurnoHook.setPreparacion}
+            loading={reservarTurnoHook.loading}
+            onSubmit={reservarTurnoHook.handleSubmit}
           />
         )}
 
