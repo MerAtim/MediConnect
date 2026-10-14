@@ -8,6 +8,7 @@ export const PACIENTES_API = `${API_BASE}/api/v1/pacientes`
 export const HISTORIAS_API = `${API_BASE}/api/v1/historias-clinicas`
 export const AUTH_API = `${API_BASE}/api/v1/auth`
 export const USUARIOS_API = `${API_BASE}/api/v1/usuarios`
+export const ESPECIALIDADES_API = `${API_BASE}/api/v1/especialidades`
 export const AUTH_STORAGE_KEY = 'medconnect_auth'
 
 export const ESTADO_BADGE = {

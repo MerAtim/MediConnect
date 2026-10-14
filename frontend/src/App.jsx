@@ -6,6 +6,7 @@ import {useAuth} from './useAuth.js'
 import {useMedicos} from './useMedicos.js'
 import {usePacientes} from './usePacientes.js'
 import {useUsuarios} from './useUsuarios.js'
+import {useEspecialidadDuraciones} from './useEspecialidadDuraciones.js'
 import {useTurnos} from './useTurnos.js'
 import {useOtorgarTurno} from './useOtorgarTurno.js'
 import {useHistoriaClinica} from './useHistoriaClinica.js'
@@ -15,6 +16,7 @@ import LoginScreen from './components/LoginScreen.jsx'
 import ToastContainer from './components/ToastContainer.jsx'
 import UsuariosSection from './components/UsuariosSection.jsx'
 import MedicosSection from './components/MedicosSection.jsx'
+import EspecialidadDuracionesSection from './components/EspecialidadDuracionesSection.jsx'
 import PacientesSection from './components/PacientesSection.jsx'
 import OtorgarTurnoSection from './components/OtorgarTurnoSection.jsx'
 import TurnosSection from './components/TurnosSection.jsx'
@@ -45,6 +47,7 @@ export default function App(){
   const medicosHook = useMedicos(notify)
   const pacientesHook = usePacientes(notify)
   const usuariosHook = useUsuarios(notify)
+  const especialidadDuracionesHook = useEspecialidadDuraciones(notify)
   const turnosHook = useTurnos(notify)
   const otorgarTurnoHook = useOtorgarTurno(notify, turnosHook.cargarTurnos)
   const historiaHook = useHistoriaClinica(notify)
@@ -84,6 +87,7 @@ export default function App(){
       usuariosHook.cargarTodosLosUsuarios()
       medicosHook.cargarMedicosVinculados()
       otorgarTurnoHook.cargarEspecialidades()
+      especialidadDuracionesHook.cargarDuraciones()
     }
     if(auth.role === 'ADMINISTRADOR' || auth.role === 'MEDICO') pacientesHook.cargarPacientes()
     if(auth.role === 'ADMINISTRADOR') pacientesHook.cargarPacientesVinculados()
@@ -209,6 +213,15 @@ export default function App(){
             paginaMedicos={medicosHook.paginaMedicos}
             totalPaginasMedicos={medicosHook.totalPaginasMedicos}
             onIrAPagina={medicosHook.irAPaginaMedicos}
+          />
+        )}
+
+        {esAdmin && (
+          <EspecialidadDuracionesSection
+            duraciones={especialidadDuracionesHook.duraciones}
+            duracionesLoading={especialidadDuracionesHook.duracionesLoading}
+            guardandoEspecialidad={especialidadDuracionesHook.guardandoEspecialidad}
+            onGuardar={especialidadDuracionesHook.establecerDuracion}
           />
         )}
 
