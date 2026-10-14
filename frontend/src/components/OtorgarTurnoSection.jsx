@@ -1,5 +1,5 @@
 import React from 'react'
-import {clearValidity, handleInvalid} from '../utils.js'
+import TurnoCamposFormulario from './TurnoCamposFormulario.jsx'
 
 export default function OtorgarTurnoSection({
   dniBusqueda, onDniBusquedaChange, onBuscarPorDni, pacienteEncontrado,
@@ -28,45 +28,15 @@ export default function OtorgarTurnoSection({
       )}
 
       {pacienteEncontrado && (
-        <form onSubmit={onSubmit} className="space-y-4">
-          <div>
-            <label className="label" htmlFor="otorgar-turno-fecha-hora">Fecha y hora</label>
-            <input id="otorgar-turno-fecha-hora" type="datetime-local" className="input-field" value={fechaHora} onChange={e=>onFechaHoraChange(e.target.value)} />
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="label" htmlFor="otorgar-turno-especialidad">Especialidad</label>
-              <select id="otorgar-turno-especialidad" className="input-field" value={especialidad} onChange={e=>{clearValidity(e); onEspecialidadChange(e.target.value)}} onInvalid={handleInvalid} required>
-                <option value="" disabled>Seleccionar especialidad</option>
-                {especialidades.map(esp => (
-                  <option key={esp} value={esp}>{esp}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="label" htmlFor="otorgar-turno-medico">Médico</label>
-              <select id="otorgar-turno-medico" className="input-field" value={medicoId} onChange={e=>{clearValidity(e); onMedicoIdChange(e.target.value)}} onInvalid={handleInvalid} required disabled={!especialidad}>
-                <option value="" disabled>Seleccionar médico</option>
-                {medicosPorEspecialidad.map(m => (
-                  <option key={m.id} value={m.id}>{m.nombre}</option>
-                ))}
-              </select>
-            </div>
-          </div>
-          <div>
-            <label className="label" htmlFor="otorgar-turno-preparacion">Preparación (opcional)</label>
-            <input
-              id="otorgar-turno-preparacion"
-              className="input-field"
-              placeholder="Ej: asistir 15 minutos antes y pasar por recepción para dar presente"
-              value={preparacion}
-              onChange={e=>onPreparacionChange(e.target.value)}
-            />
-          </div>
-          <button type="submit" disabled={loading} className="btn-primary">
-            {loading ? 'Enviando…' : 'Otorgar turno'}
-          </button>
-        </form>
+        <TurnoCamposFormulario
+          idPrefix="otorgar-turno"
+          fechaHora={fechaHora} onFechaHoraChange={onFechaHoraChange}
+          especialidad={especialidad} onEspecialidadChange={onEspecialidadChange} especialidades={especialidades}
+          medicoId={medicoId} onMedicoIdChange={onMedicoIdChange} medicosPorEspecialidad={medicosPorEspecialidad}
+          preparacion={preparacion} onPreparacionChange={onPreparacionChange}
+          loading={loading} onSubmit={onSubmit}
+          submitLabel="Otorgar turno" submitLabelEnviando="Enviando"
+        />
       )}
     </section>
   )
