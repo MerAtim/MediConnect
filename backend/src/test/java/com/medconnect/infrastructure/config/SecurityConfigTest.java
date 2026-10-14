@@ -383,8 +383,17 @@ public class SecurityConfigTest {
     }
 
     @Test
-    public void postTurnos_requiereRolAdministrador() throws Exception {
+    public void postTurnos_permiteAdministradorYPaciente_noMedico() throws Exception {
+        // Autogestion del paciente (PR de "duracion por especialidad +
+        // autogestion de turnos"): POST /turnos pasa de ser solo-admin a
+        // admin+paciente. Se siembra un paciente real vinculado por email
+        // para que el "no rechazado por autorizacion" del lado PACIENTE
+        // pruebe el camino completo (rol + el propio pertenencia-check del
+        // controller), no solo que SecurityConfig no lo bloquee.
+        Paciente paciente = pacienteRepository.guardar(
+                new Paciente(null, "Pac Turno Post", "40111006", null, null, null, null, null, "paciente.turnopost.sec@medconnect.com"));
         String body = "{\"fechaHora\":\"2026-09-01T10:00:00\",\"especialidad\":\"Clinica\",\"medicoId\":1,\"pacienteId\":1}";
+
         mockMvc.perform(post("/api/v1/turnos").contentType(MediaType.APPLICATION_JSON).content(body))
                 .andExpect(status().isForbidden());
         mockMvc.perform(post("/api/v1/turnos").contentType(MediaType.APPLICATION_JSON).content(body)
@@ -393,6 +402,34 @@ public class SecurityConfigTest {
         mockMvc.perform(post("/api/v1/turnos").contentType(MediaType.APPLICATION_JSON).content(body)
                         .cookie(jwtCookie(UsuarioRole.ADMINISTRADOR)))
                 .andExpect(noRechazadoPorAutorizacion());
+        mockMvc.perform(post("/api/v1/turnos").contentType(MediaType.APPLICATION_JSON).content(body)
+                        .cookie(jwtCookie(UsuarioRole.PACIENTE, paciente.getEmail().getValor())))
+                .andExpect(noRechazadoPorAutorizacion());
+    }
+
+    @Test
+    public void getMedicosEspecialidades_permiteAdministradorYPaciente_noMedico() throws Exception {
+        mockMvc.perform(get("/api/v1/medicos/especialidades"))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(get("/api/v1/medicos/especialidades").cookie(jwtCookie(UsuarioRole.MEDICO)))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(get("/api/v1/medicos/especialidades").cookie(jwtCookie(UsuarioRole.ADMINISTRADOR)))
+                .andExpect(status().isOk());
+        mockMvc.perform(get("/api/v1/medicos/especialidades").cookie(jwtCookie(UsuarioRole.PACIENTE)))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    public void getMedicosPorEspecialidad_permiteAdministradorYPaciente_noMedico() throws Exception {
+        String url = "/api/v1/medicos/por-especialidad?especialidad=Clinica";
+        mockMvc.perform(get(url))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(get(url).cookie(jwtCookie(UsuarioRole.MEDICO)))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(get(url).cookie(jwtCookie(UsuarioRole.ADMINISTRADOR)))
+                .andExpect(status().isOk());
+        mockMvc.perform(get(url).cookie(jwtCookie(UsuarioRole.PACIENTE)))
+                .andExpect(status().isOk());
     }
 
     @Test

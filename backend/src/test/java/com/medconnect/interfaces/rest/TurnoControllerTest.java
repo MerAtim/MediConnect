@@ -23,6 +23,7 @@ import java.util.Optional;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
@@ -76,6 +77,39 @@ public class TurnoControllerTest {
                         .content(body))
                 .andExpect(status().isBadRequest())
                 .andExpect(content().json("{\"message\":\"El médico no está disponible\"}"));
+    }
+
+    // PR de autogestion del paciente: el pacienteId del body nunca se confia
+    // para una cuenta PACIENTE -- se reemplaza por el id resuelto via el
+    // email del token (mismo patron de pertenencia que actualizarEstado/buscar).
+    @Test
+    public void crearTurno_comoPaciente_usaElPacienteIdResueltoPorEmail_ignorandoElDelBody() throws Exception {
+        Paciente paciente = TestFixtures.pacienteConId(99L);
+        when(buscarPacienteUseCase.buscarPorEmail("paciente@medconnect.com")).thenReturn(Optional.of(paciente));
+        when(crearTurnoUseCase.crear(any())).thenReturn(new CreateTurnoResponse(1L));
+        loguearComo("PACIENTE", "paciente@medconnect.com");
+
+        // El body manda un pacienteId ajeno (7) a proposito.
+        String body = "{\"fechaHora\":\"2026-08-12T11:00:00\",\"especialidad\":\"Dermatología\",\"medicoId\":5,\"pacienteId\":7}";
+
+        mockMvc.perform(post("/api/v1/turnos").contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isCreated());
+
+        org.mockito.ArgumentCaptor<com.medconnect.application.usecase.CreateTurnoRequest> captor =
+                org.mockito.ArgumentCaptor.forClass(com.medconnect.application.usecase.CreateTurnoRequest.class);
+        verify(crearTurnoUseCase).crear(captor.capture());
+        org.junit.jupiter.api.Assertions.assertEquals(99L, captor.getValue().getPacienteId());
+    }
+
+    @Test
+    public void crearTurno_comoPaciente_devuelve403_siLaCuentaNoTienePacienteVinculado() throws Exception {
+        when(buscarPacienteUseCase.buscarPorEmail("sin-vincular@medconnect.com")).thenReturn(Optional.empty());
+        loguearComo("PACIENTE", "sin-vincular@medconnect.com");
+
+        String body = "{\"fechaHora\":\"2026-08-12T11:00:00\",\"especialidad\":\"Dermatología\",\"medicoId\":5,\"pacienteId\":7}";
+
+        mockMvc.perform(post("/api/v1/turnos").contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isForbidden());
     }
 
     @Test

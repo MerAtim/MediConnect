@@ -88,13 +88,19 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/v1/medicos/**").hasRole("ADMINISTRADOR")
                         .requestMatchers(HttpMethod.PUT, "/api/v1/medicos/**").hasRole("ADMINISTRADOR")
                         .requestMatchers(HttpMethod.DELETE, "/api/v1/medicos/**").hasRole("ADMINISTRADOR")
+                        // Rutas exactas (no /**) para que el PACIENTE pueda armar el picker
+                        // de medico de su propia reserva (especialidad -> medico) sin que
+                        // esto se filtre a /medicos/{id} ni al listado paginado de admin,
+                        // que siguen cubiertos por la regla GET /api/v1/medicos/** de abajo.
+                        .requestMatchers(HttpMethod.GET, "/api/v1/medicos/especialidades").hasAnyRole("ADMINISTRADOR", "PACIENTE")
+                        .requestMatchers(HttpMethod.GET, "/api/v1/medicos/por-especialidad").hasAnyRole("ADMINISTRADOR", "PACIENTE")
                         .requestMatchers(HttpMethod.GET, "/api/v1/medicos/**").hasRole("ADMINISTRADOR")
                         .requestMatchers(HttpMethod.POST, "/api/v1/pacientes/**").hasRole("ADMINISTRADOR")
                         .requestMatchers(HttpMethod.PUT, "/api/v1/pacientes/**").hasRole("ADMINISTRADOR")
                         .requestMatchers(HttpMethod.DELETE, "/api/v1/pacientes/**").hasRole("ADMINISTRADOR")
                         .requestMatchers(HttpMethod.GET, "/api/v1/pacientes/**").hasAnyRole("ADMINISTRADOR", "MEDICO")
                         .requestMatchers("/api/v1/especialidades/**").hasRole("ADMINISTRADOR")
-                        .requestMatchers(HttpMethod.POST, "/api/v1/turnos").hasRole("ADMINISTRADOR")
+                        .requestMatchers(HttpMethod.POST, "/api/v1/turnos").hasAnyRole("ADMINISTRADOR", "PACIENTE")
                         .requestMatchers(HttpMethod.PATCH, "/api/v1/turnos/**").hasAnyRole("ADMINISTRADOR", "MEDICO", "PACIENTE")
                         .requestMatchers(HttpMethod.GET, "/api/v1/historias-clinicas/exportar").hasRole("ADMINISTRADOR")
                         .requestMatchers(HttpMethod.POST, "/api/v1/historias-clinicas").hasRole("MEDICO")

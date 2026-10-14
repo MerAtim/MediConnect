@@ -56,11 +56,25 @@ public class TurnoController {
 
     @PostMapping
     public ResponseEntity<CreateTurnoResponse> crear(@RequestBody TurnoRequest request) {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        Long pacienteId = request.getPacienteId();
+        // Autogestion del PACIENTE: nunca confiar en el pacienteId del body
+        // (mismo patron de pertenencia ya usado en actualizarEstado/buscar)
+        // -- se reemplaza por el id resuelto via el email del token, sea lo
+        // que sea que haya mandado el cliente.
+        if (tieneRol(auth, "PACIENTE")) {
+            Optional<Paciente> paciente = buscarPacienteUseCase.buscarPorEmail(auth.getName());
+            if (paciente.isEmpty()) {
+                log.warn("Intento de crear turno denegado (cuenta sin paciente vinculado): email={}", auth.getName());
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+            }
+            pacienteId = paciente.get().getId();
+        }
         CreateTurnoRequest req = new CreateTurnoRequest(
                 request.getFechaHora(),
                 request.getEspecialidad(),
                 request.getMedicoId(),
-                request.getPacienteId(),
+                pacienteId,
                 request.getPreparacion()
         );
         CreateTurnoResponse resp = crearTurnoUseCase.crear(req);
