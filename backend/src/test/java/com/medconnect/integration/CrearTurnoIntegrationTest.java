@@ -74,7 +74,7 @@ public class CrearTurnoIntegrationTest {
         // CrearTurnoService rechaza fechas pasadas (LOW, segunda ronda de
         // re-auditoria).
         String fechaFutura = LocalDateTime.now().plusDays(30).withNano(0).format(DateTimeFormatter.ISO_LOCAL_DATE_TIME);
-        String body = "{\"fechaHora\":\"" + fechaFutura + "\",\"especialidad\":\"Traumatología\",\"medicoId\":"
+        String body = "{\"fechaHora\":\"" + fechaFutura + "\",\"especialidad\":\"Cardiología\",\"medicoId\":"
                 + medico.getId() + ",\"pacienteId\":" + paciente.getId() + "}";
 
         // Sin cookie -> la cadena de seguridad real lo bloquea antes de llegar
@@ -94,7 +94,7 @@ public class CrearTurnoIntegrationTest {
                 .andExpect(jsonPath("$.content.length()").value(1))
                 .andExpect(jsonPath("$.content[0].medicoId").value(medico.getId()))
                 .andExpect(jsonPath("$.content[0].pacienteId").value(paciente.getId()))
-                .andExpect(jsonPath("$.content[0].especialidad").value("Traumatología"))
+                .andExpect(jsonPath("$.content[0].especialidad").value("Cardiología"))
                 .andExpect(jsonPath("$.content[0].estado").value("PENDIENTE"));
 
         // Mismo medico + misma fecha/hora otra vez -> la unique constraint
