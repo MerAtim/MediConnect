@@ -80,6 +80,18 @@ public class MedicoController {
         return ResponseEntity.ok(especialidades);
     }
 
+    // Picker liviano para la autogestion del PACIENTE: a diferencia de
+    // buscarTodos() (admin, paginado, MedicoResponse completo), este
+    // endpoint es de solo nombre + especialidad y usa un tamanio de pagina
+    // grande fijo -- mismo truco que ya usa el admin para listar "todos".
+    @GetMapping("/por-especialidad")
+    public ResponseEntity<List<MedicoLigeroResponse>> buscarPorEspecialidad(@RequestParam String especialidad) {
+        List<MedicoLigeroResponse> medicos = buscarMedicoUseCase.buscarPagina(especialidad, 0, 500).stream()
+                .map(m -> new MedicoLigeroResponse(m.getId(), m.getNombre()))
+                .toList();
+        return ResponseEntity.ok(medicos);
+    }
+
     @GetMapping("/emails-vinculados")
     public ResponseEntity<List<EmailVinculadoResponse>> emailsVinculados() {
         List<EmailVinculadoResponse> emails = buscarMedicoUseCase.buscarTodos().stream()

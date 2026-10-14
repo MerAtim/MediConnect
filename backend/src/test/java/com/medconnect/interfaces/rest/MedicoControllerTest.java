@@ -111,6 +111,16 @@ public class MedicoControllerTest {
     }
 
     @Test
+    public void buscarPorEspecialidad_devuelveSoloIdYNombre() throws Exception {
+        Medico medico = new Medico(1L, "Ana Pérez", "Cardiología", "MP1234", "Av. Siempreviva 742", "1122334455", "ana@medconnect.com");
+        when(buscarMedicoUseCase.buscarPagina("Cardiología", 0, 500)).thenReturn(List.of(medico));
+
+        mockMvc.perform(get("/api/v1/medicos/por-especialidad").param("especialidad", "Cardiología"))
+                .andExpect(status().isOk())
+                .andExpect(content().json("[{\"id\":1,\"nombre\":\"Ana Pérez\"}]"));
+    }
+
+    @Test
     public void buscarPorId_devuelve200_siExiste() throws Exception {
         Medico medico = new Medico(1L, "Ana Pérez", "Cardiología", "MP1234", null, null, null);
         when(buscarMedicoUseCase.buscarPorId(1L)).thenReturn(Optional.of(medico));
