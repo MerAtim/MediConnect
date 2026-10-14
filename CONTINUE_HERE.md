@@ -2,7 +2,18 @@
 
 Este archivo se mantiene actualizado al final de cada sesión de trabajo para que,
 aunque pasen días sin conectarte, se pueda seguir sin releer el proyecto entero.
-Última actualización: **2026-10-11**, tras mergear PR #95
+Última actualización: **2026-10-14**, tras mergear PR #101
+(`feature/reserva-turno-paciente`, ver "Undécima ronda" más abajo):
+cierra la secuencia de 6 PRs de "duración por especialidad +
+autogestión de turnos para PACIENTE" (PR #96-#101). El paciente ya
+puede reservar su propio turno, y el chequeo de solapamiento pasó de
+"igualdad exacta de `fechaHora`" a un rango real `[inicio, fin)` según
+la duración configurada por especialidad — **resuelve el MEDIUM #12
+de la re-auditoría e2e** ("solapamiento de turnos solo detecta
+timestamp idéntico, no rango"), que había quedado documentado y
+deliberadamente sin arreglar hasta que el propio usuario detectó que
+la autogestión del paciente lo volvía un bloqueante real, no una
+limitación aceptable. Antes, PR #95
 (`fix/httpmessagenotreadable-400-en-vez-de-403`, ver "Pase de
 verificación" más abajo): un body JSON malformado daba un 403 vacío en
 vez de un 400 claro, hallado al verificar los dos cambios más
@@ -12,9 +23,7 @@ errores). Antes, PR #94
 cierra el último de los 12 LOW de la re-auditoría e2e. **Con esto se
 cierra por completo el ciclo de la re-auditoría e2e del 2026-09-08**
 (4 CRITICAL + 8 HIGH + 16 MEDIUM + 12 LOW, 32 hallazgos en total,
-resueltos con 19 PRs entre el 2026-09-08 y el 2026-09-15). No queda
-ningún pedido puntual pendiente del usuario — ver "Plan sugerido para
-la próxima sesión" al final de este archivo.
+resueltos con 19 PRs entre el 2026-09-08 y el 2026-09-15).
 
 Antes, PR #59 (`test/cifrado-historia-clinica-integration`, ver
 "Séptima ronda" más abajo): cierra el último de los 4 CRITICAL de la
@@ -435,11 +444,11 @@ propios que había quedado a medias en la PR #34.
   mismo 400 de "el médico no está disponible", nunca un 500 crudo. Mismo
   gotcha que con `email` de Médico/Paciente: `ddl-auto=update` no agrega
   constraints a una tabla que ya existía, hubo que aplicar el `ALTER TABLE`
-  a mano en la base local. La constraint no distingue turnos `CANCELADO` —
-  mismo comportamiento que ya tenía el chequeo en memoria (un turno
-  cancelado sigue "ocupando" el horario); si en algún momento se quiere
-  liberar el horario al cancelar, es un cambio de regla de negocio aparte,
-  no algo que haya cambiado acá.
+  a mano en la base local. ~~La constraint no distingue turnos
+  `CANCELADO`~~ — resuelto en la undécima ronda (migración `V6`,
+  `feature/solapamiento-turnos-por-rango`, PR #98): ahora es un índice
+  único parcial (`WHERE estado <> 'CANCELADO'`), así que cancelar un
+  turno libera el horario tanto a nivel aplicación como a nivel base.
 - ~~No hay ninguna forma legítima de crear un `ADMINISTRADOR`~~ — resuelto:
   `POST /api/usuarios` (solo `ADMINISTRADOR`, ver más abajo) permite dar de
   alta cualquier rol, incluido `ADMINISTRADOR`.
@@ -1807,23 +1816,111 @@ contrato JSON de errores, PR #93) antes de sumar trabajo nuevo encima.
   mismo patrón que los otros 10 handlers — evita el camino de
   `sendError()`/forward por completo.
 
+## Undécima ronda (2026-10-11/14): duración por especialidad + autogestión de turnos para PACIENTE
+
+Surgió de una pregunta del propio usuario tras el pase de
+verificación anterior, durante una conversación sobre el roadmap de
+producto: "si el paciente puede gestionar sus turnos, ¿quién pone un
+límite de atenciones? ¿el intervalo entre atención médica?". Eso
+reabrió el MEDIUM #12 de la re-auditoría e2e (documentado como
+limitación aceptada, no como bug) — aceptable mientras solo
+`ADMINISTRADOR` podía crear turnos (un humano agendando con sentido
+común), pero inseguro en cuanto el paciente reserva sin supervisión:
+sin un rango real, un paciente podía reservar a las 10:00 y a las
+10:05 con el mismo médico sin que el sistema lo note.
+
+Decisiones de producto confirmadas con el usuario (vía
+`AskUserQuestion`): duración **configurable por especialidad** (no
+global ni por médico individual); UI de admin para gestionarla desde
+el día 1 (no solo migración/seed); especialidad sin duración
+configurada usa un **default de 30 minutos** (no bloquea); el picker
+de médico del paciente muestra **solo nombre + especialidad** (no
+matrícula/dirección/teléfono/email, eso sigue siendo solo-admin).
+
+Secuencia de 6 PRs, cada uno con su propia verificación en vivo
+(Postgres real y/o Playwright real):
+
+- **PR #96** (`feature/duracion-por-especialidad-dominio`): dominio
+  nuevo y aislado — migración `V5` (tabla `especialidad_duraciones`),
+  puerto/adapter/use case, sin tocar `Turno` todavía.
+- **PR #97** (`feature/especialidades-endpoint-admin`):
+  `GET/PUT /api/v1/especialidades/.../duracion`, solo-admin.
+- **PR #98** (`feature/solapamiento-turnos-por-rango`): el PR central
+  de la ronda. `CrearTurnoService` compara intervalos semiabiertos
+  `[inicio, fin)` en vez de igualdad exacta de `fechaHora`. De paso,
+  dos hallazgos reales:
+  - **Bug**: `buscarPorMedico`/`buscarPorPaciente` no filtran por
+    estado, así que un turno `CANCELADO` contaba igual para el
+    solapamiento — ahora se excluye explícitamente.
+  - **Ajuste de infraestructura no previsto en el plan original**: la
+    unique constraint `uk_turnos_medico_fecha (medico_id, fecha_hora)`
+    sobrevive al estado del turno a nivel Postgres, así que cancelar
+    un turno y reintentar en el mismo horario exacto seguía
+    fallando aunque el chequeo de aplicación ya lo permitiera.
+    Migración `V6` la reemplaza por un índice único parcial
+    (`WHERE estado <> 'CANCELADO'`) — **esto también resuelve, de
+    paso, la nota de la sección "Qué NO está implementado" sobre que
+    "la constraint no distingue turnos CANCELADO"**.
+  - También se agregó validación cruzada médico↔especialidad
+    (antes no existía: se podía crear un turno de una especialidad
+    que el médico elegido no ejerce).
+- **PR #99** (`feature/autogestion-turnos-paciente`): backend de
+  autorización — `TurnoController.crear()` nunca confía en el
+  `pacienteId` del body para un caller `PACIENTE` (lo reemplaza por
+  el id resuelto vía el email del token, mismo patrón de pertenencia
+  ya usado en `actualizarEstado`); 403 si la cuenta no tiene
+  `Paciente` vinculado. Nuevo endpoint liviano
+  `GET /medicos/por-especialidad` (`MedicoLigeroResponse`, solo
+  id+nombre) para el picker del paciente.
+- **PR #100** (`feature/admin-ui-duraciones-especialidad`): UI de
+  admin (`useEspecialidadDuraciones.js` + `EspecialidadDuracionesSection.jsx`).
+- **PR #101** (`feature/reserva-turno-paciente`): UI del paciente
+  (`useReservarTurno.js` + `ReservarTurnoSection.jsx`), con el bloque
+  compartido especialidad→médico→fecha→preparación extraído a
+  `TurnoCamposFormulario.jsx` (reusado por `OtorgarTurnoSection` del
+  admin).
+
+**Limitaciones conocidas de v1** (decisiones explícitas, no deuda
+técnica oculta):
+
+1. La duración no se persiste por turno — se resuelve en el momento
+   de la consulta vía la duración *vigente* de cada especialidad. Si
+   un admin cambia la duración de una especialidad después de que ya
+   existen turnos futuros de esa especialidad, el solapamiento de
+   esos turnos viejos se reevalúa con la duración nueva, no la que
+   tenían al crearse (efecto retroactivo silencioso, simétrico para
+   subir o bajar la duración).
+2. Sin garantía de solapamiento a nivel de base de datos para
+   *rangos* (solo para el caso de timestamp exacto, vía el índice
+   único parcial de la V6) — el chequeo de rango es a nivel
+   aplicación, read-then-write, sin lock ni constraint `EXCLUDE`.
+   Una garantía real requeriría la extensión `btree_gist` de
+   Postgres; no se implementó en esta ronda.
+3. Sin límite de cantidad de turnos pendientes simultáneos por
+   paciente ni ninguna otra regla anti-abuso — cualquier paciente
+   autenticado puede crear tantos turnos como quiera mientras no se
+   solapen entre sí.
+4. El paciente elige fecha/hora libremente; no se le muestran los
+   huecos libres del médico (eso quedaría para una futura fase de
+   "disponibilidad del médico").
+
 ## Plan sugerido para la próxima sesión
 
-Sin pedido puntual del usuario: no queda ningún punto abierto de la
-re-auditoría e2e del 2026-09-08 ni del pase de verificación posterior.
-Buenas opciones de continuación natural:
+Sin pedido puntual del usuario. Buenas opciones de continuación
+natural:
 - Repetir el ciclo de re-auditoría e2e con los 4 subagentes en
   paralelo una vez más, para ver qué quedó desactualizado con todo lo
-  hecho en esta ronda (mismo patrón que ya se uso dos veces antes,
-  2026-08-30 y 2026-09-08).
-- Alguno de los dos excepciones documentadas-sin-cambio que siguen
-  abiertas por decisión explícita del usuario: solapamiento de turnos
-  que solo detecta timestamp idéntico (no rango, MEDIUM #12), y la
-  vista de "mis pacientes" del médico en `GET /pacientes` que quedó
-  deliberadamente en memoria (LOW #17/PR #92) — ninguna es un bug,
-  ambas son candidatas a feature futura si el usuario las quiere
-  revisitar.
-- Empezar a definir qué funcionalidad de producto le falta a la app
-  más allá de CRUD + turnos (notificaciones, búsqueda, dashboard para
-  médico/paciente) — hoy no hay ningún roadmap de producto, solo esta
-  bitácora reactiva sesión a sesión.
+  hecho desde la última (2026-08-30 y 2026-09-08 ya se hicieron;
+  ahora hay una superficie nueva — autogestión del paciente — que
+  nunca pasó por ese ciclo).
+- Alguna de las 4 limitaciones conocidas de v1 de la undécima ronda
+  (ver arriba), si el usuario las quiere revisitar como feature
+  futura — ninguna es un bug, todas son candidatas.
+- La vista de "mis pacientes" del médico en `GET /pacientes` que
+  quedó deliberadamente en memoria (LOW #17/PR #92) — sigue abierta,
+  no se tocó en esta ronda.
+- Seguir construyendo sobre el roadmap de producto que se empezó a
+  esbozar en la conversación previa a esta ronda (notificaciones,
+  búsqueda, dashboard para médico/paciente, disponibilidad del
+  médico) — sigue sin existir un documento de roadmap formal, solo
+  esta bitácora reactiva sesión a sesión.
