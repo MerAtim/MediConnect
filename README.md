@@ -48,7 +48,6 @@ Ejemplos en español:
 - `fix: corregir validación de fecha de turno`
 - `docs: actualizar README con estrategia de ramas`
 - `chore: agregar gitignore y README inicial`
-- `refactor: separar casos de uso de dominio`
 
 ## Instalación y ejecución
 ### Con Docker Compose (recomendado: levanta todo con un comando)
